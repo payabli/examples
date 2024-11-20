@@ -2,6 +2,7 @@ import { openDB } from 'idb'
 import { z } from 'zod'
 import { toast } from '@/hooks/use-toast'
 import FingerprintJS from '@fingerprintjs/fingerprintjs'
+import React, { useCallback } from 'react'
 
 import { formSchema, useFormWithSchema } from './Schema'
 
@@ -114,24 +115,67 @@ export const clearIndexedDB = async () => {
 export const useIndexedDB = () => {
   const form = useFormWithSchema()
 
-  const saveForLater = async () => {
-    const formData = form.getValues()
-    await saveToIndexedDB(formData)
-    toast({
-      variant: 'default',
-      title: 'Saved!',
-      description: 'Your form data has been saved for later.',
-    })
-  }
+  const saveForLater = useCallback(async (formData: any) => {
+    try {
+      const db = await openDB(DB_NAME, 1, {
+        upgrade(db) {
+          db.createObjectStore(STORE_NAME)
+        },
+      })
+      const encryptedData = await encryptData(formData)
+      await db.put(STORE_NAME, encryptedData, 'userForm')
+      toast({
+        variant: 'default',
+        title: 'Saved!',
+        description: 'Your form data has been saved for later.',
+      })
+    } catch (error) {
+      console.error('Error saving form data:', error)
+      toast({
+        variant: 'destructive',
+        title: 'Error!',
+        description: 'Failed to save form data.',
+      })
+    }
+  }, [])
 
-  const clearFormData = async () => {
-    form.reset()
-    clearIndexedDB()
-    toast({
-      variant: 'default',
-      title: 'Cleared!',
-      description: 'Your form data has been cleared.',
-    })
-  }
-  return { saveForLater, clearFormData }
+  const clearFormData = useCallback(async () => {
+    try {
+      form.reset()
+      const db = await openDB(DB_NAME, 1)
+      await db.clear(STORE_NAME)
+      toast({
+        variant: 'default',
+        title: 'Cleared!',
+        description: 'Your form data has been cleared.',
+      })
+    } catch (error) {
+      console.error('Error clearing form data:', error)
+      toast({
+        variant: 'destructive',
+        title: 'Error!',
+        description: 'Failed to clear form data.',
+      })
+    }
+  }, [form])
+
+  const loadSavedData = useCallback(async () => {
+    try {
+      const db = await openDB(DB_NAME, 1)
+      const encryptedData = await db.get(STORE_NAME, 'userForm')
+      if (encryptedData) {
+        return await decryptData(encryptedData)
+      }
+    } catch (error) {
+      console.error('Error loading saved data:', error)
+      toast({
+        variant: 'destructive',
+        title: 'Error!',
+        description: 'Failed to load saved form data.',
+      })
+    }
+    return null
+  }, [])
+
+  return { saveForLater, clearFormData, loadSavedData }
 }

@@ -15,17 +15,6 @@ export function useFormLogic(
 ) {
   const form = useFormWithSchema()
 
-  // Load saved data from IndexedDB
-  React.useEffect(() => {
-    const loadSavedData = async () => {
-      const savedData = await loadFromIndexedDB()
-      if (savedData) {
-        form.reset(savedData)
-      }
-    }
-    loadSavedData()
-  }, [form])
-
   // 2. Create a success handler
   function onSuccess(values: FormSchemaType) {
     console.log(values)
@@ -104,28 +93,7 @@ export function useFormLogic(
     return -1
   }
 
-  const saveForLater = async () => {
-    const formData = form.getValues()
-    await saveToIndexedDB(formData)
-    toast({
-      variant: 'default',
-      title: 'Saved!',
-      description: 'Your form data has been saved for later.',
-    })
-  }
-
-  const clearFormData = async () => {
-    form.reset()
-    clearIndexedDB()
-    toast({
-      variant: 'default',
-      title: 'Cleared!',
-      description: 'Your form data has been cleared.',
-    })
-  }
-
   return {
-    form,
     onSuccess,
     onError,
   }

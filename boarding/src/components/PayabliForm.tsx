@@ -1,4 +1,4 @@
-import React, { useState, useMemo } from 'react'
+import React, { useState, useMemo, useEffect } from 'react'
 import { Form } from '@/components/ui/form'
 import FormInput from './form/FormInput'
 import { Wizard, WizardStep } from './form/Wizard'
@@ -19,6 +19,7 @@ import { useFormLogic } from '@/onSubmit'
 import { DynamicFormSection } from './form/DynamicFormSection'
 import { Button } from './ui/button'
 import { useIndexedDB } from '@/dbUtils'
+import { useFormWithSchema } from '@/Schema'
 
 export function PayabliForm() {
   const [currentPage, setCurrentPage] = useState(0)
@@ -49,15 +50,49 @@ export function PayabliForm() {
     }
   }
 
-  const { saveForLater, clearFormData } = useIndexedDB()
+  const form = useFormWithSchema()
+  const { saveForLater, clearFormData, loadSavedData } = useIndexedDB()
+
+  // Load saved data when component mounts
+  useEffect(() => {
+    loadSavedData().then((savedData) => {
+      if (savedData) {
+        form.reset(savedData)
+      }
+    })
+  }, [])
+
+  const handleSaveForLater = () => {
+    const formData = form.getValues()
+    saveForLater(formData)
+  }
+
+  const controls = (
+    <div className="align-center mb-6 mt-3 flex w-full">
+      <Button
+        onClick={handleSaveForLater}
+        className="mx-auto w-44 scale-[90%]"
+        type="button"
+      >
+        <Save className="mr-3" /> Save For Later
+      </Button>
+
+      <Button
+        onClick={clearFormData}
+        className="mx-auto w-44 scale-[90%]"
+        type="button"
+      >
+        <X className="mr-3" /> Clear Form Data
+      </Button>
+    </div>
+  )
 
   const steps = useMemo(
     () => (
       <Wizard
         currentPage={currentPage}
         setCurrentPage={setCurrentPage}
-        saveForLater={saveForLater}
-        clearFormData={clearFormData}
+        preChildren={controls}
       >
         <WizardStep icon={<Building />} label="Business Information">
           <h2 className="mb-4 w-full text-center text-2xl font-bold">
@@ -690,7 +725,7 @@ export function PayabliForm() {
     ],
   )
 
-  const { form, onSuccess, onError } = useFormLogic(steps, setCurrentPage)
+  const { onSuccess, onError } = useFormLogic(steps, setCurrentPage)
 
   return (
     <Form {...form}>

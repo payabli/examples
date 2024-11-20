@@ -17,17 +17,17 @@ export function WizardStep({ icon, label, children }: WizardStepProps) {
 type WizardProps = {
   currentPage: number
   setCurrentPage: (page: number) => void
-  saveForLater: () => void
-  clearFormData: () => void
+  preChildren?: ReactNode
+  postChildren?: ReactNode
   children: ReactNode
 }
 
 export function Wizard({
   currentPage,
   setCurrentPage,
-  saveForLater,
-  clearFormData,
   children,
+  preChildren,
+  postChildren,
 }: WizardProps) {
   const steps = React.Children.toArray(children).filter(
     (child) =>
@@ -61,15 +61,7 @@ export function Wizard({
     <>
       <div ref={wizardHeaderRef} />
       <Card className="mx-auto mb-12 w-full max-w-4xl">
-        <div className="align-center mb-6 mt-3 flex w-full">
-          <Button onClick={saveForLater} className="mx-auto w-44 scale-[90%]">
-            <Save className="mr-3" /> Save For Later
-          </Button>
-
-          <Button onClick={clearFormData} className="mx-auto w-44 scale-[90%]">
-            <X className="mr-3" /> Clear Form Data
-          </Button>
-        </div>
+        {preChildren}
         <CardContent className="p-6">
           <WizardStepIndicator
             steps={steps}
@@ -93,6 +85,8 @@ export function Wizard({
               </motion.div>
             </AnimatePresence>
           </div>
+
+          {postChildren}
           <WizardNavigation
             currentPage={currentPage}
             setCurrentPage={setCurrentPage}
