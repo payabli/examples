@@ -123,9 +123,9 @@ Region Picker fields accept the following props:
 ### Dynamic Sections
 
 The DynamicFormSection component handles repeatable form sections, such as a list of contacts.
-This component naturally iterates over a list, so any child Form elements should use the `[]` \
+This component naturally iterates over a list, so any child Form elements should use the `[]`
 syntax to denote which part of the field is being iterated over with an index value.
-Ex: `name="contacts[].name"` will iterate over the `contacts` array and set the `name` field for each contact, \
+Ex: `name="contacts[].name"` will iterate over the `contacts` array and set the `name` field for each contact,
 while `name="contact.phone[]"` will iterate over the `phone` array within one contact.
 
 ```tsx
@@ -171,7 +171,7 @@ export function useFormWithSchema(defaultValues: Partial<FormSchemaType> = {}) {
 
 ### Form Submission
 
-Submission handling is done in `onSubmit.ts`. This file contains a hook that receives the state of the Form Wizard \
+Submission handling is done in `onSubmit.ts`. This file contains a hook that receives the state of the Form Wizard
 and returns two functions that handle the form submission in the event of success or failure.
 
 ```ts
