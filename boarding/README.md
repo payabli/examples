@@ -26,13 +26,15 @@ A comprehensive merchant onboarding system built with React, Astro.js, TypeScrip
   │   │   ├── FormDatePicker.tsx
   │   │   ├── FormCountryRegion.tsx
   │   │   ├── FormSwitch.tsx
-  │   │   └── DynamicFormSection.tsx
-  │   ├── Wizard.tsx        # Form wizard component
+  │   │   ├── DynamicFormSection.tsx
+  │   │   └── Wizard.tsx
   │   ├── PayabliForm.tsx   # Main form component
   │   ├── ThemeToggle.astro # Toggle dark mode
   │   ├── Header.astro      # Common nav/header
   │   ├── HeadSEO.astro     # Controls SEO meta tags
   │   └── Footer.astro      # Common footer
+  ├── layouts/
+  │   └── BaseLayout.astro  # Base layout
   ├── pages/
   │   ├── 404.astro         # 404 page
   │   └── index.astro       # Main page
@@ -45,19 +47,19 @@ A comprehensive merchant onboarding system built with React, Astro.js, TypeScrip
 1. Clone this repo.
 
 ```bash
-    git clone https://github.com/payabli/examples
+git clone https://github.com/payabli/examples
 ```
 
 2. Navigate to the project directory.
 
 ```bash
-    cd examples/boarding
+cd examples/boarding
 ```
 
 3. Install the dependencies.
 
 ```bash
-    npm install
+npm install
 ```
 
 ## Form Configuration API
@@ -152,13 +154,13 @@ Form validation is handled through Zod schemas. Define your schema in `Schema.ts
 import { z } from 'zod'
 
 export const formSchema = z.object({
-  // Your schema definition
+  // 1. Create your schema definition
 })
 
-// Create a type for the form data
+// 2. Create a type for the form data
 export type FormSchemaType = z.infer<typeof formSchema>
 
-// Create a custom hook to use the form with default values
+// 3. Create a custom hook to use the form with default values
 export function useFormWithSchema(defaultValues: Partial<FormSchemaType> = {}) {
   return useForm<FormSchemaType>({
     resolver: zodResolver(formSchema),
