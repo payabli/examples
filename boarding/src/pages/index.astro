@@ -1,0 +1,19 @@
+---
+import BaseLayout from '../layouts/BaseLayout.astro'
+import { PayabliForm } from '../components/PayabliForm'
+import { Toaster } from '../components/ui/toaster'
+---
+
+<BaseLayout
+  title="Astro Shadcn UI Template"
+  description="This template helps you build apps with Astro, Tailwind CSS, and Shadcn UI."
+>
+  <div class="mx-2 mt-12">
+    <PayabliForm client:load>
+      <div slot="fallback">
+        <h1 class="h-64 text-white">Loading...</h1>
+      </div>
+    </PayabliForm>
+  </div>
+  <Toaster client:load />
+</BaseLayout>
