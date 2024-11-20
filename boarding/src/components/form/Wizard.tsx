@@ -1,6 +1,6 @@
 import React, { useState, ReactNode, useRef } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
-import { ChevronLeft, ChevronRight, Check } from 'lucide-react'
+import { ChevronLeft, ChevronRight, Check, Save, X } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent } from '@/components/ui/card'
 
@@ -11,18 +11,27 @@ type WizardStepProps = {
 }
 
 export function WizardStep({ icon, label, children }: WizardStepProps) {
-  return <div>{children}</div>
+  return <div className="wizard-step">{children}</div>
 }
 
 type WizardProps = {
   currentPage: number
   setCurrentPage: (page: number) => void
+  saveForLater: () => void
+  clearFormData: () => void
   children: ReactNode
 }
 
-export function Wizard({ currentPage, setCurrentPage, children }: WizardProps) {
-  const steps = React.Children.toArray(
-    children,
+export function Wizard({
+  currentPage,
+  setCurrentPage,
+  saveForLater,
+  clearFormData,
+  children,
+}: WizardProps) {
+  const steps = React.Children.toArray(children).filter(
+    (child) =>
+      React.isValidElement(child) && child.props.className !== 'wizard-step',
   ) as React.ReactElement<WizardStepProps>[]
   const totalPages = steps.length
 
@@ -52,6 +61,15 @@ export function Wizard({ currentPage, setCurrentPage, children }: WizardProps) {
     <>
       <div ref={wizardHeaderRef} />
       <Card className="mx-auto mb-12 w-full max-w-4xl">
+        <div className="align-center mb-6 mt-3 flex w-full">
+          <Button onClick={saveForLater} className="mx-auto w-44 scale-[90%]">
+            <Save className="mr-3" /> Save For Later
+          </Button>
+
+          <Button onClick={clearFormData} className="mx-auto w-44 scale-[90%]">
+            <X className="mr-3" /> Clear Form Data
+          </Button>
+        </div>
         <CardContent className="p-6">
           <WizardStepIndicator
             steps={steps}

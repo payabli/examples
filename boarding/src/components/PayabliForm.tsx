@@ -2,13 +2,23 @@ import React, { useState, useMemo } from 'react'
 import { Form } from '@/components/ui/form'
 import FormInput from './form/FormInput'
 import { Wizard, WizardStep } from './form/Wizard'
-import { CreditCard, FileText, Building, Users, Banknote } from 'lucide-react'
+import {
+  CreditCard,
+  FileText,
+  Building,
+  Users,
+  Banknote,
+  Save,
+  X,
+} from 'lucide-react'
 import FormSelect from './form/FormSelect'
 import FormDatePicker from './form/FormDatePicker'
 import { FormCountrySelect, FormRegionSelect } from './form/FormCountryRegion'
 import FormSwitch from './form/FormSwitch'
 import { useFormLogic } from '@/onSubmit'
 import { DynamicFormSection } from './form/DynamicFormSection'
+import { Button } from './ui/button'
+import { useIndexedDB } from '@/dbUtils'
 
 export function PayabliForm() {
   const [currentPage, setCurrentPage] = useState(0)
@@ -39,9 +49,16 @@ export function PayabliForm() {
     }
   }
 
+  const { saveForLater, clearFormData } = useIndexedDB()
+
   const steps = useMemo(
     () => (
-      <Wizard currentPage={currentPage} setCurrentPage={setCurrentPage}>
+      <Wizard
+        currentPage={currentPage}
+        setCurrentPage={setCurrentPage}
+        saveForLater={saveForLater}
+        clearFormData={clearFormData}
+      >
         <WizardStep icon={<Building />} label="Business Information">
           <h2 className="mb-4 w-full text-center text-2xl font-bold">
             Step 1: Business Information
@@ -144,7 +161,7 @@ export function PayabliForm() {
               name="bcountry"
               label="Business Country"
               tooltip="The country where your business is located"
-              onChange={(value) => setBusinessCountry(value)}
+              onChange={(value: string) => setBusinessCountry(value)}
             />
             <FormRegionSelect
               name="bstate"
@@ -176,7 +193,7 @@ export function PayabliForm() {
               name="mcountry"
               label="Mailing Country"
               tooltip="The country for your mailing address"
-              onChange={(value) => setMailingCountry(value)}
+              onChange={(value: string) => setMailingCountry(value)}
             />
             <FormRegionSelect
               name="mstate"
@@ -621,7 +638,7 @@ export function PayabliForm() {
                   name="signer.country"
                   label="Signer Country"
                   tooltip="Country of the signer's residence"
-                  onChange={(value) => setSignerCountry(value)}
+                  onChange={(value: string) => setSignerCountry(value)}
                 />
                 <FormRegionSelect
                   name="signer.state"

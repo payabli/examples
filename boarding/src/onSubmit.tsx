@@ -4,6 +4,7 @@ import { z } from 'zod'
 import { formSchema } from './Schema'
 import { toast } from '@/hooks/use-toast'
 import { useFormWithSchema } from './Schema'
+import { saveToIndexedDB, loadFromIndexedDB, clearIndexedDB } from './dbUtils'
 
 type FormSchemaType = z.infer<typeof formSchema>
 
@@ -13,6 +14,17 @@ export function useFormLogic(
   setCurrentPage: React.Dispatch<React.SetStateAction<number>>,
 ) {
   const form = useFormWithSchema()
+
+  // Load saved data from IndexedDB
+  React.useEffect(() => {
+    const loadSavedData = async () => {
+      const savedData = await loadFromIndexedDB()
+      if (savedData) {
+        form.reset(savedData)
+      }
+    }
+    loadSavedData()
+  }, [form])
 
   // 2. Create a success handler
   function onSuccess(values: FormSchemaType) {
@@ -26,6 +38,7 @@ export function useFormLogic(
         </pre>
       ),
     })
+    clearIndexedDB()
   }
 
   // 3. Create an error handler
@@ -89,6 +102,26 @@ export function useFormLogic(
     }
 
     return -1
+  }
+
+  const saveForLater = async () => {
+    const formData = form.getValues()
+    await saveToIndexedDB(formData)
+    toast({
+      variant: 'default',
+      title: 'Saved!',
+      description: 'Your form data has been saved for later.',
+    })
+  }
+
+  const clearFormData = async () => {
+    form.reset()
+    clearIndexedDB()
+    toast({
+      variant: 'default',
+      title: 'Cleared!',
+      description: 'Your form data has been cleared.',
+    })
   }
 
   return {
