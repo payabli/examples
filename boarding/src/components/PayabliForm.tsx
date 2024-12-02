@@ -1,8 +1,9 @@
-import React, { useState, useMemo, useEffect } from 'react'
+import { useState, useMemo, useEffect } from 'react'
 import { Form } from '@/components/ui/form'
 import FormInput from './form/FormInput'
 import { Wizard, WizardStep } from './form/Wizard'
 import {
+  Calendar,
   CreditCard,
   FileText,
   Building,
@@ -12,9 +13,10 @@ import {
   X,
 } from 'lucide-react'
 import FormSelect from './form/FormSelect'
-import FormDatePicker from './form/FormDatePicker'
 import { FormCountrySelect, FormRegionSelect } from './form/FormCountryRegion'
 import FormSwitch from './form/FormSwitch'
+import FormFileUpload from './form/FormFileUpload'
+import FormCheckboxGroup from './form/FormCheckboxGroup'
 import { useFormLogic } from '@/onSubmit'
 import { DynamicFormSection } from './form/DynamicFormSection'
 import { Button } from './ui/button'
@@ -68,21 +70,21 @@ export function PayabliForm() {
   }
 
   const controls = (
-    <div className="align-center mb-6 mt-3 flex w-full">
+    <div className="align-center mb-6 mt-2 flex w-full">
       <Button
         onClick={handleSaveForLater}
-        className="mx-auto w-44 scale-[90%]"
+        className="w-44 scale-[90%] justify-start"
         type="button"
       >
-        <Save className="mr-3" /> Save For Later
+        <Save className="mr-3" /> Save Progress
       </Button>
 
       <Button
         onClick={clearFormData}
-        className="mx-auto w-44 scale-[90%]"
+        className="ml-auto w-44 scale-[90%]"
         type="button"
       >
-        <X className="mr-3" /> Clear Form Data
+        <X className="mr-3" /> Clear Progress
       </Button>
     </div>
   )
@@ -98,7 +100,7 @@ export function PayabliForm() {
           <h2 className="mb-4 w-full text-center text-2xl font-bold">
             Step 1: Business Information
           </h2>
-          <div className="grid grid-cols-2 items-end gap-4">
+          <div className="items-end gap-4 md:grid md:grid-cols-2">
             <FormInput
               name="legalname"
               label="Legal Name"
@@ -135,10 +137,13 @@ export function PayabliForm() {
               tooltip="The state where your business license was issued"
               countryCode="US"
             />
-            <FormDatePicker
+            <FormInput
               name="startdate"
               label="Business Start Date"
               tooltip="The date your business began operations"
+              iconleft={<Calendar className="mr-2" />}
+              mask="99/99/9999"
+              placeholder="MM/DD/YYYY"
             />
             <FormInput
               name="phonenumber"
@@ -176,7 +181,7 @@ export function PayabliForm() {
           <h2 className="mb-4 w-full text-center text-2xl font-bold">
             Step 2: Business Details
           </h2>
-          <div className="grid grid-cols-2 items-end gap-4">
+          <div className="items-end gap-4 md:grid md:grid-cols-2">
             <FormInput
               name="baddress"
               label="Business Address"
@@ -304,10 +309,13 @@ export function PayabliForm() {
               label="Owner SSN"
               tooltip="Social Security Number of the owner (9 digits)"
             />
-            <FormDatePicker
+            <FormInput
               name="ownership[].ownerdob"
               label="Owner Date of Birth"
               tooltip="Date of birth of the owner"
+              iconleft={<Calendar className="mr-2" />}
+              mask="99/99/9999"
+              placeholder="MM/DD/YYYY"
             />
             <FormInput
               name="ownership[].ownerphone1"
@@ -373,7 +381,7 @@ export function PayabliForm() {
           <h2 className="mb-4 w-full text-center text-2xl font-bold">
             Step 4: Financial Information
           </h2>
-          <div className="grid grid-cols-2 items-end gap-4">
+          <div className="items-end gap-4 md:grid md:grid-cols-2">
             <FormInput
               name="bsummary"
               label="Business Summary"
@@ -468,7 +476,7 @@ export function PayabliForm() {
             Step 5: Payment Information
           </h2>
           <div className="space-y-8">
-            <div className="grid grid-cols-2 items-end gap-4">
+            <div className="items-end gap-4 md:grid md:grid-cols-2">
               <FormInput
                 name="payoutAverageMonthlyVolume"
                 label="Payout Average Monthly Volume"
@@ -498,7 +506,7 @@ export function PayabliForm() {
 
             <div className="space-y-4">
               <h3 className="text-lg font-semibold">Deposit Account</h3>
-              <div className="grid grid-cols-2 items-end gap-4">
+              <div className="items-end gap-4 md:grid md:grid-cols-2">
                 <FormInput
                   name="depositAccount.bankName"
                   label="Bank Name"
@@ -525,24 +533,30 @@ export function PayabliForm() {
                 />
                 <FormInput
                   name="depositAccount.bankAccountHolderName"
-                  label="Account Holder Name"
-                  tooltip="Name of the deposit account holder"
+                  label="Accountholder Name"
+                  tooltip="Name of the deposit accountholder"
                 />
                 <FormSelect
                   name="depositAccount.bankAccountHolderType"
-                  label="Account Holder Type"
+                  label="Accountholder Type"
                   options={[
                     { value: 'Business', label: 'Business' },
                     { value: 'Personal', label: 'Personal' },
                   ]}
-                  tooltip="Type of deposit account holder"
+                  tooltip="Type of deposit accountholder"
                 />
               </div>
             </div>
 
+            <FormFileUpload
+              name="voidCheck"
+              label="Voided Check"
+              tooltip="Upload a voided check as proof of account"
+            />
+
             <div className="space-y-4">
               <h3 className="text-lg font-semibold">Withdrawal Account</h3>
-              <div className="grid grid-cols-2 items-end gap-4">
+              <div className="items-end gap-4 md:grid md:grid-cols-2">
                 <FormInput
                   name="withdrawalAccount.bankName"
                   label="Bank Name"
@@ -569,71 +583,61 @@ export function PayabliForm() {
                 />
                 <FormInput
                   name="withdrawalAccount.bankAccountHolderName"
-                  label="Account Holder Name"
-                  tooltip="Name of the withdrawal account holder"
+                  label="Accountholder Name"
+                  tooltip="Name of the withdrawal accountholder"
                 />
                 <FormSelect
                   name="withdrawalAccount.bankAccountHolderType"
-                  label="Account Holder Type"
+                  label="Accountholder Type"
                   options={[
                     { value: 'Business', label: 'Business' },
                     { value: 'Personal', label: 'Personal' },
                   ]}
-                  tooltip="Type of withdrawal account holder"
+                  tooltip="Type of withdrawal accountholder"
                 />
               </div>
             </div>
+            
+            <FormFileUpload
+              name="voidCheck"
+              label="Voided Check"
+              tooltip="Upload a voided check as proof of account"
+            />
 
             <div className="space-y-4">
               <h3 className="text-lg font-semibold">Services</h3>
-              <div className="grid grid-cols-2 gap-4">
-                <div>
-                  <h4 className="mb-2 font-medium">Card Services</h4>
-                  <FormSwitch
-                    name="services.card.acceptVisa"
-                    label="Accept Visa"
-                    tooltip="Allow Visa card payments"
-                  />
-                  <FormSwitch
-                    name="services.card.acceptMastercard"
-                    label="Accept Mastercard"
-                    tooltip="Allow Mastercard payments"
-                  />
-                  <FormSwitch
-                    name="services.card.acceptDiscover"
-                    label="Accept Discover"
-                    tooltip="Allow Discover card payments"
-                  />
-                  <FormSwitch
-                    name="services.card.acceptAmex"
-                    label="Accept Amex"
-                    tooltip="Allow American Express card payments"
-                  />
-                </div>
-                <div>
-                  <h4 className="mb-2 font-medium">ACH Services</h4>
-                  <FormSwitch
-                    name="services.ach.acceptWeb"
-                    label="Accept WEB"
-                    tooltip="Allow WEB (Internet-Initiated) ACH payments"
-                  />
-                  <FormSwitch
-                    name="services.ach.acceptPPD"
-                    label="Accept PPD"
-                    tooltip="Allow PPD (Prearranged Payment and Deposit) ACH payments"
-                  />
-                  <FormSwitch
-                    name="services.ach.acceptCCD"
-                    label="Accept CCD"
-                    tooltip="Allow CCD (Corporate Credit or Debit) ACH payments"
-                  />
-                </div>
+              <div className="md:grid md:grid-cols-2 md:px-2">
+                <FormCheckboxGroup
+                  label="Card Services"
+                  tooltip="Select the card services you accept"
+                  options={[
+                    { name: 'services.card.acceptVisa', label: 'Visa' },
+                    {
+                      name: 'services.card.acceptMastercard',
+                      label: 'Mastercard',
+                    },
+                    {
+                      name: 'services.card.acceptDiscover',
+                      label: 'Discover',
+                    },
+                    { name: 'services.card.acceptAmex', label: 'Amex' },
+                  ]}
+                />
+                <FormCheckboxGroup
+                  label="ACH Services"
+                  tooltip="Select the ACH services you accept"
+                  options={[
+                    { name: 'services.ach.acceptWeb', label: 'WEB' },
+                    { name: 'services.ach.acceptPPD', label: 'PPD' },
+                    { name: 'services.ach.acceptCCD', label: 'CCD' },
+                  ]}
+                />
               </div>
             </div>
 
             <div className="space-y-4">
               <h3 className="text-lg font-semibold">Signer Information</h3>
-              <div className="grid grid-cols-2 items-end gap-4">
+              <div className="items-end gap-4 md:grid md:grid-cols-2">
                 <FormInput
                   name="signer.name"
                   label="Signer Name"
@@ -644,10 +648,13 @@ export function PayabliForm() {
                   label="Signer SSN"
                   tooltip="Social Security Number of the signer (9 digits)"
                 />
-                <FormDatePicker
+                <FormInput
                   name="signer.dob"
                   label="Signer Date of Birth"
                   tooltip="Date of birth of the signer"
+                  iconleft={<Calendar className="mr-2" />}
+                  mask="99/99/9999"
+                  placeholder="MM/DD/YYYY"
                 />
                 <FormInput
                   name="signer.phone"
@@ -692,22 +699,6 @@ export function PayabliForm() {
                   tooltip="ZIP code of the signer's residence"
                 />
               </div>
-            </div>
-          </div>
-
-          <div className="space-y-4">
-            <h3 className="text-lg font-semibold">Misc.</h3>
-            <div className="grid grid-cols-2 items-end gap-4">
-              <FormSwitch
-                name="recipientEmailNotification"
-                label="Email Notifications"
-                tooltip="Enable email notifications for the recipient"
-              />
-              <FormSwitch
-                name="resumable"
-                label="Resumable"
-                tooltip="Allow resuming incomplete applications"
-              />
             </div>
           </div>
         </WizardStep>

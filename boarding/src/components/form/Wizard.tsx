@@ -60,7 +60,7 @@ export function Wizard({
   return (
     <>
       <div ref={wizardHeaderRef} />
-      <Card className="mx-auto mb-12 w-full max-w-4xl">
+      <Card className="relative mx-auto mb-12 w-full max-w-4xl">
         {preChildren}
         <CardContent className="p-6">
           <WizardStepIndicator

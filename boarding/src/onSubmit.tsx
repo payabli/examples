@@ -1,10 +1,11 @@
 import React from 'react'
 import { FieldValues } from 'react-hook-form'
 import { z } from 'zod'
+import { zodToJsonSchema } from 'zod-to-json-schema'
 import { formSchema } from './Schema'
 import { toast } from '@/hooks/use-toast'
 import { useFormWithSchema } from './Schema'
-import { saveToIndexedDB, loadFromIndexedDB, clearIndexedDB } from './dbUtils'
+import { clearIndexedDB } from './dbUtils'
 
 type FormSchemaType = z.infer<typeof formSchema>
 
@@ -18,6 +19,7 @@ export function useFormLogic(
   // 2. Create a success handler
   function onSuccess(values: FormSchemaType) {
     console.log(values)
+    const jsonForm = zodToJsonSchema(formSchema)
     toast({
       variant: 'default',
       title: 'Success!',

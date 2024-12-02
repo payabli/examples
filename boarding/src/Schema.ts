@@ -1,7 +1,6 @@
 import { z } from 'zod'
 import { useForm } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
-import { saveToIndexedDB, loadFromIndexedDB } from "./dbUtils";
 
 // Helper functions to create common fields
 const requiredString = () => z.string().min(1, { message: "This field is required" })
@@ -14,6 +13,7 @@ export const formSchema = z.object({
   templateId: requiredNumber(),
   orgId: requiredNumber(),
   boardingLinkId: requiredString(),
+  processingRegion: z.enum(["US", "CA"]),
   legalname: requiredString(),
   dbaname: requiredString(),
   website: requiredString().url({ message: "Invalid URL" }),
@@ -26,13 +26,13 @@ export const formSchema = z.object({
   faxnumber: requiredString().regex(/^\d{10}$/, { message: "Fax number must be 10 digits" }),
   btype: requiredString(),
   baddress: requiredString(),
-  baddress1: requiredString(),
+  baddress1: z.string().optional(),
   bcity: requiredString(),
   bstate: requiredString().length(2, { message: "State must be 2 characters" }),
   bzip: requiredString().regex(/^\d{5}$/, { message: "ZIP code must be 5 digits" }),
   bcountry: requiredString().length(2, { message: "Country must be 2 characters" }),
   maddress: requiredString(),
-  maddress1: requiredString(),
+  maddress1: z.string().optional(),
   mcity: requiredString(),
   mstate: requiredString().length(2, { message: "State must be 2 characters" }),
   mzip: requiredString().regex(/^\d{5}$/, { message: "ZIP code must be 5 digits" }),
@@ -50,13 +50,12 @@ export const formSchema = z.object({
   avgmonthly: requiredNumber().positive(),
   ticketamt: requiredNumber().positive(),
   highticketamt: requiredNumber().positive(),
-  payoutAverageMonthlyVolume: requiredNumber().positive(),
-  payoutHighTicketAmount: requiredNumber().positive(),
-  payoutAveragTicketAmount: requiredNumber().positive(),
-  payoutCreditLimit: requiredNumber().positive(),
+  creditLimit: requiredNumber().positive(),
+  averageMonthlyBill: z.string(),
+  averageBillSize: z.string(),
   recipientEmail: requiredString().email({ message: "Invalid email address" }),
-  recipientEmailNotification: requiredBoolean(),
-  resumable: requiredBoolean(),
+  recipientEmailNotification: z.literal(false),
+  resumable: z.literal(false),
   contacts: z.array(z.object({
     contactName: requiredString(),
     contactEmail: requiredString().email({ message: "Invalid email address" }),
@@ -100,16 +99,6 @@ export const formSchema = z.object({
     bankAccountHolderType: requiredString(),
     bankAccountFunction: requiredNumber(),
   }),
-  remittanceAccount: z.object({
-    id: requiredNumber(),
-    bankName: requiredString(),
-    routingAccount: requiredString().regex(/^\d{9}$/, { message: "Routing number must be 9 digits" }),
-    accountNumber: requiredString(),
-    typeAccount: requiredString(),
-    bankAccountHolderName: requiredString(),
-    bankAccountHolderType: requiredString(),
-    bankAccountFunction: requiredNumber(),
-  }),
   services: z.object({
     card: z.object({
       acceptVisa: requiredBoolean(),
@@ -127,10 +116,6 @@ export const formSchema = z.object({
       acceptAmex: requiredBoolean(),
     }),
   }),
-  attachments: z.array(z.object({
-    type: requiredString(),
-    url: requiredString().url({ message: "Invalid URL" }),
-  })).nonempty(),
   signer: z.object({
     name: requiredString(),
     ssn: requiredString().regex(/^\d{9}$/, { message: "SSN must be 9 digits" }),
@@ -138,7 +123,7 @@ export const formSchema = z.object({
     phone: requiredString().regex(/^\d{10}$/, { message: "Phone number must be 10 digits" }),
     email: requiredString().email({ message: "Invalid email address" }),
     address: requiredString(),
-    address1: z.string(),
+    address1: z.string().optional(),
     state: requiredString().length(2, { message: "State must be 2 characters" }),
     country: requiredString().length(2, { message: "Country must be 2 characters" }),
     city: requiredString(),
@@ -158,3 +143,4 @@ export function useFormWithSchema(defaultValues: Partial<FormSchemaType> = {}) {
     },
   })
 }
+

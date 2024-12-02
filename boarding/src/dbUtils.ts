@@ -127,7 +127,8 @@ export const useIndexedDB = () => {
       toast({
         variant: 'default',
         title: 'Saved!',
-        description: 'Your form data has been saved for later.',
+        description:
+          'Your progress has been saved. You can safely close this tab and come back later.',
       })
     } catch (error) {
       console.error('Error saving form data:', error)
@@ -147,7 +148,7 @@ export const useIndexedDB = () => {
       toast({
         variant: 'default',
         title: 'Cleared!',
-        description: 'Your form data has been cleared.',
+        description: 'Your progress has been cleared.',
       })
     } catch (error) {
       console.error('Error clearing form data:', error)
