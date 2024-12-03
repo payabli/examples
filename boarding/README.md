@@ -54,7 +54,7 @@ Discuss with your Payabli solutions engineer to understand the implications of t
   │   └── index.astro       # Main page
   ├── dbUtils.ts            # Functions to interact with IndexedDB
   ├── Schema.ts             # Zod validation schema
-  └── onSubmit.tsx           # Form submission logic
+  └── onSubmit.tsx          # Form submission logic
 ```
 
 ## Setup Instructions
