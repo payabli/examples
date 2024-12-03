@@ -1,18 +1,29 @@
 
-# Merchant Onboarding Form System
+# Payabli Boarding App
 
-A comprehensive merchant onboarding system built with React, Astro.js, TypeScript, and shadcn/ui. This project provides a multi-step form wizard with validation, dynamic fields, and a smooth user experience.
+A comprehensive merchant onboarding system built with TypeScript, React, Astro.js, Tailwind, and shadcn/ui. This project provides a responsive multi-step form wizard with validation, data persistence, dynamic fields, a clean and configurable API, and a smooth user experience.
+
+
+## Summary
+
+As an Payabli partner, you'll need to board merchants onto the Payabli platform in some way to be able to run transactions through them. This is where the process of *boarding* comes in (which you can read about [here](https://docs.payabli.com/developer-guides/boarding-board-merchants)).
+This project is an example application that any partner can clone, edit, and deploy to quickly start boarding merchants in a way that is completely controlled and owned by the partner.
+The advantage of an approach like this is the fine-grained control over the branding and user jouney as your merchants board.
+On the other hand, since you are moving beyond a simple white-labelled, Payabli-hosted page to something truly self-owned and self-hosted, you will naturally have to take on the responsibility of maintaining the application, ensuring it is secure, and keeping it up-to-date with Payabli's APIs and requirements.
+Discuss with your Payabli solutions engineer to understand the implications of this approach and to get guidance on how to best proceed.
 
 ## Features
 
 - 🧙‍♂️ Multi-step form wizard with progress tracking
 - 🔄 Dynamic form fields with add/remove functionality
-- ✅ Comprehensive form validation using Zod
-- 🎨 Styled using Tailwind CSS and shadcn/ui
+- ✅ Comprehensive form validation using [Zod](https://github.com/colinhacks/zod)
+- 🎨 Styled using [Tailwind CSS](https://tailwindcss.com/)
+- 🚧 Built with [shadcn/ui](https://ui.shadcn.com/)
 - 📱 Fully responsive design
 - 🌙 Dark mode support
-- 🚀 Built on Astro.js for optimal performance
-- 😊 Icons support with Lucide
+- 🚀 Built on [Astro.js](https://astro.build/) for optimal performance
+- 😊 Icons support with [Lucide](https://lucide.dev/icons/)
+- 💾 Save progress to come back later (encrypted with [IndexedDB](https://developer.mozilla.org/en-US/docs/Web/API/IndexedDB_API))
 
 ## Project Structure
 
@@ -21,12 +32,15 @@ A comprehensive merchant onboarding system built with React, Astro.js, TypeScrip
   ├── components/
   │   ├── ui/               # shadcn/ui components
   │   ├── form/             # Form components
+  │   │   ├── DeleteButton.tsx
+  │   │   ├── DynamicFormSection.tsx
+  │   │   ├── FormCheckboxGroup.tsx
   │   │   ├── FormInput.tsx
   │   │   ├── FormSelect.tsx
   │   │   ├── FormDatePicker.tsx
+  │   │   ├── FormFileUpload.tsx
   │   │   ├── FormCountryRegion.tsx
   │   │   ├── FormSwitch.tsx
-  │   │   ├── DynamicFormSection.tsx
   │   │   └── Wizard.tsx
   │   ├── PayabliForm.tsx   # Main form component
   │   ├── ThemeToggle.astro # Toggle dark mode
@@ -38,8 +52,9 @@ A comprehensive merchant onboarding system built with React, Astro.js, TypeScrip
   ├── pages/
   │   ├── 404.astro         # 404 page
   │   └── index.astro       # Main page
+  ├── dbUtils.ts            # Functions to interact with IndexedDB
   ├── Schema.ts             # Zod validation schema
-  └── onSubmit.ts           # Form submission logic
+  └── onSubmit.tsx           # Form submission logic
 ```
 
 ## Setup Instructions
