@@ -53,37 +53,52 @@ export function DynamicFormSection({
     <div className="mb-16 space-y-4">
       <h3 className="text-lg font-semibold">{title}</h3>
       <AnimatePresence initial={false}>
-        {items.map((_, index) => (
-          <motion.div
-            key={index}
-            initial={{ opacity: 0, height: 0, scale: 0 }}
-            animate={{ opacity: 1, height: 'auto', scale: 1 }}
-            exit={{ opacity: 0, height: 0, scale: 0 }}
-            transition={{ duration: 0.3, ease: 'easeInOut' }}
-          >
-            {index > 0 && <Separator className="mb-2" />}
-            <div
-              className="relative items-end gap-4 rounded p-4 md:grid md:grid-cols-2"
-              ref={index === items.length - 1 ? scrollRef : null}
+        {items.map((_, index) => {
+          return (
+            <motion.div
+              key={index}
+              initial={{ opacity: 0, height: 0, scale: 0 }}
+              animate={{ opacity: 1, height: 'auto', scale: 1 }}
+              exit={{ opacity: 0, height: 0, scale: 0 }}
+              transition={{ duration: 0.3, ease: 'easeInOut' }}
             >
-              {index > 0 && (
-                <DeleteButton
-                  onClick={() => removeItem(index)}
-                  aria-label={`Remove ${title.toLowerCase()}`}
-                />
-              )}
-              {React.Children.map(children, (child) => {
-                if (React.isValidElement<any>(child)) {
-                  return React.cloneElement(child, {
-                    name: child.props.name.replace('[]', `[${index}]`),
-                    key: `${child.props.name}-${index}`,
-                  })
-                }
-                return child
-              })}
-            </div>
-          </motion.div>
-        ))}
+              {index > 0 && <Separator className="mb-2" />}
+              <div
+                className="relative items-end gap-4 rounded p-4 md:grid md:grid-cols-2"
+                ref={index === items.length - 1 ? scrollRef : null}
+              >
+                {index > 0 && (
+                  <DeleteButton
+                    onClick={() => removeItem(index)}
+                    aria-label={`Remove ${title.toLowerCase()}`}
+                  />
+                )}
+                {React.Children.map(children, (child) => {
+                  if (React.isValidElement<any>(child)) {
+                    const newProps = Object.entries(child.props).reduce(
+                      (acc: Record<string, any>, [key, value]) => {
+                        if (typeof value === 'string') {
+                          acc[key] = value.replace(/\[\]/g, `[${index}]`)
+                        } else {
+                          acc[key] = value
+                        }
+                        return acc
+                      },
+                      {},
+                    )
+
+                    return React.cloneElement(child, {
+                      ...newProps,
+                      key: `${child.props.name}-${index}`,
+                      index: index,
+                    })
+                  }
+                  return child
+                })}{' '}
+              </div>
+            </motion.div>
+          )
+        })}
       </AnimatePresence>
       <Button onClick={addItem} className="w-full" type="button">
         <Plus className="mr-2 h-4 w-4" /> {addButtonText}

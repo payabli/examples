@@ -11,9 +11,14 @@ import {
   Banknote,
   Save,
   X,
+  LoaderPinwheel,
 } from 'lucide-react'
 import FormSelect from './form/FormSelect'
-import { FormCountrySelect, FormRegionSelect } from './form/FormCountryRegion'
+import {
+  FormCountrySelect,
+  FormRegionSelect,
+  FormCountryRegionCombined,
+} from './form/FormCountryRegion'
 import FormSwitch from './form/FormSwitch'
 import FormFileUpload from './form/FormFileUpload'
 import FormCheckboxGroup from './form/FormCheckboxGroup'
@@ -24,10 +29,13 @@ import { useIndexedDB } from '@/dbUtils'
 import { useFormWithSchema } from '@/Schema'
 
 export function PayabliForm() {
+  const [isLoading, setIsLoading] = useState(true)
+
   const [currentPage, setCurrentPage] = useState(0)
   const [contacts, setContacts] = useState([{}])
   const [ownership, setOwnership] = useState([{}])
   const [ownershipCountries, setOwnershipCountries] = useState<string[]>([''])
+  const [ownershipIndex, setOwnershipIndex] = useState(0)
 
   // Add state for country fields
   const [businessCountry, setBusinessCountry] = useState('')
@@ -36,9 +44,15 @@ export function PayabliForm() {
 
   const addContact = () => setContacts([...contacts, {}])
   const removeContact = (index: number) => {
-    if (contacts.length > 1) {
-      setContacts(contacts.filter((_, i) => i !== index))
-    }
+    setContacts(prevContacts => prevContacts.filter((_, i) => i !== index));
+    
+    // Remove the owner from the form data
+    const currentValues = form.getValues();
+    const updatedContacts = currentValues.contacts.filter((_, i) => i !== index);
+    form.setValue('contacts', updatedContacts);
+
+    // Trigger validation for the updated ownership field
+    form.trigger('contacts');
   }
 
   const addOwner = () => {
@@ -46,10 +60,15 @@ export function PayabliForm() {
     setOwnershipCountries([...ownershipCountries, ''])
   }
   const removeOwner = (index: number) => {
-    if (ownership.length > 1) {
-      setOwnership(ownership.filter((_, i) => i !== index))
-      setOwnershipCountries(ownershipCountries.filter((_, i) => i !== index))
-    }
+    setOwnership(prevOwnership => prevOwnership.filter((_, i) => i !== index));
+    
+    // Remove the owner from the form data
+    const currentValues = form.getValues();
+    const updatedOwnership = currentValues.ownership.filter((_, i) => i !== index);
+    form.setValue('ownership', updatedOwnership);
+
+    // Trigger validation for the updated ownership field
+    form.trigger('ownership');
   }
 
   const form = useFormWithSchema()
@@ -57,11 +76,43 @@ export function PayabliForm() {
 
   // Load saved data when component mounts
   useEffect(() => {
-    loadSavedData().then((savedData) => {
+    const loadData = async () => {
+      const savedData = await loadSavedData()
       if (savedData) {
         form.reset(savedData)
+
+        // Ensure country fields are set
+        // This is necessary because region selectors are dependent on country selectors
+        setBusinessCountry(savedData.bcountry || '')
+        setMailingCountry(savedData.mcountry || '')
+        setSignerCountry(savedData.signer?.country || '')
+        
+        // Make sure dynamic form sections are set
+        if (savedData.contacts) {
+          setContacts(savedData.contacts)
+        }
+        if (savedData.ownership) {
+          setOwnership(savedData.ownership)
+        }
+
+        // Get current form values
+        const formValues = form.getValues()
+
+        // Trigger a re-render of region fields only if corresponding country is non-empty
+        // (don't need to rerender the ownership countries as due to the logical coupling
+        // of the FormRegionCountry component, they have some rerendering built 
+        // into them already)
+        const fieldsToTrigger: string[] = [
+          'bstate', 'mstate', 'signer.state', 'licstate'
+        ]
+
+        form.trigger(fieldsToTrigger)
+        setIsLoading(false)
+      } else {
+        setIsLoading(false)
       }
-    })
+    }
+    loadData()
   }, [])
 
   const handleSaveForLater = () => {
@@ -348,21 +399,13 @@ export function PayabliForm() {
               label="Owner Address"
               tooltip="Residential address of the owner"
             />
-            <FormCountrySelect
-              name="ownership[].ocountry"
-              label="Owner Country"
-              tooltip="Country of the owner's residence"
-              onChange={(value: string, index: number) => {
-                const newOwnershipCountries = [...ownershipCountries]
-                newOwnershipCountries[index] = value
-                setOwnershipCountries(newOwnershipCountries)
-              }}
-            />
-            <FormRegionSelect
-              name="ownership[].ostate"
-              label="Owner State"
-              tooltip="State of the owner's residence"
-              countryCode={ownershipCountries[0]}
+            <FormCountryRegionCombined
+              countryName="ownership[].ocountry"
+              countryLabel="Owner Country"
+              countryTooltip="Country of the owner's residence"
+              regionName="ownership[].ostate"
+              regionLabel="Owner State"
+              regionTooltip="State of the owner's residence"
             />
             <FormInput
               name="ownership[].ocity"
@@ -437,6 +480,7 @@ export function PayabliForm() {
               name="binperson"
               label="In-Person Sales (%)"
               tooltip="Percentage of sales conducted in person"
+              type="number"
             />
             <FormInput
               name="binphone"
@@ -449,6 +493,7 @@ export function PayabliForm() {
               tooltip="Percentage of sales conducted online"
             />
             <FormInput
+              type="number"
               name="annualRevenue"
               label="Annual Revenue"
               tooltip="Estimated annual revenue of your business"
@@ -467,6 +512,30 @@ export function PayabliForm() {
               name="highticketamt"
               label="Highest Ticket Amount"
               tooltip="Highest expected transaction amount"
+            />
+            <FormInput
+              name="averageBillSize"
+              label="Average Bill Size"
+              tooltip="Average amount of each bill you pay through our service"
+            />
+            <FormInput
+              name="averageMonthlyBill"
+              label="Average Monthly Bill"
+              tooltip="Average monthly bill amount"
+            />
+            <FormInput
+              name="creditLimit"
+              label="Credit Limit"
+              tooltip="Maximum amount our lending partner has authorized to your business"
+            />
+            <FormSelect
+              name="processingRegion"
+              label="Processing Region"
+              tooltip="Region where your business processes transactions"
+              options={[
+                { label: 'US', value: 'US' },
+                { label: 'CA', value: 'CA' },
+              ]}
             />
           </div>
         </WizardStep>
@@ -597,7 +666,7 @@ export function PayabliForm() {
                 />
               </div>
             </div>
-            
+
             <FormFileUpload
               name="voidCheck"
               label="Voided Check"
@@ -676,17 +745,13 @@ export function PayabliForm() {
                   label="Signer Address Line 2"
                   tooltip="Additional address information for the signer (if needed)"
                 />
-                <FormCountrySelect
-                  name="signer.country"
-                  label="Signer Country"
-                  tooltip="Country of the signer's residence"
-                  onChange={(value: string) => setSignerCountry(value)}
-                />
-                <FormRegionSelect
-                  name="signer.state"
-                  label="Signer State"
-                  tooltip="State of the signer's residence"
-                  countryCode={signerCountry}
+                <FormCountryRegionCombined
+                  countryName="signer.country"
+                  countryLabel="Signer Country"
+                  countryTooltip="Country of the signer's residence"
+                  regionName="signer.state"
+                  regionLabel="Signer State"
+                  regionTooltip="State of the signer's residence"
                 />
                 <FormInput
                   name="signer.city"
@@ -717,6 +782,10 @@ export function PayabliForm() {
   )
 
   const { onSuccess, onError } = useFormLogic(steps, setCurrentPage)
+
+  if (isLoading) {
+    return
+  }
 
   return (
     <Form {...form}>

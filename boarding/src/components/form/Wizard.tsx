@@ -1,12 +1,12 @@
 import React, { useState, ReactNode, useRef } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
-import { ChevronLeft, ChevronRight, Check, Save, X } from 'lucide-react'
+import { ChevronLeft, ChevronRight, Check } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent } from '@/components/ui/card'
 
 type WizardStepProps = {
-  icon: ReactNode
-  label: string
+  icon?: ReactNode
+  label?: string
   children: ReactNode
 }
 
@@ -66,7 +66,6 @@ export function Wizard({
           <WizardStepIndicator
             steps={steps}
             currentPage={currentPage}
-            setCurrentPage={setCurrentPage}
             totalPages={totalPages}
             goToPage={goToPage}
           />
@@ -89,7 +88,6 @@ export function Wizard({
           {postChildren}
           <WizardNavigation
             currentPage={currentPage}
-            setCurrentPage={setCurrentPage}
             totalPages={totalPages}
             nextPage={nextPage}
             prevPage={prevPage}
@@ -103,7 +101,6 @@ export function Wizard({
 type WizardStepIndicatorProps = {
   steps: React.ReactElement<WizardStepProps>[]
   currentPage: number
-  setCurrentPage: (page: number) => void
   totalPages: number
   goToPage: (page: number) => void
 }
@@ -111,7 +108,6 @@ type WizardStepIndicatorProps = {
 function WizardStepIndicator({
   steps,
   currentPage,
-  setCurrentPage,
   totalPages,
   goToPage,
 }: WizardStepIndicatorProps) {
@@ -131,7 +127,7 @@ function WizardStepIndicator({
                   : 'border-muted bg-background text-muted-foreground'
               }`}
             >
-              {step.props.icon}
+              {step.props && step.props.icon ? step.props.icon : null}
             </div>
             <span
               className={`mt-2 text-sm ${
@@ -140,29 +136,22 @@ function WizardStepIndicator({
                   : 'text-muted-foreground'
               }`}
             >
-              {step.props.label}
+              {step.props && step.props.label ? step.props.label : `Step ${index + 1}`}
             </span>
           </div>
         ))}
       </div>
       <div className="flex flex-col items-center sm:hidden">
-        <AnimatePresence mode="wait">
-          <motion.div
-            key={currentPage}
-            initial={{ opacity: 0, x: -20 }}
-            animate={{ opacity: 1, x: 0 }}
-            exit={{ opacity: 0, x: 20 }}
-            transition={{ duration: 0.3 }}
-            className="flex flex-col items-center"
-          >
-            <div className="flex h-10 w-10 items-center justify-center rounded-full border-2 border-primary bg-primary text-primary-foreground">
-              {steps[currentPage].props.icon}
-            </div>
-            <span className="mt-2 text-sm font-medium text-primary">
-              {steps[currentPage].props.label}
-            </span>
-          </motion.div>
-        </AnimatePresence>
+        <div className="flex h-10 w-10 items-center justify-center rounded-full border-2 border-primary bg-primary text-primary-foreground">
+          {steps[currentPage] && steps[currentPage].props && steps[currentPage].props.icon
+            ? steps[currentPage].props.icon
+            : null}
+        </div>
+        <span className="mt-2 text-sm font-medium text-primary">
+          {steps[currentPage] && steps[currentPage].props && steps[currentPage].props.label
+            ? steps[currentPage].props.label
+            : `Step ${currentPage + 1}`}
+        </span>
         <div className="text-center sm:hidden">
           <span className="text-sm text-muted-foreground">
             Page {currentPage + 1} of {totalPages}
@@ -193,7 +182,6 @@ function ProgressBar({ currentPage, totalPages }: ProgressBarProps) {
 
 type WizardNavigationProps = {
   currentPage: number
-  setCurrentPage: (page: number) => void
   totalPages: number
   nextPage: (event: React.MouseEvent<HTMLButtonElement, MouseEvent>) => void
   prevPage: () => void
@@ -201,7 +189,6 @@ type WizardNavigationProps = {
 
 function WizardNavigation({
   currentPage,
-  setCurrentPage,
   totalPages,
   nextPage,
   prevPage,
@@ -234,3 +221,4 @@ function WizardNavigation({
     </div>
   )
 }
+
