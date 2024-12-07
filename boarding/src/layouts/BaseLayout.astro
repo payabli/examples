@@ -4,7 +4,6 @@ import Footer from '../components/Footer.astro'
 import Header from '../components/Header.astro'
 
 import { Toaster } from '../components/ui/toaster'
-import { ESignature } from '../components/form/ESignature'
 
 interface Props {
   title?: string | undefined
@@ -44,6 +43,5 @@ const { title, description, ogImage } = Astro.props
       <Footer />
     </div>
     <Toaster client:load />
-    <ESignature client:load />
   </body>
 </html>

@@ -12,6 +12,9 @@ import {
   Save,
   X,
   LoaderPinwheel,
+  SaveAll,
+  SaveIcon,
+  SaveAllIcon,
 } from 'lucide-react'
 import FormSelect from './form/FormSelect'
 import {
@@ -27,8 +30,18 @@ import { DynamicFormSection } from './form/DynamicFormSection'
 import { Button } from './ui/button'
 import { useIndexedDB } from '@/dbUtils'
 import { useFormWithSchema } from '@/Schema'
+import { documentPages } from './ESigDocument'
+import { useESignature } from '@/hooks/use-esignature'
+import { formSchema } from '@/Schema'
+import z from 'zod'
+
+import { ESignature } from './form/ESignature'
+import { SVGLogoPlaceholder } from './form/SVGLogoPlaceholder'
+
+type FormSchemaType = z.infer<typeof formSchema>
 
 export function PayabliForm() {
+  const formHeaderText = 'Boarding Application'
   const [isLoading, setIsLoading] = useState(true)
 
   const [currentPage, setCurrentPage] = useState(0)
@@ -44,15 +57,15 @@ export function PayabliForm() {
 
   const addContact = () => setContacts([...contacts, {}])
   const removeContact = (index: number) => {
-    setContacts(prevContacts => prevContacts.filter((_, i) => i !== index));
-    
+    setContacts((prevContacts) => prevContacts.filter((_, i) => i !== index))
+
     // Remove the owner from the form data
-    const currentValues = form.getValues();
-    const updatedContacts = currentValues.contacts.filter((_, i) => i !== index);
-    form.setValue('contacts', updatedContacts);
+    const currentValues = form.getValues()
+    const updatedContacts = currentValues.contacts.filter((_, i) => i !== index)
+    form.setValue('contacts', updatedContacts)
 
     // Trigger validation for the updated ownership field
-    form.trigger('contacts');
+    form.trigger('contacts')
   }
 
   const addOwner = () => {
@@ -60,15 +73,17 @@ export function PayabliForm() {
     setOwnershipCountries([...ownershipCountries, ''])
   }
   const removeOwner = (index: number) => {
-    setOwnership(prevOwnership => prevOwnership.filter((_, i) => i !== index));
-    
+    setOwnership((prevOwnership) => prevOwnership.filter((_, i) => i !== index))
+
     // Remove the owner from the form data
-    const currentValues = form.getValues();
-    const updatedOwnership = currentValues.ownership.filter((_, i) => i !== index);
-    form.setValue('ownership', updatedOwnership);
+    const currentValues = form.getValues()
+    const updatedOwnership = currentValues.ownership.filter(
+      (_, i) => i !== index,
+    )
+    form.setValue('ownership', updatedOwnership)
 
     // Trigger validation for the updated ownership field
-    form.trigger('ownership');
+    form.trigger('ownership')
   }
 
   const form = useFormWithSchema()
@@ -86,7 +101,7 @@ export function PayabliForm() {
         setBusinessCountry(savedData.bcountry || '')
         setMailingCountry(savedData.mcountry || '')
         setSignerCountry(savedData.signer?.country || '')
-        
+
         // Make sure dynamic form sections are set
         if (savedData.contacts) {
           setContacts(savedData.contacts)
@@ -100,10 +115,13 @@ export function PayabliForm() {
 
         // Trigger a re-render of region fields only if corresponding country is non-empty
         // (don't need to rerender the ownership countries as due to the logical coupling
-        // of the FormRegionCountry component, they have some rerendering built 
+        // of the FormRegionCountry component, they have some rerendering built
         // into them already)
         const fieldsToTrigger: string[] = [
-          'bstate', 'mstate', 'signer.state', 'licstate'
+          'bstate',
+          'mstate',
+          'signer.state',
+          'licstate',
         ]
 
         form.trigger(fieldsToTrigger)
@@ -121,13 +139,13 @@ export function PayabliForm() {
   }
 
   const controls = (
-    <div className="align-center mb-6 mt-2 flex w-full">
+    <div className="align-center mb-6 mt-2 flex w-full md:hidden">
       <Button
         onClick={handleSaveForLater}
         className="w-44 scale-[90%] justify-start"
         type="button"
       >
-        <Save className="mr-3" /> Save Progress
+        <SaveAll className="mr-3" /> Save Progress
       </Button>
 
       <Button
@@ -783,13 +801,68 @@ export function PayabliForm() {
 
   const { onSuccess, onError } = useFormLogic(steps, setCurrentPage)
 
+  const { handleESignatureProcess, handleConfirm, contentRef } = useESignature({
+    documentBody: documentPages,
+  })
+
+  const [appId, setAppId] = useState('')
+
+  const onSuccessWithForm = async (values: FormSchemaType) => {
+    try {
+      setAppId(await onSuccess(values))
+    } catch (error) {
+      console.error(error)
+      return
+    }
+    handleESignatureProcess(appId)
+  }
+
+  const onConfirm = () => {
+    handleConfirm(appId)
+  }
+
   if (isLoading) {
     return
   }
 
   return (
-    <Form {...form}>
-      <form onSubmit={form.handleSubmit(onSuccess, onError)}>{steps}</form>
-    </Form>
+    <>
+      <div className="grid place-items-center grid-col-1">
+        <SVGLogoPlaceholder
+          text="Acme Inc."
+          textSize="3xl"
+          width={200}
+          height={200}
+          shape="square"
+          className="rounded-lg md:mb-0 mb-4"
+        />
+        <h1 className="text-5xl font-bold m-4 p-4 md:block hidden">{formHeaderText}</h1>
+        <div className="mb-6 mt-2 w-full md:flex justify-center hidden">
+          <Button
+            onClick={handleSaveForLater}
+            className="w-44 scale-[90%]"
+            type="button"
+          >
+            <SaveAll className="mr-3" /> Save Progress
+          </Button>
+          <Button
+            onClick={clearFormData}
+            className="w-44 scale-[90%]"
+            type="button"
+          >
+            <X className="mr-3" /> Clear Progress
+          </Button>
+        </div>
+      </div>
+      <h1 className="mb-4 w-full text-center text-3xl font-bold md:hidden">
+        {formHeaderText}
+      </h1>
+      <Form {...form}>
+        <form onSubmit={form.handleSubmit(onSuccessWithForm, onError)}>
+          {steps}
+        </form>
+        <ESignature contentRef={contentRef} onConfirm={onConfirm} />
+      </Form>
+    </>
   )
 }

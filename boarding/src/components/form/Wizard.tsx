@@ -1,12 +1,12 @@
-import React, { useState, ReactNode, useRef } from 'react'
+import React, { useState, ReactNode, useRef, useEffect } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
-import { ChevronLeft, ChevronRight, Check } from 'lucide-react'
+import { ChevronLeft, ChevronRight, Check, Save, X, LoaderIcon, Loader2Icon } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent } from '@/components/ui/card'
 
 type WizardStepProps = {
-  icon?: ReactNode
-  label?: string
+  icon: ReactNode
+  label: string
   children: ReactNode
 }
 
@@ -66,6 +66,7 @@ export function Wizard({
           <WizardStepIndicator
             steps={steps}
             currentPage={currentPage}
+            setCurrentPage={setCurrentPage}
             totalPages={totalPages}
             goToPage={goToPage}
           />
@@ -88,6 +89,7 @@ export function Wizard({
           {postChildren}
           <WizardNavigation
             currentPage={currentPage}
+            setCurrentPage={setCurrentPage}
             totalPages={totalPages}
             nextPage={nextPage}
             prevPage={prevPage}
@@ -101,6 +103,7 @@ export function Wizard({
 type WizardStepIndicatorProps = {
   steps: React.ReactElement<WizardStepProps>[]
   currentPage: number
+  setCurrentPage: (page: number) => void
   totalPages: number
   goToPage: (page: number) => void
 }
@@ -108,6 +111,7 @@ type WizardStepIndicatorProps = {
 function WizardStepIndicator({
   steps,
   currentPage,
+  setCurrentPage,
   totalPages,
   goToPage,
 }: WizardStepIndicatorProps) {
@@ -127,7 +131,7 @@ function WizardStepIndicator({
                   : 'border-muted bg-background text-muted-foreground'
               }`}
             >
-              {step.props && step.props.icon ? step.props.icon : null}
+              {step.props.icon}
             </div>
             <span
               className={`mt-2 text-sm ${
@@ -136,22 +140,29 @@ function WizardStepIndicator({
                   : 'text-muted-foreground'
               }`}
             >
-              {step.props && step.props.label ? step.props.label : `Step ${index + 1}`}
+              {step.props.label}
             </span>
           </div>
         ))}
       </div>
       <div className="flex flex-col items-center sm:hidden">
-        <div className="flex h-10 w-10 items-center justify-center rounded-full border-2 border-primary bg-primary text-primary-foreground">
-          {steps[currentPage] && steps[currentPage].props && steps[currentPage].props.icon
-            ? steps[currentPage].props.icon
-            : null}
-        </div>
-        <span className="mt-2 text-sm font-medium text-primary">
-          {steps[currentPage] && steps[currentPage].props && steps[currentPage].props.label
-            ? steps[currentPage].props.label
-            : `Step ${currentPage + 1}`}
-        </span>
+        <AnimatePresence mode="wait">
+          <motion.div
+            key={currentPage}
+            initial={{ opacity: 0, x: -20 }}
+            animate={{ opacity: 1, x: 0 }}
+            exit={{ opacity: 0, x: 20 }}
+            transition={{ duration: 0.3 }}
+            className="flex flex-col items-center"
+          >
+            <div className="flex h-10 w-10 items-center justify-center rounded-full border-2 border-primary bg-primary text-primary-foreground">
+              {steps[currentPage].props.icon}
+            </div>
+            <span className="mt-2 text-sm font-medium text-primary">
+              {steps[currentPage].props.label}
+            </span>
+          </motion.div>
+        </AnimatePresence>
         <div className="text-center sm:hidden">
           <span className="text-sm text-muted-foreground">
             Page {currentPage + 1} of {totalPages}
@@ -182,6 +193,7 @@ function ProgressBar({ currentPage, totalPages }: ProgressBarProps) {
 
 type WizardNavigationProps = {
   currentPage: number
+  setCurrentPage: (page: number) => void
   totalPages: number
   nextPage: (event: React.MouseEvent<HTMLButtonElement, MouseEvent>) => void
   prevPage: () => void
@@ -189,16 +201,25 @@ type WizardNavigationProps = {
 
 function WizardNavigation({
   currentPage,
+  setCurrentPage,
   totalPages,
   nextPage,
   prevPage,
 }: WizardNavigationProps) {
   const isLastPage = currentPage === totalPages - 1
+  
+  const [loading, setLoading] = useState(false)
+  
+  const handleClick = () => {
+    setLoading(true)
+    setTimeout(() => {
+      setLoading(false)
+    }, 4000)
+  }
 
   return (
     <div className="relative mt-6 flex items-center justify-between">
       <Button
-        variant="outline"
         type="button"
         onClick={prevPage}
         disabled={currentPage === 0}
@@ -214,11 +235,10 @@ function WizardNavigation({
           Next <ChevronRight className="ml-2 h-4 w-4" />
         </Button>
       ) : (
-        <Button type="submit" className="min-w-[100px]">
-          Confirm <Check className="ml-2 h-4 w-4" />
+          <Button type="submit" className="min-w-[100px]" onClick={handleClick}>
+          Confirm {!loading ? <Check className="ml-2 h-4 w-4" /> : <Loader2Icon className="ml-2 h-4 w-4 animate-spin"/>}
         </Button>
       )}
     </div>
   )
 }
-

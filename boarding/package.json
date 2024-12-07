@@ -51,6 +51,7 @@
     "react-hook-form": "^7.53.2",
     "react-input-mask": "^2.0.4",
     "react-smooth-corners": "^1.0.4",
+    "react-to-pdf": "^1.0.1",
     "react-tooltip": "^5.28.0",
     "sharp": "^0.33.5",
     "sonner": "^1.7.0",
