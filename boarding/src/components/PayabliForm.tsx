@@ -1,22 +1,8 @@
-import { useState, useMemo, useEffect } from 'react'
+import { useState, useMemo, useEffect, memo } from 'react'
 import { Form } from '@/components/ui/form'
 import FormInput from './form/FormInput'
 import { Wizard, WizardStep } from './form/Wizard'
-import {
-  Calendar,
-  CreditCard,
-  FileText,
-  Building,
-  Users,
-  Banknote,
-  Save,
-  X,
-  LoaderPinwheel,
-  SaveAll,
-  SaveIcon,
-  SaveAllIcon,
-  Loader2,
-} from 'lucide-react'
+import { Calendar, CreditCard, FileText, Building, Users, Banknote, Save, X, LoaderPinwheel, SaveAll, SaveIcon, SaveAllIcon, Loader2 } from 'lucide-react'
 import FormSelect from './form/FormSelect'
 import {
   FormCountrySelect,
@@ -51,7 +37,6 @@ export function PayabliForm() {
   const [ownershipCountries, setOwnershipCountries] = useState<string[]>([''])
   const [ownershipIndex, setOwnershipIndex] = useState(0)
 
-  // Add state for country fields
   const [businessCountry, setBusinessCountry] = useState('')
   const [mailingCountry, setMailingCountry] = useState('')
   const [signerCountry, setSignerCountry] = useState('')
@@ -60,12 +45,10 @@ export function PayabliForm() {
   const removeContact = (index: number) => {
     setContacts((prevContacts) => prevContacts.filter((_, i) => i !== index))
 
-    // Remove the owner from the form data
     const currentValues = form.getValues()
     const updatedContacts = currentValues.contacts.filter((_, i) => i !== index)
     form.setValue('contacts', updatedContacts as any)
 
-    // Trigger validation for the updated ownership field
     form.trigger('contacts')
   }
 
@@ -76,48 +59,39 @@ export function PayabliForm() {
   const removeOwner = (index: number) => {
     setOwnership((prevOwnership) => prevOwnership.filter((_, i) => i !== index))
 
-    // Remove the owner from the form data
     const currentValues = form.getValues()
     const updatedOwnership = currentValues.ownership.filter(
       (_, i) => i !== index,
     )
     form.setValue('ownership', updatedOwnership as any)
 
-    // Trigger validation for the updated ownership field
     form.trigger('ownership')
   }
 
   const form = useFormWithSchema()
   const { saveForLater, clearFormData, loadSavedData } = useDrizzle()
 
-  // Load saved data when component mounts
   useEffect(() => {
     const loadData = async () => {
       const savedData = await loadSavedData()
       if (savedData) {
         form.reset(savedData)
 
-        // Ensure country fields are set
-        // This is necessary because region selectors are dependent on country selectors
         setBusinessCountry(savedData.bcountry || '')
         setMailingCountry(savedData.mcountry || '')
         setSignerCountry(savedData.signer?.country || '')
 
-        // Make sure dynamic form sections are set
         if (savedData.contacts) {
           setContacts(savedData.contacts)
         }
         if (savedData.ownership) {
           setOwnership(savedData.ownership)
         }
-        
-        setIsLoading(false)
-      } else {
-        setIsLoading(false)
       }
+      setIsLoading(false)
     }
     loadData()
-  }, [])
+  }, [loadSavedData, form])
 
   const handleSaveForLater = () => {
     const formData = form.getValues()
@@ -797,7 +771,6 @@ export function PayabliForm() {
     try {
       setAppId(await onSuccess(values))
     } catch (error) {
-      console.error(error)
       return
     }
     handleESignatureProcess(appId)
@@ -808,7 +781,11 @@ export function PayabliForm() {
   }
 
   if (isLoading) {
-    return <Loader2 className="animate-spin w-full h-64 mt-40 items-center opacity-30"/>
+    return (
+      <div className="flex justify-center items-center h-screen">
+        <Loader2 className="animate-spin w-16 h-16 opacity-30" />
+      </div>
+    )
   }
 
   return (
@@ -821,6 +798,7 @@ export function PayabliForm() {
           height={200}
           shape="square"
           className="rounded-lg md:mb-0 mb-4"
+          color="teal"
         />
         <h1 className="text-5xl font-bold m-4 p-4 md:block hidden">{formHeaderText}</h1>
         <div className="mb-6 mt-2 w-full md:flex justify-center hidden">
@@ -852,3 +830,4 @@ export function PayabliForm() {
     </>
   )
 }
+

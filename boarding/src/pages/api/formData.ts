@@ -3,12 +3,12 @@ import { saveFormData, loadFormData, clearFormData } from '../../lib/serverDb';
 
 export const POST: APIRoute = async ({ request }) => {
   try {
-    const { action, deviceToken, data } = await request.json();
-    console.log(`Received request: action=${action}, deviceToken=${deviceToken}`);
+    const { action, encryptedIdentifier, encryptedData } = await request.json();
+    console.log(`Received request: action=${action}, encryptedIdentifier=${encryptedIdentifier}`);
 
-    if (!action || !deviceToken) {
-      console.error('Missing action or deviceToken');
-      return new Response(JSON.stringify({ error: 'Missing action or deviceToken' }), { 
+    if (!action || !encryptedIdentifier) {
+      console.error('Missing action or encryptedIdentifier');
+      return new Response(JSON.stringify({ error: 'Missing action or encryptedIdentifier' }), { 
         status: 400,
         headers: { 'Content-Type': 'application/json' }
       });
@@ -16,28 +16,34 @@ export const POST: APIRoute = async ({ request }) => {
 
     switch (action) {
       case 'save':
-        if (!data) {
-          console.error('Missing data for save action');
-          return new Response(JSON.stringify({ error: 'Missing data for save action' }), { 
+        if (!encryptedData) {
+          console.error('Missing encryptedData for save action');
+          return new Response(JSON.stringify({ error: 'Missing encryptedData for save action' }), { 
             status: 400,
             headers: { 'Content-Type': 'application/json' }
           });
         }
-        await saveFormData(deviceToken, JSON.stringify(data));
+        console.log(`Saving data. Encrypted data length: ${encryptedData.length}`);
+        await saveFormData(encryptedIdentifier, encryptedData);
         console.log('Save operation completed');
         return new Response(JSON.stringify({ success: true }), { 
           status: 200,
           headers: { 'Content-Type': 'application/json' }
         });
       case 'load':
-        const loadedData = await loadFormData(deviceToken);
-        console.log('Load operation completed');
-        return new Response(JSON.stringify({ data: loadedData }), { 
+        console.log(`Loading data for identifier: ${encryptedIdentifier}`);
+        const loadedData = await loadFormData(encryptedIdentifier);
+        console.log('Load operation completed, data:', loadedData ? `found (length: ${loadedData.length})` : 'not found');
+        if (loadedData) {
+          console.log('Loaded data (first 50 chars):', loadedData.substring(0, 50) + '...');
+        }
+        return new Response(JSON.stringify({ encryptedData: loadedData }), { 
           status: 200,
           headers: { 'Content-Type': 'application/json' }
         });
       case 'clear':
-        await clearFormData(deviceToken);
+        console.log(`Clearing data for identifier: ${encryptedIdentifier}`);
+        await clearFormData(encryptedIdentifier);
         console.log('Clear operation completed');
         return new Response(JSON.stringify({ success: true }), { 
           status: 200,
@@ -53,6 +59,7 @@ export const POST: APIRoute = async ({ request }) => {
   } catch (error: unknown) {
     console.error('Server error:', error);
     const errorMessage = error instanceof Error ? error.message : 'Unknown error occurred';
+    console.error('Error details:', errorMessage);
     return new Response(JSON.stringify({ error: 'Internal server error', details: errorMessage }), { 
       status: 500,
       headers: { 'Content-Type': 'application/json' }
