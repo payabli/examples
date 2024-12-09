@@ -2,16 +2,13 @@ import { z } from 'zod'
 import { toast } from '@/hooks/use-toast'
 import FingerprintJS from '@fingerprintjs/fingerprintjs'
 import React, { useCallback, useState, useEffect } from 'react'
-import { db, formData } from './db'
-import { eq } from 'drizzle-orm'
 
-import { formSchema, useFormWithSchema } from './Schema'
+import { formSchema, useFormWithSchema } from '../Schema'
 
 type FormSchemaType = z.infer<typeof formSchema>
 
 const DEVICE_TOKEN_KEY = 'deviceToken'
 
-// Function to generate or retrieve the device token
 async function getDeviceToken(): Promise<string> {
   let token = localStorage.getItem(DEVICE_TOKEN_KEY)
   if (!token) {
@@ -23,52 +20,58 @@ async function getDeviceToken(): Promise<string> {
   return token
 }
 
+async function apiRequest(action: string, data?: FormSchemaType) {
+  const deviceToken = await getDeviceToken();
+  const response = await fetch('/api/formData', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ action, deviceToken, data }),
+  });
+  
+  if (!response.ok) {
+    const text = await response.text();
+    console.error('API Error:', text);
+    throw new Error(`API request failed: ${response.status} ${response.statusText}`);
+  }
+  
+  return response.json();
+}
+
 export const saveToDrizzle = async (data: FormSchemaType) => {
   try {
-    const deviceToken = await getDeviceToken()
-    await db.insert(formData).values({
-      deviceToken,
-      data: JSON.stringify(data),
-    }).onConflictDoUpdate({
-      target: formData.deviceToken,
-      set: { data: JSON.stringify(data) },
-    })
-    console.log('Data saved successfully')
+    await apiRequest('save', data);
+    console.log('Data saved successfully');
   } catch (error) {
-    console.error('Error in saveToDrizzle:', error)
-    throw error
+    console.error('Error in saveToDrizzle:', error);
+    throw error;
   }
 }
 
 export const loadFromDrizzle = async (): Promise<FormSchemaType | null> => {
   try {
-    const deviceToken = await getDeviceToken()
-    const result = await db.select().from(formData).where(eq(formData.deviceToken, deviceToken))
-    if (result.length > 0) {
-      const parsedData = JSON.parse(result[0].data) as FormSchemaType
-      console.log('Data loaded successfully')
-      return parsedData
+    const { data } = await apiRequest('load');
+    if (data) {
+      console.log('Data loaded successfully');
+      return JSON.parse(data);
     }
-    console.log('No data found in Drizzle')
-    return null
+    console.log('No data found');
+    return null;
   } catch (error) {
-    console.error('Error in loadFromDrizzle:', error)
-    return null
+    console.error('Error in loadFromDrizzle:', error);
+    return null;
   }
 }
 
 export const clearDrizzle = async () => {
   try {
-    const deviceToken = await getDeviceToken()
-    await db.delete(formData).where(eq(formData.deviceToken, deviceToken))
-    console.log('Drizzle data cleared successfully')
+    await apiRequest('clear');
+    console.log('Data cleared successfully');
   } catch (error) {
-    console.error('Error in clearDrizzle:', error)
-    throw error
+    console.error('Error in clearDrizzle:', error);
+    throw error;
   }
 }
 
-// custom hook to save and clear form data
 export const useDrizzle = () => {
   const form = useFormWithSchema()
   const [isLoading, setIsLoading] = useState(true)
@@ -139,19 +142,8 @@ export const useDrizzle = () => {
       const savedData = await loadFromDrizzle()
       if (savedData) {
         form.reset(savedData)
-        toast({
-          variant: 'default',
-          title: 'Data Loaded',
-          description: 'Your saved progress has been loaded successfully.',
-        })
         return savedData
-      } else {
-        toast({
-          variant: 'default',
-          title: 'No Saved Data',
-          description: 'No previously saved data was found.',
-        })
-      }
+      }   
       return null
     } catch (error) {
       console.error('Error loading saved data:', error)

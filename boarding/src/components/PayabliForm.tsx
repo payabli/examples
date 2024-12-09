@@ -15,6 +15,7 @@ import {
   SaveAll,
   SaveIcon,
   SaveAllIcon,
+  Loader2,
 } from 'lucide-react'
 import FormSelect from './form/FormSelect'
 import {
@@ -28,7 +29,7 @@ import FormCheckboxGroup from './form/FormCheckboxGroup'
 import { useFormLogic } from '@/onSubmit'
 import { DynamicFormSection } from './form/DynamicFormSection'
 import { Button } from './ui/button'
-import { useIndexedDB } from '@/dbUtils'
+import { useDrizzle } from '@/lib/clientDb'
 import { useFormWithSchema } from '@/Schema'
 import { documentPages } from './ESigDocument'
 import { useESignature } from '@/hooks/use-esignature'
@@ -62,7 +63,7 @@ export function PayabliForm() {
     // Remove the owner from the form data
     const currentValues = form.getValues()
     const updatedContacts = currentValues.contacts.filter((_, i) => i !== index)
-    form.setValue('contacts', updatedContacts)
+    form.setValue('contacts', updatedContacts as any)
 
     // Trigger validation for the updated ownership field
     form.trigger('contacts')
@@ -80,14 +81,14 @@ export function PayabliForm() {
     const updatedOwnership = currentValues.ownership.filter(
       (_, i) => i !== index,
     )
-    form.setValue('ownership', updatedOwnership)
+    form.setValue('ownership', updatedOwnership as any)
 
     // Trigger validation for the updated ownership field
     form.trigger('ownership')
   }
 
   const form = useFormWithSchema()
-  const { saveForLater, clearFormData, loadSavedData } = useIndexedDB()
+  const { saveForLater, clearFormData, loadSavedData } = useDrizzle()
 
   // Load saved data when component mounts
   useEffect(() => {
@@ -109,22 +110,7 @@ export function PayabliForm() {
         if (savedData.ownership) {
           setOwnership(savedData.ownership)
         }
-
-        // Get current form values
-        const formValues = form.getValues()
-
-        // Trigger a re-render of region fields only if corresponding country is non-empty
-        // (don't need to rerender the ownership countries as due to the logical coupling
-        // of the FormRegionCountry component, they have some rerendering built
-        // into them already)
-        const fieldsToTrigger: string[] = [
-          'bstate',
-          'mstate',
-          'signer.state',
-          'licstate',
-        ]
-
-        form.trigger(fieldsToTrigger)
+        
         setIsLoading(false)
       } else {
         setIsLoading(false)
@@ -822,7 +808,7 @@ export function PayabliForm() {
   }
 
   if (isLoading) {
-    return
+    return <Loader2 className="animate-spin w-full h-64 mt-40 items-center opacity-30"/>
   }
 
   return (

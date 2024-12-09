@@ -245,4 +245,3 @@ export function ESignature({ contentRef, onConfirm }: ESignatureProps) {
     </Dialog>
   )
 }
-

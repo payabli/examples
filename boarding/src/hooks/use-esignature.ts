@@ -122,7 +122,7 @@ async function generatePDF(content: HTMLElement): Promise<jsPDF> {
   const pageWidth = pdf.internal.pageSize.getWidth()
   const pageHeight = pdf.internal.pageSize.getHeight()
 
-  const pages = content.querySelectorAll('.mb-8')
+  const pages = content.querySelectorAll('.document-page')
   
   for (let i = 0; i < pages.length; i++) {
     const page = pages[i] as HTMLElement
@@ -131,6 +131,15 @@ async function generatePDF(content: HTMLElement): Promise<jsPDF> {
       useCORS: true,
       logging: false,
       allowTaint: true,
+      onclone: (clonedDoc) => {
+        const clonedPage = clonedDoc.querySelector('.document-page') as HTMLElement
+        if (clonedPage) {
+          clonedPage.style.width = `${pageWidth}px`
+          clonedPage.style.height = `${pageHeight}px`
+          clonedPage.style.position = 'relative'
+          clonedPage.style.overflow = 'hidden'
+        }
+      }
     })
 
     const imgData = canvas.toDataURL('image/jpeg', 1.0)
