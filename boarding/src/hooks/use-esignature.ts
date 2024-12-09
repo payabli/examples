@@ -78,7 +78,19 @@ export function useESignature(options: ESignatureOptions) {
       const url = URL.createObjectURL(pdfBlob)
       store.setPdfUrl(url)
       
-      await attachPDF(pdf.output('datauristring').split(',')[1], appId)
+      const pdfContent = pdf.output('datauristring').split(',')[1]
+      
+      const response = await fetch('/api/attachPDF', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ pdfContent, appId }),
+      })
+
+      if (!response.ok) {
+        throw new Error('Failed to attach PDF')
+      }
       
       store.setDialogState('success')
     } catch (error) {
@@ -150,33 +162,5 @@ async function generatePDF(content: HTMLElement): Promise<jsPDF> {
   }
 
   return pdf
-}
-
-async function attachPDF(pdfContent: string, appId: string) {
-  console.log('Attaching PDF to application:', appId)
-  const apiToken = "o.wZItfIQ05eYXjLXS3lImXPJifGW8tkKZ4SsfVM/LSheG4g0mFYhHZtNOl6M7Xo23AbWxdAHUSXktYpGhgCk1YOguts7O8YPbfScBvfYDFLRF3e7qkWcgPS6tPiM675Y3Z+pdzo/dP+Z10z+aYL6q7SCE7Sikd1xs3kXUkTLq/4R1i5lwC6bkItGws8hRUYaSZxvM0sOAZiJEtC8Le9WN7Qtx35+t12QG2+ThQW5ZDrGNfF+LucpaNynd+ILNSJhi/xayd38EsCElqbj0CHqlT//Uvmc5m7PcNqA6bzK1ntRCK5ncoPCICbobhqJl3NFEkExLKuh3RsFEn2jqzc9ibU6gFWmSa96JwSwPiN2znq4TwlK/nye5sRPw/67cZCH45yfA5AEjsmGTKJLuXYCNtpPJ8XfBnfXkbNRUF8uvkEmiB2RpVsPEQPmyL0dypy4GAfY5Mpzrpd5uRzY5q0P933lLHptjSMDiH5p0Wa1cm+dhkOHmO06MXD2xgQJL/LCA.11x5U4XvxTC/NgBGZVMd+efiCx49YMVuw+zaWtQ6xOY="
-  
-  const callBody = {
-    attachments: [
-      {
-        ftype: "pdf",
-        filename: "esignature.pdf",
-        fContent: pdfContent
-      }
-    ]
-  }
-  
-  const response = await fetch(`https://api-sandbox.payabli.com/api/Boarding/app/${appId}`, {
-    method: 'PUT',
-    headers: {
-      'content-type': 'application/json',
-      'requestToken': apiToken
-    },
-    body: JSON.stringify(callBody),
-  })
-   
-  if (!response.ok) {
-    throw new Error('Failed to attach PDF')
-  }
 }
 

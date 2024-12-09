@@ -1,9 +1,24 @@
-import { useState, useMemo, useEffect, memo } from 'react'
+import { useState, useMemo, useEffect, useRef } from 'react'
 import { Form } from '@/components/ui/form'
 import FormInput from './form/FormInput'
 import { Wizard, WizardStep } from './form/Wizard'
-import { Calendar, CreditCard, FileText, Building, Users, Banknote, Save, X, LoaderPinwheel, SaveAll, SaveIcon, SaveAllIcon, Loader2 } from 'lucide-react'
+import {
+  Calendar,
+  CreditCard,
+  FileText,
+  Building,
+  Users,
+  Banknote,
+  Save,
+  X,
+  LoaderPinwheel,
+  SaveAll,
+  SaveAllIcon,
+  SaveIcon,
+  Loader2,
+} from 'lucide-react'
 import FormSelect from './form/FormSelect'
+import { motion } from 'framer-motion'
 import {
   FormCountrySelect,
   FormRegionSelect,
@@ -29,14 +44,22 @@ type FormSchemaType = z.infer<typeof formSchema>
 
 export function PayabliForm() {
   const formHeaderText = 'Boarding Application'
-  const [isLoading, setIsLoading] = useState(true)
 
+  // Loading states
+  const [isLoading, setIsLoading] = useState(true)
+  const [isDataLoaded, setIsDataLoaded] = useState(false)
+  const [error, setError] = useState<string | null>(null)
+  const [isSaveWorking, setIsSaveWorking] = useState(false)
+  const [isClearWorking, setIsClearWorking] = useState(false)
+  const [isFormVisible, setIsFormVisible] = useState(false)
+  const isMounted = useRef(false)
+
+  // Form state, manually manage only complex fields in form (dynamic or dependent ones)
   const [currentPage, setCurrentPage] = useState(0)
   const [contacts, setContacts] = useState([{}])
   const [ownership, setOwnership] = useState([{}])
   const [ownershipCountries, setOwnershipCountries] = useState<string[]>([''])
   const [ownershipIndex, setOwnershipIndex] = useState(0)
-
   const [businessCountry, setBusinessCountry] = useState('')
   const [mailingCountry, setMailingCountry] = useState('')
   const [signerCountry, setSignerCountry] = useState('')
@@ -72,30 +95,68 @@ export function PayabliForm() {
   const { saveForLater, clearFormData, loadSavedData } = useDrizzle()
 
   useEffect(() => {
-    const loadData = async () => {
-      const savedData = await loadSavedData()
-      if (savedData) {
-        form.reset(savedData)
-
-        setBusinessCountry(savedData.bcountry || '')
-        setMailingCountry(savedData.mcountry || '')
-        setSignerCountry(savedData.signer?.country || '')
-
-        if (savedData.contacts) {
-          setContacts(savedData.contacts)
-        }
-        if (savedData.ownership) {
-          setOwnership(savedData.ownership)
-        }
-      }
-      setIsLoading(false)
+    isMounted.current = true
+    return () => {
+      isMounted.current = false
     }
+  }, [])
+
+  useEffect(() => {
+    const loadData = async () => {
+      setIsLoading(true)
+      setIsDataLoaded(false)
+      try {
+        const savedData = await loadSavedData()
+        if (savedData) {
+          await form.reset(savedData)
+
+          setBusinessCountry(savedData.bcountry || '')
+          setMailingCountry(savedData.mcountry || '')
+          setSignerCountry(savedData.signer?.country || '')
+
+          if (savedData.contacts) {
+            setContacts(savedData.contacts)
+          }
+          if (savedData.ownership) {
+            setOwnership(savedData.ownership)
+          }
+        }
+        setIsDataLoaded(true)
+      } catch (error) {
+        console.error('Error loading saved data:', error)
+        setError('Failed to load data. Please try again.')
+      } finally {
+        setIsLoading(false)
+      }
+    }
+
     loadData()
   }, [loadSavedData, form])
 
-  const handleSaveForLater = () => {
-    const formData = form.getValues()
-    saveForLater(formData)
+  const handleSaveForLater = async () => {
+    setIsSaveWorking(true)
+    try {
+      const formData = form.getValues()
+      await saveForLater(formData)
+    } catch (error) {
+      console.error('Error saving data:', error)
+      // Optionally, set an error state here to display to the user
+    } finally {
+      setIsSaveWorking(false)
+    }
+  }
+
+  const handleClearData = async () => {
+    setIsClearWorking(true)
+    try {
+      await clearFormData()
+      form.reset({}) // Reset the form after clearing data
+    } catch (error) {
+      console.error('Error clearing data:', error)
+      // Optionally, set an error state here to display to the user
+    } finally {
+      setIsClearWorking(false)
+    }
   }
 
   const controls = (
@@ -105,15 +166,25 @@ export function PayabliForm() {
         className="w-44 scale-[90%] justify-start"
         type="button"
       >
-        <SaveAll className="mr-3" /> Save Progress
+        {!isSaveWorking ? (
+          <SaveAll className="mr-3" />
+        ) : (
+          <Loader2 className="mr-3 animate-spin" />
+        )}
+        Save Progress
       </Button>
 
       <Button
-        onClick={clearFormData}
+        onClick={handleClearData}
         className="ml-auto w-44 scale-[90%]"
         type="button"
       >
-        <X className="mr-3" /> Clear Progress
+        {!isClearWorking ? (
+          <X className="mr-3" />
+        ) : (
+          <Loader2 className="mr-3 animate-spin" />
+        )}
+        Clear Progress
       </Button>
     </div>
   )
@@ -780,54 +851,71 @@ export function PayabliForm() {
     handleConfirm(appId)
   }
 
-  if (isLoading) {
+  if (isLoading || !isDataLoaded) {
     return (
-      <div className="flex justify-center items-center h-screen">
-        <Loader2 className="animate-spin w-16 h-16 opacity-30" />
+      <div className="flex h-screen items-center justify-center">
+        <Loader2 className="h-16 w-16 animate-spin opacity-30" />
       </div>
     )
   }
 
   return (
     <>
-      <div className="grid place-items-center grid-col-1">
-        <SVGLogoPlaceholder
-          text="Acme Inc."
-          textSize="3xl"
-          width={200}
-          height={200}
-          shape="square"
-          className="rounded-lg md:mb-0 mb-4"
-          color="teal"
-        />
-        <h1 className="text-5xl font-bold m-4 p-4 md:block hidden">{formHeaderText}</h1>
-        <div className="mb-6 mt-2 w-full md:flex justify-center hidden">
-          <Button
-            onClick={handleSaveForLater}
-            className="w-44 scale-[90%]"
-            type="button"
-          >
-            <SaveAll className="mr-3" /> Save Progress
-          </Button>
-          <Button
-            onClick={clearFormData}
-            className="w-44 scale-[90%]"
-            type="button"
-          >
-            <X className="mr-3" /> Clear Progress
-          </Button>
+      <motion.div
+        initial={{ opacity: 0, scale: 0.99 }}
+        animate={{ opacity: 1, scale: 1 }}
+        transition={{ duration: 0.25, ease: 'easeInOut', delay: 0.25 }}
+      >
+        <div className="grid-col-1 grid place-items-center">
+          <SVGLogoPlaceholder
+            text="Acme Inc."
+            textSize="3xl"
+            width={200}
+            height={200}
+            shape="square"
+            className="mb-4 rounded-lg md:mb-0"
+            color="teal"
+          />
+          <h1 className="m-4 hidden p-4 text-5xl font-bold md:block">
+            {formHeaderText}
+          </h1>
+          <div className="mb-6 mt-2 hidden w-full justify-center md:flex">
+            <Button
+              onClick={handleSaveForLater}
+              className="w-44 scale-[90%]"
+              type="button"
+            >
+              {!isSaveWorking ? (
+                <SaveAll className="mr-3" />
+              ) : (
+                <Loader2 className="mr-3 animate-spin" />
+              )}
+              Save Progress
+            </Button>
+            <Button
+              onClick={handleClearData}
+              className="w-44 scale-[90%]"
+              type="button"
+            >
+              {!isClearWorking ? (
+                <X className="mr-3" />
+              ) : (
+                <Loader2 className="mr-3 animate-spin" />
+              )}
+              Clear Progress
+            </Button>
+          </div>
         </div>
-      </div>
-      <h1 className="mb-4 w-full text-center text-3xl font-bold md:hidden">
-        {formHeaderText}
-      </h1>
-      <Form {...form}>
-        <form onSubmit={form.handleSubmit(onSuccessWithForm, onError)}>
-          {steps}
-        </form>
-        <ESignature contentRef={contentRef} onConfirm={onConfirm} />
-      </Form>
+        <h1 className="mb-4 w-full text-center text-3xl font-bold md:hidden">
+          {formHeaderText}
+        </h1>
+        <Form {...form}>
+          <form onSubmit={form.handleSubmit(onSuccessWithForm, onError)}>
+            {steps}
+          </form>
+          <ESignature contentRef={contentRef} onConfirm={onConfirm} />
+        </Form>
+      </motion.div>
     </>
   )
 }
-
