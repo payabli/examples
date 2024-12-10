@@ -29,7 +29,6 @@ export function useFormLogic(
 
       const responseData = await response.json()
 
-      console.log(responseData)
       return responseData
     } catch (error) {
       toast({
@@ -58,7 +57,7 @@ export function useFormLogic(
           title: 'Error!',
           description: 'The form could not be submitted successfully.',
         })
-        
+
         console.log(errors)
 
         // Update the current page to the earliest error page

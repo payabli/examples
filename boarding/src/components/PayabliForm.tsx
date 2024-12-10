@@ -16,6 +16,7 @@ import {
   SaveAllIcon,
   SaveIcon,
   Loader2,
+  Percent,
 } from 'lucide-react'
 import FormSelect from './form/FormSelect'
 import { motion } from 'framer-motion'
@@ -63,6 +64,18 @@ export function PayabliForm() {
   const [businessCountry, setBusinessCountry] = useState('')
   const [mailingCountry, setMailingCountry] = useState('')
   const [signerCountry, setSignerCountry] = useState('')
+
+  // File upload, handled externally to the main form
+  const [depositFile, setDepositFile] = useState<File | null>(null)
+  const [depositType, setDepositType] = useState<string>('')
+  const [depositContents, setDepositContents] = useState<string | null>('')
+  const [depositExtension, setDepositExtension] = useState<string>('')
+  const [withdrawalFile, setWithdrawalFile] = useState<File | null>(null)
+  const [withdrawalType, setWithdrawalType] = useState<string>('')
+  const [withdrawalContents, setWithdrawalContents] = useState<string | null>(
+    '',
+  )
+  const [withdrawalExtension, setWithdrawalExtension] = useState<string>('')
 
   const addContact = () => setContacts([...contacts, {}])
   const removeContact = (index: number) => {
@@ -121,6 +134,7 @@ export function PayabliForm() {
             setOwnership(savedData.ownership)
           }
         }
+
         setIsDataLoaded(true)
       } catch (error) {
         console.error('Error loading saved data:', error)
@@ -220,6 +234,7 @@ export function PayabliForm() {
               name="ein"
               label="EIN"
               tooltip="Your Employer Identification Number (9 digits)"
+              mask="99-9999999"
             />
             <FormInput
               name="taxfillname"
@@ -254,6 +269,7 @@ export function PayabliForm() {
               name="faxnumber"
               label="Fax Number"
               tooltip="Your business fax number (if applicable)"
+              mask="(999) 999-9999"
             />
             <FormSelect
               name="btype"
@@ -329,17 +345,13 @@ export function PayabliForm() {
               label="Mailing City"
               tooltip="The city for your mailing address"
             />
-            <FormCountrySelect
-              name="mcountry"
-              label="Mailing Country"
-              tooltip="The country for your mailing address"
-              onChange={(value: string) => setMailingCountry(value)}
-            />
-            <FormRegionSelect
-              name="mstate"
-              label="Mailing State"
-              tooltip="The state for your mailing address"
-              countryCode={mailingCountry}
+            <FormCountryRegionCombined
+              countryName="mcountry"
+              countryLabel="Mailing Country"
+              countryTooltip="The country for your mailing address"
+              regionName="mstate"
+              regionLabel="Mailing State"
+              regionTooltip="The state for your mailing address"
             />
             <FormInput
               name="mzip"
@@ -379,6 +391,7 @@ export function PayabliForm() {
               name="contacts[].contactPhone"
               label="Contact Phone"
               tooltip="Phone number of the contact person"
+              mask="(999) 999-9999"
             />
           </DynamicFormSection>
 
@@ -403,11 +416,15 @@ export function PayabliForm() {
               name="ownership[].ownerpercent"
               label="Ownership Percentage"
               tooltip="Percentage of ownership (0-100)"
+              postfix="%"
+              numeric
+              maxLength={3}
             />
             <FormInput
               name="ownership[].ownerssn"
               label="Owner SSN"
               tooltip="Social Security Number of the owner (9 digits)"
+              mask="999-99-9999"
             />
             <FormInput
               name="ownership[].ownerdob"
@@ -421,11 +438,13 @@ export function PayabliForm() {
               name="ownership[].ownerphone1"
               label="Owner Phone 1"
               tooltip="Primary phone number of the owner"
+              mask="(999) 999-9999"
             />
             <FormInput
               name="ownership[].ownerphone2"
               label="Owner Phone 2"
               tooltip="Secondary phone number of the owner (if applicable)"
+              mask="(999) 999-9999"
             />
             <FormInput
               name="ownership[].owneremail"
@@ -530,16 +549,25 @@ export function PayabliForm() {
               label="In-Person Sales (%)"
               tooltip="Percentage of sales conducted in person"
               type="number"
+              postfix="%"
+              numeric
+              maxLength={3}
             />
             <FormInput
               name="binphone"
               label="Phone Sales (%)"
               tooltip="Percentage of sales conducted over the phone"
+              postfix="%"
+              numeric
+              maxLength={3}
             />
             <FormInput
               name="binweb"
               label="Web Sales (%)"
               tooltip="Percentage of sales conducted online"
+              postfix="%"
+              numeric
+              maxLength={3}
             />
             <FormInput
               type="number"
@@ -667,9 +695,19 @@ export function PayabliForm() {
             </div>
 
             <FormFileUpload
-              name="voidCheck"
-              label="Voided Check"
+              name="deposit-check"
+              id="deposit-check"
+              label="Deposit Check"
               tooltip="Upload a voided check as proof of account"
+              accept="image/png, image/jpeg, application/pdf"
+              file={depositFile}
+              setFile={setDepositFile}
+              type={depositType}
+              setType={setDepositType}
+              contents={depositContents}
+              setContents={setDepositContents}
+              extension={depositExtension}
+              setExtension={setDepositExtension}
             />
 
             <div className="space-y-4">
@@ -717,9 +755,19 @@ export function PayabliForm() {
             </div>
 
             <FormFileUpload
-              name="voidCheck"
-              label="Voided Check"
+              name="withdrawal-check"
+              id="withdrawal-check"
+              label="Withdrawal Check"
               tooltip="Upload a voided check as proof of account"
+              accept="image/png, image/jpeg, application/pdf"
+              file={withdrawalFile}
+              setFile={setWithdrawalFile}
+              type={withdrawalType}
+              setType={setWithdrawalType}
+              contents={withdrawalContents}
+              setContents={setWithdrawalContents}
+              extension={withdrawalExtension}
+              setExtension={setWithdrawalExtension}
             />
 
             <div className="space-y-4">
@@ -765,6 +813,7 @@ export function PayabliForm() {
                   name="signer.ssn"
                   label="Signer SSN"
                   tooltip="Social Security Number of the signer (9 digits)"
+                  mask="999-99-9999"
                 />
                 <FormInput
                   name="signer.dob"
@@ -778,6 +827,7 @@ export function PayabliForm() {
                   name="signer.phone"
                   label="Signer Phone"
                   tooltip="Phone number of the signer"
+                  mask="(999) 999-9999"
                 />
                 <FormInput
                   name="signer.email"
@@ -827,6 +877,8 @@ export function PayabliForm() {
       mailingCountry,
       signerCountry,
       ownershipCountries,
+      depositFile,
+      withdrawalFile,
     ],
   )
 
@@ -834,6 +886,20 @@ export function PayabliForm() {
 
   const { handleESignatureProcess, handleConfirm, contentRef } = useESignature({
     documentBody: documentPages,
+    otherAttachments: [
+      {
+        file: depositFile,
+        type: depositType,
+        contents: depositContents,
+        extension: depositExtension,
+      },
+      {
+        file: withdrawalFile,
+        type: withdrawalType,
+        contents: withdrawalContents,
+        extension: withdrawalExtension,
+      },
+    ],
   })
 
   const [appId, setAppId] = useState('')

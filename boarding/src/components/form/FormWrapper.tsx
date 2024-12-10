@@ -1,22 +1,12 @@
-import React, { useState, useEffect, useRef } from 'react'
+import React, { useState, useEffect, useRef, ReactNode } from 'react'
 import { useFormContext } from 'react-hook-form'
-import { format } from 'date-fns'
-import { Calendar as CalendarIcon, Info } from 'lucide-react'
-import { cn } from '@/lib/utils'
-import { Button } from '@/components/ui/button'
-import { Calendar } from '@/components/ui/calendar'
 import {
-  Popover,
-  PopoverContent,
-  PopoverTrigger,
-} from '@/components/ui/popover'
-import {
-  FormControl,
   FormField,
   FormItem,
   FormLabel,
   FormMessage,
 } from '@/components/ui/form'
+import { Info } from 'lucide-react'
 import {
   Tooltip,
   TooltipContent,
@@ -24,29 +14,28 @@ import {
   TooltipTrigger,
 } from '@/components/ui/tooltip'
 
-type FormDatePickerTypes = {
-  control?: any
+export type FormWrapperProps = {
   name: string
   label: string
-  placeholder?: string
   tooltip?: string
   required?: boolean
-  disabled?: boolean
   showLabel?: boolean
   showTooltip?: boolean
 }
 
-export default function FormDatePicker({
-  control,
+type FormWrapperWithChildrenProps = FormWrapperProps & {
+  children: (field: any) => ReactNode
+}
+
+export function FormWrapper({
   name,
   label,
-  placeholder = 'Pick a date',
   tooltip,
   required,
-  disabled,
   showLabel = true,
   showTooltip = true,
-}: FormDatePickerTypes) {
+  children,
+}: FormWrapperWithChildrenProps) {
   const [open, setOpen] = useState(false)
   const tooltipRef = useRef<HTMLDivElement | null>(null)
 
@@ -66,13 +55,12 @@ export default function FormDatePicker({
   }, [])
 
   const form = useFormContext()
-  const resolvedControl = control || form.control
 
   return (
     <TooltipProvider>
       <Tooltip open={open}>
         <FormField
-          control={resolvedControl}
+          control={form.control}
           name={name}
           render={({ field }) => (
             <FormItem className="relative mb-4 md:mx-2">
@@ -101,45 +89,7 @@ export default function FormDatePicker({
                 </FormLabel>
               )}
               <FormMessage id={`${name}-error`} />
-              <FormControl>
-                <Popover>
-                  <PopoverTrigger asChild>
-                    <Button
-                      variant={'outline'}
-                      className={cn(
-                        'h-10 w-full justify-start text-left font-normal',
-                        !field.value && 'text-muted-foreground',
-                        'pl-3 pr-3', // Add left and right padding
-                      )}
-                      disabled={disabled}
-                      aria-invalid={
-                        form.formState.errors[name] ? 'true' : 'false'
-                      }
-                      aria-describedby={`${name}-error`}
-                    >
-                      <CalendarIcon
-                        className="left-[10px]h-5 absolute w-5"
-                        aria-hidden="true"
-                      />
-                      <span className="pl-7">
-                        {field.value ? format(field.value, 'PPP') : placeholder}
-                      </span>
-                    </Button>
-                  </PopoverTrigger>
-                  <PopoverContent className="w-auto p-0" align="start">
-                    <Calendar
-                      mode="single"
-                      selected={field.value}
-                      onSelect={(date) => {
-                        field.onChange(date)
-                        form.trigger(name)
-                      }}
-                      disabled={disabled}
-                      initialFocus
-                    />
-                  </PopoverContent>
-                </Popover>
-              </FormControl>
+              {children(field)}
               {tooltip && showTooltip && (
                 <TooltipContent className="mx-4" ref={tooltipRef}>
                   <p>{tooltip}</p>

@@ -1,31 +1,24 @@
-import React, { useCallback, useState, useRef, useEffect } from 'react'
-import { Upload, X, FileIcon, Info } from 'lucide-react'
-import {
-  FormControl,
-  FormField,
-  FormItem,
-  FormLabel,
-  FormMessage,
-} from '@/components/ui/form'
-import {
-  Tooltip,
-  TooltipContent,
-  TooltipProvider,
-  TooltipTrigger,
-} from '@/components/ui/tooltip'
-import { useFormContext } from 'react-hook-form'
+import React, { useState, useCallback, useRef } from 'react'
+import { Upload, FileIcon } from 'lucide-react'
+import { FormControl } from '@/components/ui/form'
+import { FormWrapper, FormWrapperProps } from './FormWrapper'
 
-interface FileUploadProps {
-  name: string
-  label: string
-  tooltip?: string
+type FormFileUploadProps = FormWrapperProps & {
   maxSizeMB?: number
   accept?: string
-  required?: boolean
   disabled?: boolean
+  file: File | null
+  setFile: (file: File | null) => void
+  type: string
+  setType: (type: string) => void
+  extension: string
+  setExtension: (extension: string) => void
+  contents: string | null
+  setContents: (contents: string | null) => void
+  id?: string
 }
 
-export default function FileUpload({
+export default function FormFileUpload({
   name,
   label,
   tooltip,
@@ -33,31 +26,59 @@ export default function FileUpload({
   accept = 'image/*,.pdf',
   required,
   disabled,
-}: FileUploadProps) {
-  const [dragActive, setDragActive] = useState(false)
+  file,
+  setFile,
+  type,
+  setType,
+  extension,
+  setExtension,
+  contents,
+  setContents,
+  id = 'file-upload',
+  showLabel = true,
+  showTooltip = true,
+}: FormFileUploadProps) {
   const [preview, setPreview] = useState<string | null>(null)
-  const [tooltipOpen, setTooltipOpen] = useState(false)
-  const tooltipRef = useRef<HTMLDivElement>(null)
+  const [error, setError] = useState<string | null>(null)
+  const [dragActive, setDragActive] = useState(false)
+  const fileInputRef = useRef<HTMLInputElement>(null)
 
-  const form = useFormContext()
+  const handleFile = useCallback(
+    (selectedFile: File) => {
+      setError(null)
 
-  useEffect(() => {
-    const handleClickOutside = (event: MouseEvent) => {
-      if (
-        tooltipRef.current &&
-        !tooltipRef.current.contains(event.target as Node)
-      ) {
-        setTooltipOpen(false)
+      if (selectedFile.size > maxSizeMB * 1024 * 1024) {
+        setError(`File size exceeds ${maxSizeMB}MB limit`)
+        return
       }
-    }
 
-    document.addEventListener('mousedown', handleClickOutside)
-    return () => {
-      document.removeEventListener('mousedown', handleClickOutside)
-    }
-  }, [])
+      setFile(selectedFile)
+      setType(selectedFile.type)
+      setExtension(`.${selectedFile.name.split('.').pop()}`)
 
-  const handleClick = () => setTooltipOpen((prev) => !prev)
+      const reader = new FileReader()
+      reader.onloadend = () => {
+        const base64String = reader.result as string
+        setContents(base64String.split(',')[1])
+        if (selectedFile.type.startsWith('image/')) {
+          setPreview(base64String)
+        } else {
+          setPreview(null)
+        }
+      }
+      reader.readAsDataURL(selectedFile)
+    },
+    [setFile, setType, setExtension, setContents, maxSizeMB],
+  )
+
+  const handleChange = useCallback(
+    (e: React.ChangeEvent<HTMLInputElement>) => {
+      if (e.target.files && e.target.files[0]) {
+        handleFile(e.target.files[0])
+      }
+    },
+    [handleFile],
+  )
 
   const handleDrag = useCallback((e: React.DragEvent) => {
     e.preventDefault()
@@ -70,167 +91,130 @@ export default function FileUpload({
   }, [])
 
   const handleDrop = useCallback(
-    (e: React.DragEvent, onChange: (file: File | null) => void) => {
+    (e: React.DragEvent) => {
       e.preventDefault()
       e.stopPropagation()
       setDragActive(false)
       if (e.dataTransfer.files && e.dataTransfer.files[0]) {
-        handleFile(e.dataTransfer.files[0], onChange)
+        handleFile(e.dataTransfer.files[0])
       }
     },
-    [],
+    [handleFile],
   )
 
-  const handleChange = useCallback(
-    (
-      e: React.ChangeEvent<HTMLInputElement>,
-      onChange: (file: File | null) => void,
-    ) => {
-      e.preventDefault()
-      if (e.target.files && e.target.files[0]) {
-        handleFile(e.target.files[0], onChange)
-      }
-    },
-    [],
-  )
-
-  const handleFile = (file: File, onChange: (file: File | null) => void) => {
-    // Clear any existing errors for this field
-    form.clearErrors(name);
-
-    if (file.size > maxSizeMB * 1024 * 1024) {
-      form.setError(name, {
-        type: 'manual',
-        message: `File size exceeds ${maxSizeMB}MB limit`,
-      });
-      return;
-    }
-
-    onChange(file);
-
-    if (file.type.startsWith('image/')) {
-      const reader = new FileReader();
-      reader.onloadend = () => {
-        setPreview(reader.result as string);
-      };
-      reader.readAsDataURL(file);
-    } else {
-      setPreview(null);
-    }
-  };
-
-  const removeFile = useCallback((onChange: (file: File | null) => void) => {
-    onChange(null)
+  const removeFile = useCallback(() => {
+    setFile(null)
+    setContents(null)
     setPreview(null)
+    setType('')
+    setExtension('')
+  }, [setFile, setContents, setType, setExtension])
+
+  const handleBoxClick = useCallback(() => {
+    fileInputRef.current?.click()
   }, [])
 
+  const truncateFileName = (name: string, maxLength: number = 20) => {
+    if (name.length <= maxLength) return name
+    const extension = name.split('.').pop()
+    const nameWithoutExtension = name.slice(0, name.lastIndexOf('.'))
+    const truncatedName = nameWithoutExtension.slice(
+      0,
+      maxLength - 3 - (extension?.length || 0),
+    )
+    return `${truncatedName}...${extension}`
+  }
+
   return (
-    <FormField
-      control={form.control}
+    <FormWrapper
       name={name}
-      render={({ field }) => (
-        <FormItem className="md:mx-2">
-          <FormLabel>
-            <div className="flex items-end">
-            <span>{label}</span>
-            {required && <span className="text-destructive"> *</span>}
-            {tooltip && (
-              <TooltipProvider>
-                <Tooltip open={tooltipOpen}>
-                  <TooltipTrigger
-                    asChild
-                    className="ml-[4px] h-full w-9 rounded-e-lg border border-transparent text-muted-foreground/80 ring-offset-background transition-shadow hover:text-foreground focus-visible:border-ring focus-visible:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/30 focus-visible:ring-offset-2 disabled:pointer-events-none disabled:cursor-not-allowed disabled:opacity-50"
-                  >
-                    <button
-                      type="button"
-                      aria-label={`Info for ${label}`}
-                      onClick={handleClick}
-                    >
-                      <Info
-                        size={16}
-                        strokeWidth={2}
-                        aria-hidden="true"
-                        className="translate-y-[2px]"
-                      />
-                    </button>
-                  </TooltipTrigger>
-                  <TooltipContent
-                    side="top"
-                    align="center"
-                    sideOffset={4}
-                    ref={tooltipRef}
-                  >
-                    <p>{tooltip}</p>
-                  </TooltipContent>
-                </Tooltip>
-              </TooltipProvider>
-            )}
-            </div>
-          </FormLabel>
-          <FormControl>
+      label={label}
+      tooltip={tooltip}
+      required={required}
+      showLabel={showLabel}
+      showTooltip={showTooltip}
+    >
+      {(field) => (
+        <FormControl>
+          <div className="space-y-2">
             <div
-              className={`relative flex h-64 w-full flex-col items-center justify-center rounded-lg border-2 border-dashed transition-colors ${
-                dragActive ? 'border-primary bg-primary/10' : 'border-input'
+              className={`flex w-full items-center justify-center ${
+                dragActive
+                  ? 'border-primary'
+                  : 'border-input hover:border-primary'
+              } h-64 cursor-pointer rounded-md border-2 border-dashed bg-background p-4 transition ${
+                disabled ? 'cursor-not-allowed opacity-50' : ''
               }`}
               onDragEnter={handleDrag}
               onDragLeave={handleDrag}
               onDragOver={handleDrag}
-              onDrop={(e) => handleDrop(e, field.onChange)}
+              onDrop={handleDrop}
+              onClick={handleBoxClick}
             >
               <input
+                id={id}
+                ref={fileInputRef}
                 type="file"
-                className="absolute inset-0 h-full w-full cursor-pointer opacity-0"
-                onChange={(e) => handleChange(e, field.onChange)}
+                className="hidden"
+                onChange={(e) => {
+                  handleChange(e)
+                  field.onChange(e)
+                }}
                 accept={accept}
                 disabled={disabled}
               />
-              {field.value ? (
-                <>
-                  {preview ? (
-                    <img
-                      src={preview}
-                      alt="Preview"
-                      className="mb-4 h-24 w-24 rounded-lg object-cover"
-                    />
-                  ) : (
-                    <FileIcon className="mb-4 h-16 w-16 text-muted-foreground" />
-                  )}
-                  <p className="max-w-full truncate px-2 text-sm text-muted-foreground">
-                    {field.value.name}
-                  </p>
-                </>
-              ) : (
-                <>
-                  <Upload className="mb-3 h-10 w-10 text-muted-foreground" />
-                  <p className="text-sm text-muted-foreground">
-                    <span className="font-semibold">Click to upload</span> or
-                    drag and drop
-                  </p>
-                  <p className="mt-1 text-xs text-muted-foreground">
-                    SVG, PNG, JPG or PDF (MAX. {maxSizeMB}MB)
-                  </p>
-                </>
-              )}
+              <div className="space-y-2 text-center">
+                {file ? (
+                  <div>
+                    {preview ? (
+                      <img
+                        src={preview}
+                        alt="Preview"
+                        className="mx-auto h-32 w-32 rounded-md object-cover"
+                      />
+                    ) : (
+                      <FileIcon className="mx-auto h-10 w-10 text-muted-foreground" />
+                    )}
+                    <p className="mt-2 text-sm text-muted-foreground">
+                      {truncateFileName(file.name)}
+                    </p>
+                  </div>
+                ) : (
+                  <>
+                    <Upload className="mx-auto h-10 w-10 text-muted-foreground" />
+                    <div className="text-sm text-muted-foreground">
+                      <span className="font-semibold text-primary">
+                        Click here
+                      </span>{' '}
+                      or drag and drop to upload a file
+                    </div>
+                    <p className="text-xs text-muted-foreground">
+                      PNG, JPG or PDF (MAX {maxSizeMB}MB)
+                    </p>
+                  </>
+                )}
+              </div>
             </div>
-          </FormControl>
-          {field.value && (
-            <div className="mt-2 flex items-center justify-between text-sm">
-              <span className="text-muted-foreground">
-                {(field.value.size / 1024 / 1024).toFixed(2)} MB
-              </span>
-              <button
-                type="button"
-                onClick={() => removeFile(field.onChange)}
-                className="text-destructive hover:text-destructive/90"
-              >
-                Remove
-              </button>
-            </div>
-          )}
-          <FormMessage />
-        </FormItem>
+            {file && (
+              <div className="flex items-center justify-between text-sm">
+                <span className="text-muted-foreground">
+                  {(file.size / 1024 / 1024).toFixed(2)} MB
+                </span>
+                <button
+                  type="button"
+                  onClick={removeFile}
+                  className="text-destructive hover:text-destructive/90"
+                >
+                  Remove
+                </button>
+              </div>
+            )}
+            {error && (
+              <p className="text-sm font-medium text-destructive">{error}</p>
+            )}
+          </div>
+        </FormControl>
       )}
-    />
+    </FormWrapper>
   )
 }
-

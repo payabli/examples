@@ -1,12 +1,5 @@
-import React, { useState, useEffect, useRef, ReactNode, useMemo } from 'react'
-import { useFormContext, useWatch, Controller } from 'react-hook-form'
-import {
-  FormControl,
-  FormField,
-  FormItem,
-  FormLabel,
-  FormMessage,
-} from '@/components/ui/form'
+import React, { useState, useEffect, useRef, useMemo } from 'react'
+import { useFormContext, useWatch, useForm } from 'react-hook-form'
 import {
   Select,
   SelectContent,
@@ -25,6 +18,7 @@ import { filterCountries, filterRegions } from '@/lib/helpers'
 //@ts-ignore
 import countryRegionData from 'country-region-data/dist/data-umd'
 import ReactCountryFlag from 'react-country-flag'
+import { FormWrapper, FormWrapperProps } from './FormWrapper'
 
 export interface Region {
   name: string
@@ -37,16 +31,9 @@ export interface CountryRegion {
   regions: Region[]
 }
 
-type FormSelectTypes = {
-  control?: any
-  name: string
-  label: string
+type FormCountryRegionProps = FormWrapperProps & {
   placeholder?: string
-  tooltip?: string
-  required?: boolean
   disabled?: boolean
-  showLabel?: boolean
-  showTooltip?: boolean
   onChange?: (value: string) => void
   className?: string
   flagsvg?: boolean
@@ -71,12 +58,25 @@ const TooltipTrigger2 = React.memo(
 
 TooltipTrigger2.displayName = 'TooltipTrigger2'
 
-const FormSelect = React.memo(
+const CountryFlag = React.memo(
+  ({ countryCode, flagsvg }: { countryCode: string; flagsvg: boolean }) => (
+    <span className="mr-2">
+      <ReactCountryFlag
+        countryCode={countryCode}
+        svg={flagsvg}
+        className="ml-[5px] h-full w-full scale-[170%]"
+      />
+    </span>
+  ),
+)
+
+CountryFlag.displayName = 'CountryFlag'
+
+const InternalFormCountrySelect = React.memo(
   ({
-    control,
     name,
     label,
-    placeholder,
+    placeholder = 'Select a country',
     tooltip,
     required,
     disabled,
@@ -84,8 +84,102 @@ const FormSelect = React.memo(
     showTooltip = true,
     onChange,
     className,
-    children,
-  }: FormSelectTypes & { children: React.ReactNode }) => {
+    flagsvg,
+  }: FormCountryRegionProps) => {
+    const [open, setOpen] = useState(false)
+    const tooltipRef = useRef<HTMLDivElement | null>(null)
+
+    const handleClick = () => setOpen((prev) => !prev)
+
+    useEffect(() => {
+      const handleOutsideClick = (event: MouseEvent) => {
+        if (
+          tooltipRef.current &&
+          !tooltipRef.current.contains(event.target as Node)
+        ) {
+          setOpen(false)
+        }
+      }
+      document.addEventListener('mousedown', handleOutsideClick)
+      return () => document.removeEventListener('mousedown', handleOutsideClick)
+    }, [])
+
+    const countries = useMemo(
+      () => filterCountries(countryRegionData, ['US', 'CA'], [], []),
+      [],
+    )
+
+    return (
+      <FormWrapper
+        name={name}
+        label={label}
+        tooltip={tooltip}
+        required={required}
+        showLabel={showLabel}
+        showTooltip={showTooltip}
+      >
+        {(field) => (
+          <TooltipProvider>
+            <Tooltip open={open}>
+              <div className="relative">
+                <Select
+                  onValueChange={(value) => {
+                    field.onChange(value)
+                    onChange && onChange(value)
+                  }}
+                  value={field.value}
+                  disabled={disabled}
+                >
+                  <SelectTrigger className={`w-full ${className || ''}`}>
+                    <SelectValue placeholder={placeholder} />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {countries.map(({ countryName, countryShortCode }) => (
+                      <SelectItem
+                        key={countryShortCode}
+                        value={countryShortCode}
+                      >
+                        {flagsvg && (
+                          <CountryFlag
+                            countryCode={countryShortCode}
+                            flagsvg={flagsvg}
+                          />
+                        )}
+                        {countryName}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+                {tooltip && showTooltip && (
+                  <TooltipContent className="mx-4" ref={tooltipRef}>
+                    <p>{tooltip}</p>
+                  </TooltipContent>
+                )}
+              </div>
+            </Tooltip>
+          </TooltipProvider>
+        )}
+      </FormWrapper>
+    )
+  },
+)
+
+InternalFormCountrySelect.displayName = 'InternalFormCountrySelect'
+
+const InternalFormRegionSelect = React.memo(
+  ({
+    name,
+    label,
+    placeholder = 'Select a region',
+    tooltip,
+    required,
+    disabled,
+    showLabel = true,
+    showTooltip = true,
+    onChange,
+    className,
+    countryCode,
+  }: FormCountryRegionProps & { countryCode: string }) => {
     const [open, setOpen] = useState(false)
     const tooltipRef = useRef<HTMLDivElement | null>(null)
 
@@ -105,165 +199,15 @@ const FormSelect = React.memo(
     }, [])
 
     const form = useFormContext()
-    const resolvedControl = control || form.control
-
-    return (
-      <TooltipProvider>
-        <Tooltip open={open}>
-          <FormField
-            control={resolvedControl}
-            name={name}
-            render={({ field }) => (
-              <FormItem className="relative mb-4 md:mx-2">
-                {showLabel && (
-                  <FormLabel className="flex items-center">
-                    {label}
-                    {required && (
-                      <span
-                        className="ml-1 text-destructive"
-                        aria-hidden="true"
-                      >
-                        *
-                      </span>
-                    )}
-                    {tooltip && showTooltip && (
-                      <TooltipTrigger2
-                        label={label}
-                        handleClick={handleClick}
-                      />
-                    )}
-                  </FormLabel>
-                )}
-                <FormMessage id={`${name}-error`} />
-                <FormControl>
-                  <div className="relative">
-                    <Select
-                      onValueChange={(value) => {
-                        field.onChange(value)
-                        onChange && onChange(value)
-                      }}
-                      value={field.value}
-                      disabled={disabled}
-                    >
-                      <SelectTrigger
-                        className={`w-full ${className || ''}`}
-                        aria-invalid={
-                          form.formState.errors[name] ? 'true' : 'false'
-                        }
-                        aria-describedby={`${name}-error`}
-                      >
-                        <SelectValue placeholder={placeholder} />
-                      </SelectTrigger>
-                      <SelectContent>{children}</SelectContent>
-                    </Select>
-                    {tooltip && showTooltip && (
-                      <TooltipContent className="mx-4" ref={tooltipRef}>
-                        <p>{tooltip}</p>
-                      </TooltipContent>
-                    )}
-                  </div>
-                </FormControl>
-              </FormItem>
-            )}
-          />
-        </Tooltip>
-      </TooltipProvider>
-    )
-  },
-)
-
-FormSelect.displayName = 'FormSelect'
-
-const CountryFlag = React.memo(
-  ({ countryCode, flagsvg }: { countryCode: string; flagsvg: boolean }) => (
-    <span className="mr-2">
-      <ReactCountryFlag
-        countryCode={countryCode}
-        svg={flagsvg}
-        className="ml-[5px] h-full w-full scale-[170%]"
-      />
-    </span>
-  ),
-)
-
-CountryFlag.displayName = 'CountryFlag'
-
-const InternalFormCountrySelect = React.memo(
-  ({
-    control,
-    name,
-    label,
-    placeholder = 'Select a country',
-    tooltip,
-    required,
-    disabled,
-    showLabel = true,
-    showTooltip = true,
-    onChange,
-    className,
-    flagsvg,
-  }: FormSelectTypes) => {
-    const countries = useMemo(
-      () => filterCountries(countryRegionData, [], [], []),
-      []
-    )
-
-    const selectItems = useMemo(
-      () =>
-        countries.map(({ countryName, countryShortCode }) => (
-          <SelectItem key={countryShortCode} value={countryShortCode}>
-            {flagsvg && (
-              <CountryFlag countryCode={countryShortCode} flagsvg={flagsvg} />
-            )}
-            {countryName}
-          </SelectItem>
-        )),
-      [countries, flagsvg],
-    )
-
-    return (
-      <FormSelect
-        control={control}
-        name={name}
-        label={label}
-        placeholder={placeholder}
-        tooltip={tooltip}
-        required={required}
-        disabled={disabled}
-        showLabel={showLabel}
-        showTooltip={showTooltip}
-        onChange={onChange}
-        className={className}
-      >
-        {selectItems}
-      </FormSelect>
-    )
-  },
-)
-
-InternalFormCountrySelect.displayName = 'InternalFormCountrySelect'
-
-const InternalFormRegionSelect = React.memo(
-  ({
-    control,
-    name,
-    label,
-    placeholder = 'Select a region',
-    tooltip,
-    required,
-    disabled,
-    showLabel = true,
-    showTooltip = true,
-    onChange,
-    className,
-    countryCode,
-  }: FormSelectTypes & { countryCode: string }) => {
-    const form = useFormContext()
-    const watchedCountry = useWatch({ control: form.control, name: countryCode })
+    const watchedCountry = useWatch({
+      control: form.control,
+      name: countryCode,
+      defaultValue: countryCode,
+    })
 
     const regions = useMemo(() => {
       const country = countryRegionData.find(
-        (country: CountryRegion) => country.countryShortCode === watchedCountry
+        (country: CountryRegion) => country.countryShortCode === watchedCountry,
       )
       if (country) {
         return filterRegions(country.regions, [], [], [])
@@ -271,132 +215,88 @@ const InternalFormRegionSelect = React.memo(
       return []
     }, [watchedCountry])
 
-    const selectItems = useMemo(
-      () =>
-        regions.map(({ name, shortCode }) => (
-          <SelectItem key={shortCode} value={shortCode}>
-            {name}
-          </SelectItem>
-        )),
-      [regions],
-    )
-
     return (
-      <FormSelect
-        control={control}
+      <FormWrapper
         name={name}
         label={label}
-        placeholder={placeholder}
         tooltip={tooltip}
         required={required}
-        disabled={disabled || !watchedCountry}
         showLabel={showLabel}
         showTooltip={showTooltip}
-        onChange={onChange}
-        className={className}
       >
-        {selectItems}
-      </FormSelect>
+        {(field) => (
+          <TooltipProvider>
+            <Tooltip open={open}>
+              <div className="relative">
+                <Select
+                  onValueChange={(value) => {
+                    field.onChange(value)
+                    onChange && onChange(value)
+                  }}
+                  value={field.value}
+                  disabled={disabled || !watchedCountry}
+                >
+                  <SelectTrigger className={`w-full ${className || ''}`}>
+                    <SelectValue placeholder={placeholder} />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {regions.map(({ name, shortCode }) => (
+                      <SelectItem key={shortCode} value={shortCode}>
+                        {name}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+                {tooltip && showTooltip && (
+                  <TooltipContent className="mx-4" ref={tooltipRef}>
+                    <p>{tooltip}</p>
+                  </TooltipContent>
+                )}
+              </div>
+            </Tooltip>
+          </TooltipProvider>
+        )}
+      </FormWrapper>
     )
   },
 )
 
 InternalFormRegionSelect.displayName = 'InternalFormRegionSelect'
 
-export const FormCountrySelect = React.memo(
-  ({
-    control,
-    name,
-    label,
-    placeholder = 'Select a country',
-    tooltip,
-    required,
-    disabled,
-    showLabel = true,
-    showTooltip = true,
-    onChange,
-    className,
-    flagsvg,
-  }: FormSelectTypes) => {
-    return (
-      <InternalFormCountrySelect
-        control={control}
-        name={name}
-        label={label}
-        placeholder={placeholder}
-        tooltip={tooltip}
-        required={required}
-        disabled={disabled}
-        showLabel={showLabel}
-        showTooltip={showTooltip}
-        onChange={onChange}
-        className={className}
-        flagsvg={flagsvg}
-      />
-    )
-  }
-)
+export const FormCountrySelect = React.memo((props: FormCountryRegionProps) => {
+  const form = useForm()
+  return (
+    <form>
+      <InternalFormCountrySelect {...props} />
+    </form>
+  )
+})
 
 FormCountrySelect.displayName = 'FormCountrySelect'
 
 export const FormRegionSelect = React.memo(
   ({
-    control,
-    name,
-    label,
-    placeholder = 'Select a region',
-    tooltip,
-    required,
-    disabled,
-    showLabel = true,
-    showTooltip = true,
-    onChange,
-    className,
     countryCode,
-  }: FormSelectTypes & { countryCode: string }) => {
-    const regions = useMemo(() => {
-      const country = countryRegionData.find(
-        (country: CountryRegion) => country.countryShortCode === countryCode
-      )
-      if (country) {
-        return filterRegions(country.regions, [], [], [])
-      }
-      return []
-    }, [countryCode])
-
-    const selectItems = useMemo(
-      () =>
-        regions.map(({ name, shortCode }) => (
-          <SelectItem key={shortCode} value={shortCode}>
-            {name}
-          </SelectItem>
-        )),
-      [regions],
-    )
+    ...props
+  }: FormCountryRegionProps & { countryCode: string }) => {
+    const form = useForm({
+      defaultValues: {
+        [props.name]: '',
+        [countryCode]: countryCode,
+      },
+    })
 
     return (
-      <FormSelect
-        control={control}
-        name={name}
-        label={label}
-        placeholder={placeholder}
-        tooltip={tooltip}
-        required={required}
-        disabled={disabled || !countryCode}
-        showLabel={showLabel}
-        showTooltip={showTooltip}
-        onChange={onChange}
-        className={className}
-      >
-        {selectItems}
-      </FormSelect>
+      <form>
+        <InternalFormRegionSelect {...props} countryCode={countryCode} />
+      </form>
     )
-  }
+  },
 )
 
 FormRegionSelect.displayName = 'FormRegionSelect'
 
-type FormCountryRegionProps = {
+type FormCountryRegionCombinedProps = {
   countryName: string
   countryLabel: string
   countryTooltip?: string
@@ -409,43 +309,44 @@ type FormCountryRegionProps = {
   flagsvg?: boolean
 }
 
-export const FormCountryRegionCombined = React.memo(({
-  countryName,
-  countryLabel,
-  countryTooltip,
-  regionName,
-  regionLabel,
-  regionTooltip,
-  required,
-  disabled,
-  className,
-  flagsvg,
-}: FormCountryRegionProps) => {
-  return (
-    <>
-      <InternalFormCountrySelect
-        name={countryName}
-        label={countryLabel}
-        placeholder="Select a country"
-        tooltip={countryTooltip}
-        required={required}
-        disabled={disabled}
-        className={className}
-        flagsvg={flagsvg}
-      />
-      <InternalFormRegionSelect
-        name={regionName}
-        label={regionLabel}
-        placeholder="Select a region"
-        tooltip={regionTooltip}
-        required={required}
-        disabled={disabled}
-        className={className}
-        countryCode={countryName}
-      />
-    </>
-  )
-})
+export const FormCountryRegionCombined = React.memo(
+  ({
+    countryName,
+    countryLabel,
+    countryTooltip,
+    regionName,
+    regionLabel,
+    regionTooltip,
+    required,
+    disabled,
+    className,
+    flagsvg,
+  }: FormCountryRegionCombinedProps) => {
+    return (
+      <>
+        <InternalFormCountrySelect
+          name={countryName}
+          label={countryLabel}
+          placeholder="Select a country"
+          tooltip={countryTooltip}
+          required={required}
+          disabled={disabled}
+          className={className}
+          flagsvg={flagsvg}
+        />
+        <InternalFormRegionSelect
+          name={regionName}
+          label={regionLabel}
+          placeholder="Select a region"
+          tooltip={regionTooltip}
+          required={required}
+          disabled={disabled}
+          className={className}
+          countryCode={countryName}
+        />
+      </>
+    )
+  },
+)
 
 FormCountryRegionCombined.displayName = 'FormCountryRegionCombined'
-

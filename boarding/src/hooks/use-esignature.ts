@@ -3,13 +3,21 @@ import html2canvas from 'html2canvas'
 import jsPDF from 'jspdf'
 import { create } from 'zustand'
 
+type OtherAttachment = {
+  file: File | null
+  type: string
+  contents: string | null
+  extension: string
+}
+
 interface ESignatureOptions {
   documentBody: React.ReactNode[]
+  otherAttachments: OtherAttachment[]
 }
 
 interface ESignatureState {
   isOpen: boolean
-  dialogState: 'form' | 'success' | 'error'
+  dialogState: 'form' | 'success' | 'error' | 'pricing'
   signature: string
   pdfUrl: string | null
   deviceType: string
@@ -33,71 +41,107 @@ interface ESignatureActions {
   setOptions: (options: Partial<ESignatureOptions>) => void
 }
 
-export const useESignatureStore = create<ESignatureState & ESignatureActions>((set) => ({
-  isOpen: false,
-  dialogState: 'form',
-  signature: '',
-  pdfUrl: null,
-  deviceType: '',
-  ipAddress: '',
-  documentBody: [],
-  dialogTitle: 'E-Signature Agreement',
-  confirmButtonText: 'Confirm and Generate PDF',
-  successTitle: 'Submitted!',
-  successMessage: 'Your agreement has been recorded and a PDF has been generated.',
-  errorTitle: 'Error',
-  errorMessage: 'An error occurred while processing your submission. Please try again.',
-  setIsOpen: (isOpen) => set({ isOpen }),
-  setDialogState: (state) => set({ dialogState: state }),
-  setSignature: (signature) => set({ signature }),
-  setPdfUrl: (url) => set({ pdfUrl: url }),
-  setDeviceType: (type) => set({ deviceType: type }),
-  setIpAddress: (ip) => set({ ipAddress: ip }),
-  setOptions: (options) => set((state) => ({ ...state, ...options })),
-}))
+export const useESignatureStore = create<ESignatureState & ESignatureActions>(
+  (set) => ({
+    isOpen: false,
+    dialogState: 'pricing',
+    signature: '',
+    pdfUrl: null,
+    deviceType: '',
+    ipAddress: '',
+    documentBody: [],
+    dialogTitle: 'E-Signature Agreement',
+    confirmButtonText: 'Confirm and Generate PDF',
+    successTitle: 'Submitted!',
+    successMessage:
+      'Your agreement has been recorded and a PDF has been generated.',
+    errorTitle: 'Error',
+    errorMessage:
+      'An error occurred while processing your submission. Please try again.',
+    setIsOpen: (isOpen) => set({ isOpen }),
+    setDialogState: (state) => set({ dialogState: state }),
+    setSignature: (signature) => set({ signature }),
+    setPdfUrl: (url) => set({ pdfUrl: url }),
+    setDeviceType: (type) => set({ deviceType: type }),
+    setIpAddress: (ip) => set({ ipAddress: ip }),
+    setOptions: (options) => set((state) => ({ ...state, ...options })),
+  }),
+)
 
-export function useESignature(options: ESignatureOptions) {
+export function useESignature({
+  documentBody,
+  otherAttachments,
+}: ESignatureOptions) {
   const store = useESignatureStore()
   const contentRef = useRef<HTMLDivElement>(null)
 
-  const handleESignatureProcess = useCallback((appId: string) => {
-    store.setOptions({
-      documentBody: options.documentBody,
-    })
-    store.setIsOpen(true)
-    store.setDeviceType(getDeviceType())
-    getPublicIpAddress().then(ip => store.setIpAddress(ip)).catch(() => store.setIpAddress('Unable to fetch IP'))
-  }, [options.documentBody])
-
-  const handleConfirm = useCallback(async (appId: string) => {
-    console.log('Confirming with appId: ', appId)
-    if (!contentRef.current) return
-    try {
-      const pdf = await generatePDF(contentRef.current)
-      const pdfBlob = pdf.output('blob')
-      const url = URL.createObjectURL(pdfBlob)
-      store.setPdfUrl(url)
-      
-      const pdfContent = pdf.output('datauristring').split(',')[1]
-      
-      const response = await fetch('/api/attachPDF', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({ pdfContent, appId }),
+  const handleESignatureProcess = useCallback(
+    (appId: string) => {
+      store.setOptions({
+        documentBody: documentBody,
       })
+      store.setIsOpen(true)
+      store.setDeviceType(getDeviceType())
+      getPublicIpAddress()
+        .then((ip) => store.setIpAddress(ip))
+        .catch(() => store.setIpAddress('Unable to fetch IP'))
+    },
+    [documentBody],
+  )
 
-      if (!response.ok) {
-        throw new Error('Failed to attach PDF')
+  const handleConfirm = useCallback(
+    async (appId: string) => {
+      console.log('Confirming with appId: ', appId)
+      if (!contentRef.current) return
+      try {
+        const pdf = await generatePDF(contentRef.current)
+        const pdfBlob = pdf.output('blob')
+        const url = URL.createObjectURL(pdfBlob)
+        store.setPdfUrl(url)
+
+        const pdfContent = pdf.output('datauristring').split(',')[1]
+
+        const attachments = [
+          ...otherAttachments,
+          {
+            file: null,
+            type: 'pdf',
+            contents: pdfContent,
+            extension: '.pdf',
+          },
+        ]
+
+        console.log(
+          'Attachments:',
+          JSON.stringify(
+            attachments.map(({ file, type, extension }) => ({
+              file,
+              type,
+              extension,
+            })),
+          ),
+        )
+
+        const response = await fetch('/api/attachFiles', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({ attachments, appId }),
+        })
+
+        if (!response.ok) {
+          throw new Error('Failed to attach PDF')
+        }
+
+        store.setDialogState('success')
+      } catch (error) {
+        console.error('Error signing document:', error)
+        store.setDialogState('error')
       }
-      
-      store.setDialogState('success')
-    } catch (error) {
-      console.error('Error signing document:', error)
-      store.setDialogState('error')
-    }
-  }, [])
+    },
+    [otherAttachments],
+  )
 
   return {
     handleESignatureProcess,
@@ -135,7 +179,7 @@ async function generatePDF(content: HTMLElement): Promise<jsPDF> {
   const pageHeight = pdf.internal.pageSize.getHeight()
 
   const pages = content.querySelectorAll('.document-page')
-  
+
   for (let i = 0; i < pages.length; i++) {
     const page = pages[i] as HTMLElement
     const canvas = await html2canvas(page, {
@@ -144,14 +188,16 @@ async function generatePDF(content: HTMLElement): Promise<jsPDF> {
       logging: false,
       allowTaint: true,
       onclone: (clonedDoc) => {
-        const clonedPage = clonedDoc.querySelector('.document-page') as HTMLElement
+        const clonedPage = clonedDoc.querySelector(
+          '.document-page',
+        ) as HTMLElement
         if (clonedPage) {
           clonedPage.style.width = `${pageWidth}px`
           clonedPage.style.height = `${pageHeight}px`
           clonedPage.style.position = 'relative'
           clonedPage.style.overflow = 'hidden'
         }
-      }
+      },
     })
 
     const imgData = canvas.toDataURL('image/jpeg', 1.0)
@@ -163,4 +209,3 @@ async function generatePDF(content: HTMLElement): Promise<jsPDF> {
 
   return pdf
 }
-

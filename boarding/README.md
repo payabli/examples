@@ -3,6 +3,34 @@
 
 A comprehensive merchant onboarding system built with TypeScript, React, Astro.js, Tailwind, and shadcn/ui. This project provides a responsive multi-step form wizard with validation, data persistence, dynamic fields, a clean and configurable API, and a smooth user experience.
 
+# Why Example Apps?
+
+ISVs need to know how to use the Payabli API. Docs are a huge part of this of course, but there's also a lot to be said
+about truly seeing how something works in a real-world scenario. Example apps are a great way to show how to use the API
+in a very tangible way. Not only are example apps tangible, but they also provide a starting point for developers to build
+off of, saving them time and effort, and enabling to hit the ground running. We as a company want to make it as easy as
+possible for developers to integrate with our API, and example apps help us achieve that goal.
+
+One of the most complicated parts of integrating with the Payabli API is the boarding process. This is where the merchant
+is onboarded onto the Payabli platform, and where the merchant's information is collected and verified by our beautiful team over
+at CRU. This process can be quite complex, and so we've built this example app to show how you can build a boarding app that
+is secure, safe, fast, beautiful, and most importantly, CONFIGURABLE. Why is it important to be configurable? Because every partner is different,
+every partner has different needs, and every partner has a different brand. This example app is built to be a starting point
+for an ISV to build their own boarding app, with their own branding, their own flow, and their own requirements. They can take our code,
+which handles a lot of the complexity for them, understand how our API can be used, and then modify what's here to match their existing
+user journey and brand consistency. This is the power of example apps, and this is why we've built this one.
+
+Previously at Payabli, we've not really recommended an API-driven boarding solution to customers for a few reasons, one of which is a lack of knowledge
+and another is a large amount of complexity. After all, boarding is a very complicated process no matter how you slice it: there's a lot of data to collect,
+a lot of verification to do, and a lot of edge cases to handle. But if you have an example app, which shows the "docs in practice", suddenly this process can be
+greatly demystified. This is why example apps matter so much for elevating the developer experience at Payabli to the next level, and why we are so stoked
+to be starting this new kind of deliverable. In the future, we hope to have many more example apps, each showing a different part of the Payabli API, and putting that
+knowledge from the documentation into a living, breathing, real-world form. We are going to save EVERYONE time:
+- The docs team isn't going to need to try and shove tons of code examples into doc pages
+- The engineers aren't going to need to take as much time away from programming to help generate internal understanding for the API
+- The customer success team isn't going to need to spend as much time explaining how the API works to customers
+- The ISV is going to be able to hit that crucial "flow state" where they can build their app without interruption
+
 
 ## Summary
 
