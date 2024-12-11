@@ -3,35 +3,6 @@
 
 A comprehensive merchant onboarding system built with TypeScript, React, Astro.js, Tailwind, and shadcn/ui. This project provides a responsive multi-step form wizard with validation, data persistence, dynamic fields, a clean and configurable API, and a smooth user experience.
 
-# Why Example Apps?
-
-ISVs need to know how to use the Payabli API. Docs are a huge part of this of course, but there's also a lot to be said
-about truly seeing how something works in a real-world scenario. Example apps are a great way to show how to use the API
-in a very tangible way. Not only are example apps tangible, but they also provide a starting point for developers to build
-off of, saving them time and effort, and enabling to hit the ground running. We as a company want to make it as easy as
-possible for developers to integrate with our API, and example apps help us achieve that goal.
-
-One of the most complicated parts of integrating with the Payabli API is the boarding process. This is where the merchant
-is onboarded onto the Payabli platform, and where the merchant's information is collected and verified by our beautiful team over
-at CRU. This process can be quite complex, and so we've built this example app to show how you can build a boarding app that
-is secure, safe, fast, beautiful, and most importantly, CONFIGURABLE. Why is it important to be configurable? Because every partner is different,
-every partner has different needs, and every partner has a different brand. This example app is built to be a starting point
-for an ISV to build their own boarding app, with their own branding, their own flow, and their own requirements. They can take our code,
-which handles a lot of the complexity for them, understand how our API can be used, and then modify what's here to match their existing
-user journey and brand consistency. This is the power of example apps, and this is why we've built this one.
-
-Previously at Payabli, we've not really recommended an API-driven boarding solution to customers for a few reasons, one of which is a lack of knowledge
-and another is a large amount of complexity. After all, boarding is a very complicated process no matter how you slice it: there's a lot of data to collect,
-a lot of verification to do, and a lot of edge cases to handle. But if you have an example app, which shows the "docs in practice", suddenly this process can be
-greatly demystified. This is why example apps matter so much for elevating the developer experience at Payabli to the next level, and why we are so stoked
-to be starting this new kind of deliverable. In the future, we hope to have many more example apps, each showing a different part of the Payabli API, and putting that
-knowledge from the documentation into a living, breathing, real-world form. We are going to save EVERYONE time:
-- The docs team isn't going to need to try and shove tons of code examples into doc pages
-- The engineers aren't going to need to take as much time away from programming to help generate internal understanding for the API
-- The customer success team isn't going to need to spend as much time explaining how the API works to customers
-- The ISV is going to be able to hit that crucial "flow state" where they can build their app without interruption
-
-
 ## Summary
 
 As an Payabli partner, you'll need to board merchants onto the Payabli platform in some way to be able to run transactions through them. This is where the process of *boarding* comes in (which you can read about [here](https://docs.payabli.com/developer-guides/boarding-board-merchants)).
@@ -44,45 +15,58 @@ Discuss with your Payabli solutions engineer to understand the implications of t
 
 - 🧙‍♂️ Multi-step form wizard with progress tracking
 - 🔄 Dynamic form fields with add/remove functionality
+- 📱 Fully responsive design
+- 🌙 Dark mode support
 - ✅ Comprehensive form validation using [Zod](https://github.com/colinhacks/zod)
 - 🎨 Styled using [Tailwind CSS](https://tailwindcss.com/)
 - 🚧 Built with [shadcn/ui](https://ui.shadcn.com/)
-- 📱 Fully responsive design
-- 🌙 Dark mode support
 - 🚀 Built on [Astro.js](https://astro.build/) for optimal performance
 - 😊 Icons support with [Lucide](https://lucide.dev/icons/)
-- 💾 Save progress to come back later (encrypted with [IndexedDB](https://developer.mozilla.org/en-US/docs/Web/API/IndexedDB_API))
+- 💾 Save progress to come back later (encrypted with [FingerprintJS](https://github.com/fingerprintjs/fingerprintjs) and stored via [DrizzleORM](https://orm.drizzle.team/))
 
 ## Project Structure
 
 ```
+  .env                        # Put your API token and environment here
   src/
   ├── components/
-  │   ├── ui/               # shadcn/ui components
-  │   ├── form/             # Form components
+  │   ├── ui/                 # shadcn/ui components
+  │   ├── form/               # Form components
   │   │   ├── DeleteButton.tsx
   │   │   ├── DynamicFormSection.tsx
+  │   │   ├── ESignature.tsx
   │   │   ├── FormCheckboxGroup.tsx
+  │   │   ├── FormCountryRegion.tsx
+  │   │   ├── FormFileUpload.tsx
   │   │   ├── FormInput.tsx
   │   │   ├── FormSelect.tsx
-  │   │   ├── FormDatePicker.tsx
-  │   │   ├── FormFileUpload.tsx
-  │   │   ├── FormCountryRegion.tsx
   │   │   ├── FormSwitch.tsx
+  │   │   ├── FormWrapper.tsx # Base for all form fields
   │   │   └── Wizard.tsx
-  │   ├── PayabliForm.tsx   # Main form component
-  │   ├── ThemeToggle.astro # Toggle dark mode
-  │   ├── Header.astro      # Common nav/header
-  │   ├── HeadSEO.astro     # Controls SEO meta tags
-  │   └── Footer.astro      # Common footer
+  │   ├── PayabliForm.tsx     # Main form component
+  │   ├── ThemeToggle.astro   # Toggle dark mode
+  │   ├── Header.astro        # Common nav/header
+  │   ├── HeadSEO.astro       # Controls SEO meta tags
+  │   └── Footer.astro        # Common footer
   ├── layouts/
-  │   └── BaseLayout.astro  # Base layout
+  │   └── BaseLayout.astro    # Base layout
   ├── pages/
-  │   ├── 404.astro         # 404 page
-  │   └── index.astro       # Main page
-  ├── dbUtils.ts            # Functions to interact with IndexedDB
-  ├── Schema.ts             # Zod validation schema
-  └── onSubmit.tsx          # Form submission logic
+  │   ├── api/                # API routes
+  │   │   ├── formData.tsx    # Save form data
+  │   │   ├── createApp.tsx   # Create Boarding application
+  │   │   ├── attachFiles.tsx # Attach e-signature/files to application
+  │   │   └── submitApp.tsx   # Change app status to submitted
+  │   ├── 404.astro           # 404 page
+  │   └── index.astro         # Main page
+  ├── lib/                    # Utility functions
+  │   ├── clientDb.ts         # Client-side DB logic
+  │   ├── getUrl.ts           # Get URL from .env
+  │   ├── helpers.ts          # Country/region data functions
+  │   ├── serverDb.ts         # Server-side DB logic
+  │   └── utils.ts            # Miscellaneous utility functions
+  ├── db.ts                   # Basic DB schema
+  ├── Schema.ts               # Zod validation schema
+  └── onSubmit.tsx            # Form submission logic
 ```
 
 ## Setup Instructions
@@ -115,6 +99,8 @@ The Wizard component manages the multi-step form flow.
 <Wizard
   currentPage={currentPage}
   setCurrentPage={setCurrentPage}
+  preChildren={componentThatAppearsAboveSteps}
+  postChildren={componentThatAppearsBelowSteps}
 >
   <WizardStep icon={<User />} label="Step 1">
     {/* Step content */}
@@ -145,25 +131,33 @@ Input fields accept the following props:
 5. `clearable?: boolean` - Whether the input field should have a clear button.
 6. `password?: boolean` - Whether the input field should have a visibility toggle.
 7. `mask?: string` - A mask to apply to the input field (phone number, SSN).
+8. `numeric?: boolean` - Whether the input field should only accept numbers.
+9. `includeMaskedChars?: boolean` - Whether to include the mask characters in the value.
+10. `maxLength?: number` - The maximum length of the input field.
 
 Select fields accept the following props:
 
 1. `iconleft?: ReactNode` - An icon to display on the left side of the select field.
 2. `options: { value: string; label: string }[]` - An array of options for the select field.
+3. `option: { type: 'label'; label: string }` - An option to create a non-value separator, i.e. "North America".
 
 Switch fields accept the following props:
 1. `onlabel?: string` - The label for the switch when it is on.
 2. `offlabel?: string` - The label for the switch when it is off.
 
-Country Picker fields accept the following props:
+Country picker fields accept the following props:
 1. `whitelist?: string[]` - An array of country codes to whitelist.
 2. `blacklist?: string[]` - An array of country codes to blacklist.
 3. `priorityOptions?: string[]` - An array of country codes to prioritize.
 4. `flag?: boolean` - Whether to display the country flag.
 5. `flagsvg?: boolean` - Whether to display the country flag as an SVG.
 
-Region Picker fields accept the following props:
+Region picker fields accept the following props:
 1. `countryCode: string` - The country code to display regions for, usually bound to a country picker.
+
+A combined country and region picker field is available and recommended for use in tandem as opposed to manual
+state management. It accepts the same props as the country picker and region picker fields, prefixed by either
+`country` or `region` in camel case, i.e. `countryName` or `regionTooltip`.
 
 ### Dynamic Sections
 
@@ -195,21 +189,37 @@ Form validation is handled through Zod schemas. Define your schema in `Schema.ts
 
 ```typescript
 import { z } from 'zod'
+import { useForm } from 'react-hook-form'
+import { zodResolver } from '@hookform/resolvers/zod'
 
+// 1. Create your schema definition
 export const formSchema = z.object({
-  // 1. Create your schema definition
+  pizza: z.object({
+    toppings: z.array(z.string()).nonempty(),
+    crust: z.string().required(),
+    redSauce: z.boolean().default(true)
+    extraSeasoning: z.boolean().default(false)
+    specialInstructions: z.string().optional()
+  })
+}).superRefine((data, ctx) => {
+  // complicated validation logic
+  if (data.pizza.toppings.includes('anchovies')) {
+    ctx.addIssue({
+        path: ['pizza.toppings'],
+        fatal: false,
+        code: 'custom',
+        message: 'We do not carry anchovies.',
+    })
+  }
 })
 
 // 2. Create a type for the form data
 export type FormSchemaType = z.infer<typeof formSchema>
 
-// 3. Create a custom hook to use the form with default values
+// 3. Create a custom hook to use the form
 export function useFormWithSchema(defaultValues: Partial<FormSchemaType> = {}) {
   return useForm<FormSchemaType>({
     resolver: zodResolver(formSchema),
-    defaultValues: {
-      ...defaultValues,
-    },
   })
 }
 ```
@@ -245,6 +255,102 @@ export function useFormLogic(
       } else {
         console.log('Unexpected error!')
       }
+    })
+  }
+}
+```
+
+### Database Setup
+
+The initial database setup is done in `db.ts`. This file setups the connection and exports the scaffolded database.
+By default, it is using sqlite3 with Drizzle ORM. You can easily swap out the underlying database technology.
+This database is not used for sending the finished form data by default, but only for saving form progress data
+before validation.
+
+```ts
+import { drizzle } from 'drizzle-orm/better-sqlite3'
+import { sql } from 'drizzle-orm'
+import { sqliteTable, text } from 'drizzle-orm/sqlite-core'
+import Database from 'better-sqlite3'
+
+// Define the schema
+export const formData = sqliteTable('formData', {
+  deviceToken: text('deviceToken').primaryKey(),
+  data: text('data').notNull(),
+})
+
+// Create a database connection
+const sqlite = new Database('form.db')
+export const db = drizzle(sqlite)
+
+// Create the table if it doesn't exist
+db.run(sql`
+  CREATE TABLE IF NOT EXISTS formData (
+    deviceToken TEXT PRIMARY KEY,
+    data TEXT NOT NULL
+  )
+`)
+```
+
+Once your initial setup is complete, you can define functions to access your database in `lib/clientDb.ts` and
+`lib/serverDb.ts`. Here's an example function for `serverDb.ts`:
+
+```ts
+export async function loadFormData(deviceToken: string) {
+  const result = await db.select().from(formData).where(sql`${formData.deviceToken} = ${deviceToken}`);
+  return result[0]?.data || null;
+}
+```
+
+### API Routes
+
+This project uses a Payabli API token, which can't be shared publicly to preserve security. In order to accomodate this,
+when the client needs to make an API call to Payabli's API, it actually calls to the server's API routes, which then go to the
+Payabli API. This way, no sensitive information is exposed in the client. The API routes are in `pages/api`.
+
+The `formData` route is used for saving the client-side form data's progress via the `Save Progress` button, and stores it
+in a local sqlite database.
+
+The other three routes follow this flow:
+
+1. `createApp` - When you click `Confirm` on the final page of the form, the server will create an application within Payabli via a `POST` call to Payabli's API.
+2. `attachFiles` - After the e-signature is completed, the server will attach the signed document,
+as well as any other files (such as the images of the voided checks for proof of account) to the application via a `PUT` call to Payabli's API.
+3. `submitApp` - Finally, the server will submit the application via a `GET` call to Payabli's API, which changes the internal status
+of the application to `Submitted`.
+
+Here's the entire `api/createApp.ts` file as an example:
+
+```ts
+import type { APIRoute } from 'astro'
+import { getApiUrlPrefix } from '../../lib/getUrl';
+
+export const POST: APIRoute = async ({ request }) => {
+  const apiToken = import.meta.env.PAYABLI_API_TOKEN
+  const prefix = getApiUrlPrefix()
+
+  try {
+    const formData = await request.json()
+    const jsonData = JSON.stringify(formData)
+    const response = await fetch(`https://api${prefix}.payabli.com/api/Boarding/app`, {
+      method: 'POST',
+      headers: { 'content-type': 'application/json', 'requestToken': apiToken },
+      body: jsonData
+    })
+
+    if (!response.ok) { throw new Error(`HTTP error! status: ${response.status}`) }
+
+    const responseBody = await response.json()
+
+    return new Response(JSON.stringify(responseBody.responseData), {
+      status: 200,
+      headers: { 'Content-Type': 'application/json' }
+    })
+  } catch (error) {
+    console.error('Error submitting application:', error)
+    return new Response(JSON.stringify({ error: 'Failed to submit application' }), {
+      status: 500,
+      headers: { 'Content-Type': 'application/json' }
     })
   }
 }

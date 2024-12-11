@@ -5,24 +5,18 @@ import Database from 'better-sqlite3'
 
 // Define the schema
 export const formData = sqliteTable('formData', {
-  encryptedIdentifier: text('encryptedIdentifier').primaryKey(),
-  encryptedData: text('encryptedData').notNull(),
+  deviceToken: text('deviceToken').primaryKey(),
+  data: text('data').notNull(),
 })
 
 // Create a database connection
-let sqlite
-// Bun environment
-// sqlite = new Bun.SQLite('form.db');
-// Node.js environment
-sqlite = new Database('form.db')
-
+const sqlite = new Database('form.db')
 export const db = drizzle(sqlite)
 
-// Drop the existing table if it exists and create a new one
+// Create the table if it doesn't exist
 db.run(sql`
-  DROP TABLE IF EXISTS formData;
-  CREATE TABLE formData (
-    encryptedIdentifier TEXT PRIMARY KEY,
-    encryptedData TEXT NOT NULL
-  );
+  CREATE TABLE IF NOT EXISTS formData (
+    deviceToken TEXT PRIMARY KEY,
+    data TEXT NOT NULL
+  )
 `)

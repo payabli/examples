@@ -1,25 +1,5 @@
-import Database from 'better-sqlite3';
-import { drizzle } from 'drizzle-orm/better-sqlite3';
 import { sql } from 'drizzle-orm';
-import { sqliteTable, text } from 'drizzle-orm/sqlite-core';
-
-// Define the schema
-export const formData = sqliteTable('formData', {
-  deviceToken: text('deviceToken').primaryKey(),
-  data: text('data').notNull(),
-});
-
-// Create a database connection
-const sqlite = new Database('form.db');
-export const db = drizzle(sqlite);
-
-// Create the table if it doesn't exist
-db.run(sql`
-  CREATE TABLE IF NOT EXISTS formData (
-    deviceToken TEXT PRIMARY KEY,
-    data TEXT NOT NULL
-  )
-`);
+import { db, formData } from '@/db';
 
 export async function saveFormData(deviceToken: string, data: string) {
   await db.insert(formData).values({

@@ -277,13 +277,16 @@ export function PayabliForm() {
               name="btype"
               label="Business Type"
               options={[
-                { value: 'Limited Liability Company', label: 'Limited Liability Company', },
-                { value: 'Non-Profit Org', label: 'Non-Profit Org', },
-                { value: 'Partnership', label: 'Partnership', },
-                { value: 'Private Corp', label: 'Private Corp', },
-                { value: 'Public Corp', label: 'Public Corp', },
-                { value: 'Tax Exempt', label: 'Tax Exempt', },
-                { value: 'Government', label: 'Government', },
+                {
+                  value: 'Limited Liability Company',
+                  label: 'Limited Liability Company',
+                },
+                { value: 'Non-Profit Org', label: 'Non-Profit Org' },
+                { value: 'Partnership', label: 'Partnership' },
+                { value: 'Private Corp', label: 'Private Corp' },
+                { value: 'Public Corp', label: 'Public Corp' },
+                { value: 'Tax Exempt', label: 'Tax Exempt' },
+                { value: 'Government', label: 'Government' },
                 { value: 'Partnership', label: 'Partnership' },
                 { value: 'Sole Proprietor', label: 'Sole Proprietor' },
               ]}
@@ -540,7 +543,10 @@ export function PayabliForm() {
               label="When Refunded"
               options={[
                 { value: 'Exchange Only', label: 'Exchange Only' },
-                { value: 'No Refund or Exchange', label: 'No Refund or Exchange' },
+                {
+                  value: 'No Refund or Exchange',
+                  label: 'No Refund or Exchange',
+                },
                 { value: '30 Days or Less', label: '30 Days or Less' },
                 { value: 'More than 30 Days', label: 'More than 30 Days' },
               ]}

@@ -1,4 +1,10 @@
-import React, { ReactNode, useState, useRef, useEffect } from 'react'
+import React, {
+  ReactNode,
+  useState,
+  useRef,
+  useEffect,
+  useCallback,
+} from 'react'
 import {
   FormControl,
   FormField,
@@ -46,7 +52,9 @@ export default function FormCheckboxGroup({
   const [open, setOpen] = useState(false)
   const tooltipRef = useRef<HTMLDivElement | null>(null)
 
-  const handleClick = () => setOpen((prev) => !prev)
+  const handleClick = useCallback(() => {
+    setOpen((prev) => !prev)
+  }, [])
 
   useEffect(() => {
     const handleOutsideClick = (event: MouseEvent) => {
@@ -57,9 +65,15 @@ export default function FormCheckboxGroup({
         setOpen(false)
       }
     }
-    document.addEventListener('mousedown', handleOutsideClick)
-    return () => document.removeEventListener('mousedown', handleOutsideClick)
-  }, [])
+
+    if (open) {
+      document.addEventListener('mousedown', handleOutsideClick)
+    }
+
+    return () => {
+      document.removeEventListener('mousedown', handleOutsideClick)
+    }
+  }, [open])
 
   return (
     <div className="space-y-4">
@@ -71,7 +85,7 @@ export default function FormCheckboxGroup({
           {required && <span className="ml-1 text-destructive">*</span>}
           {tooltip && showTooltips && (
             <TooltipProvider>
-              <Tooltip>
+              <Tooltip open={open}>
                 <TooltipTrigger asChild>
                   <button
                     type="button"
