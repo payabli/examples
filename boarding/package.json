@@ -1,9 +1,9 @@
 {
-  "name": "@area44/astro-shadcn-ui-template",
-  "version": "23.12.26",
-  "description": "An Astro template for building apps.",
+  "name": "@payabli/boarding-example",
+  "version": "1.0.0",
+  "description": "An example application for boarding with Payabli",
   "author": {
-    "name": "AREA44"
+    "name": "Payabli"
   },
   "license": "MIT",
   "scripts": {
