@@ -281,7 +281,7 @@ export function useFormLogic(
 }
 ```
 
-### Database Setup
+## Database Setup
 
 The initial database setup is done in `db.ts`. This file setups the connection and exports the scaffolded database.
 By default, it is using sqlite3 with Drizzle ORM. You can easily swap out the underlying database technology.
