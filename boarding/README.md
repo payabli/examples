@@ -28,6 +28,7 @@ Discuss with your Payabli solutions engineer to understand the implications of t
 
 ```
   .env                        # Put your API token and environment here
+  .env.template               # Template to copy and edit
   src/
   ├── components/
   │   ├── ui/                 # shadcn/ui components
