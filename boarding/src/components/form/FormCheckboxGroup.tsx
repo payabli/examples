@@ -1,4 +1,4 @@
-import React, { ReactNode } from 'react'
+import React, { ReactNode, useState, useRef, useEffect } from 'react'
 import {
   FormControl,
   FormField,
@@ -18,7 +18,6 @@ import { useFormContext } from 'react-hook-form'
 type CheckboxOption = {
   name: string
   label: string
-  tooltip?: string
 }
 
 type FormCheckboxGroupProps = {
@@ -44,6 +43,24 @@ export default function FormCheckboxGroup({
 }: FormCheckboxGroupProps) {
   const form = useFormContext()
 
+  const [open, setOpen] = useState(false)
+  const tooltipRef = useRef<HTMLDivElement | null>(null)
+
+  const handleClick = () => setOpen((prev) => !prev)
+
+  useEffect(() => {
+    const handleOutsideClick = (event: MouseEvent) => {
+      if (
+        tooltipRef.current &&
+        !tooltipRef.current.contains(event.target as Node)
+      ) {
+        setOpen(false)
+      }
+    }
+    document.addEventListener('mousedown', handleOutsideClick)
+    return () => document.removeEventListener('mousedown', handleOutsideClick)
+  }, [])
+
   return (
     <div className="space-y-4">
       {showLabel && (
@@ -60,11 +77,12 @@ export default function FormCheckboxGroup({
                     type="button"
                     className="ml-1 h-4 w-4 rounded-full text-muted-foreground/80"
                     aria-label={`Info for ${label}`}
+                    onClick={handleClick}
                   >
-                    <Info size={12} strokeWidth={2} />
+                    <Info size={16} strokeWidth={2} />
                   </button>
                 </TooltipTrigger>
-                <TooltipContent>
+                <TooltipContent className="mx-4" ref={tooltipRef}>
                   <p>{tooltip}</p>
                 </TooltipContent>
               </Tooltip>
@@ -91,24 +109,6 @@ export default function FormCheckboxGroup({
                 <div className="space-y-1 leading-none">
                   <FormLabel htmlFor={option.name}>{option.label}</FormLabel>
                 </div>
-                {option.tooltip && showTooltips && (
-                  <TooltipProvider>
-                    <Tooltip>
-                      <TooltipTrigger asChild>
-                        <button
-                          type="button"
-                          className="ml-1 h-4 w-4 rounded-full text-muted-foreground/80"
-                          aria-label={`Info for ${option.label}`}
-                        >
-                          <Info size={12} strokeWidth={2} />
-                        </button>
-                      </TooltipTrigger>
-                      <TooltipContent>
-                        <p>{option.tooltip}</p>
-                      </TooltipContent>
-                    </Tooltip>
-                  </TooltipProvider>
-                )}
               </FormItem>
             )}
           />

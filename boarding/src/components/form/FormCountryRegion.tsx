@@ -234,7 +234,7 @@ const InternalFormRegionSelect = React.memo(
                     onChange && onChange(value)
                   }}
                   value={field.value}
-                  disabled={disabled || !watchedCountry}
+                  disabled={disabled || regions.length === 0}
                 >
                   <SelectTrigger className={`w-full ${className || ''}`}>
                     <SelectValue placeholder={placeholder} />
@@ -340,7 +340,7 @@ export const FormCountryRegionCombined = React.memo(
           placeholder="Select a region"
           tooltip={regionTooltip}
           required={required}
-          disabled={disabled}
+          disabled={disabled || !countryName}
           className={className}
           countryCode={countryName}
         />

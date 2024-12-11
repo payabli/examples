@@ -259,11 +259,13 @@ export function PayabliForm() {
               iconleft={<Calendar className="mr-2" />}
               mask="99/99/9999"
               placeholder="MM/DD/YYYY"
+              includeMaskedChars
             />
             <FormInput
               name="phonenumber"
               label="Phone Number"
               tooltip="Your business phone number"
+              mask="(999) 999-9999"
             />
             <FormInput
               name="faxnumber"
@@ -313,17 +315,13 @@ export function PayabliForm() {
               label="Business City"
               tooltip="The city where your business is located"
             />
-            <FormCountrySelect
-              name="bcountry"
-              label="Business Country"
-              tooltip="The country where your business is located"
-              onChange={(value: string) => setBusinessCountry(value)}
-            />
-            <FormRegionSelect
-              name="bstate"
-              label="Business State"
-              tooltip="The state where your business is located"
-              countryCode={businessCountry}
+            <FormCountryRegionCombined
+              countryName="bcountry"
+              countryLabel="Business Country"
+              countryTooltip="The country where your business is located"
+              regionName="bstate"
+              regionLabel="Business State"
+              regionTooltip="The state where your business is located"
             />
             <FormInput
               name="bzip"
@@ -433,6 +431,7 @@ export function PayabliForm() {
               iconleft={<Calendar className="mr-2" />}
               mask="99/99/9999"
               placeholder="MM/DD/YYYY"
+              includeMaskedChars
             />
             <FormInput
               name="ownership[].ownerphone1"
@@ -548,7 +547,6 @@ export function PayabliForm() {
               name="binperson"
               label="In-Person Sales (%)"
               tooltip="Percentage of sales conducted in person"
-              type="number"
               postfix="%"
               numeric
               maxLength={3}
@@ -570,40 +568,53 @@ export function PayabliForm() {
               maxLength={3}
             />
             <FormInput
-              type="number"
               name="annualRevenue"
               label="Annual Revenue"
               tooltip="Estimated annual revenue of your business"
+              prefix="$"
+              numeric
             />
             <FormInput
               name="avgmonthly"
               label="Average Monthly Volume"
               tooltip="Average monthly sales volume"
+              prefix="$"
+              numeric
             />
             <FormInput
               name="ticketamt"
               label="Average Ticket Amount"
               tooltip="Average amount per transaction"
+              prefix="$"
+              numeric
             />
             <FormInput
               name="highticketamt"
               label="Highest Ticket Amount"
               tooltip="Highest expected transaction amount"
+              prefix="$"
+              numeric
             />
             <FormInput
               name="averageBillSize"
               label="Average Bill Size"
               tooltip="Average amount of each bill you pay through our service"
+              prefix="$"
+              numeric
             />
             <FormInput
               name="averageMonthlyBill"
               label="Average Monthly Bill"
               tooltip="Average monthly bill amount"
+              prefix="$"
+              numeric
             />
             <FormInput
               name="creditLimit"
               label="Credit Limit"
               tooltip="Maximum amount our lending partner has authorized to your business"
+              prefix="$"
+              numeric
             />
             <FormSelect
               name="processingRegion"
@@ -614,6 +625,34 @@ export function PayabliForm() {
                 { label: 'CA', value: 'CA' },
               ]}
             />
+            <FormInput
+              name="payoutAverageMonthlyVolume"
+              label="Payout Average Monthly Volume"
+              tooltip="Expected average monthly payout volume"
+              prefix="$"
+              numeric
+            />
+            <FormInput
+              name="payoutHighTicketAmount"
+              label="Payout High Ticket Amount"
+              tooltip="Highest expected payout amount"
+              prefix="$"
+              numeric
+            />
+            <FormInput
+              name="payoutAveragTicketAmount"
+              label="Payout Average Ticket Amount"
+              tooltip="Average expected payout amount"
+              prefix="$"
+              numeric
+            />
+            <FormInput
+              name="payoutCreditLimit"
+              label="Payout Credit Limit"
+              tooltip="Maximum credit limit for payouts"
+              prefix="$"
+              numeric
+            />
           </div>
         </WizardStep>
 
@@ -622,34 +661,6 @@ export function PayabliForm() {
             Step 5: Payment Information
           </h2>
           <div className="space-y-8">
-            <div className="items-end gap-4 md:grid md:grid-cols-2">
-              <FormInput
-                name="payoutAverageMonthlyVolume"
-                label="Payout Average Monthly Volume"
-                tooltip="Expected average monthly payout volume"
-              />
-              <FormInput
-                name="payoutHighTicketAmount"
-                label="Payout High Ticket Amount"
-                tooltip="Highest expected payout amount"
-              />
-              <FormInput
-                name="payoutAveragTicketAmount"
-                label="Payout Average Ticket Amount"
-                tooltip="Average expected payout amount"
-              />
-              <FormInput
-                name="payoutCreditLimit"
-                label="Payout Credit Limit"
-                tooltip="Maximum credit limit for payouts"
-              />
-              <FormInput
-                name="recipientEmail"
-                label="Recipient Email"
-                tooltip="Email address for receiving notifications"
-              />
-            </div>
-
             <div className="space-y-4">
               <h3 className="text-lg font-semibold">Deposit Account</h3>
               <div className="items-end gap-4 md:grid md:grid-cols-2">
@@ -662,6 +673,8 @@ export function PayabliForm() {
                   name="depositAccount.routingAccount"
                   label="Routing Number"
                   tooltip="9-digit routing number for the deposit account"
+                  numeric
+                  maxLength={9}
                 />
                 <FormInput
                   name="depositAccount.accountNumber"
@@ -722,6 +735,8 @@ export function PayabliForm() {
                   name="withdrawalAccount.routingAccount"
                   label="Routing Number"
                   tooltip="9-digit routing number for the withdrawal account"
+                  numeric
+                  maxLength={9}
                 />
                 <FormInput
                   name="withdrawalAccount.accountNumber"
@@ -822,6 +837,7 @@ export function PayabliForm() {
                   iconleft={<Calendar className="mr-2" />}
                   mask="99/99/9999"
                   placeholder="MM/DD/YYYY"
+                  includeMaskedChars
                 />
                 <FormInput
                   name="signer.phone"

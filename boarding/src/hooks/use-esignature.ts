@@ -33,7 +33,7 @@ interface ESignatureState {
 
 interface ESignatureActions {
   setIsOpen: (isOpen: boolean) => void
-  setDialogState: (state: 'form' | 'success' | 'error') => void
+  setDialogState: (state: 'form' | 'success' | 'error' | 'pricing') => void
   setSignature: (signature: string) => void
   setPdfUrl: (url: string | null) => void
   setDeviceType: (type: string) => void
@@ -132,6 +132,18 @@ export function useESignature({
 
         if (!response.ok) {
           throw new Error('Failed to attach PDF')
+        }
+
+        await fetch('/api/submitApp', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({ appId }),
+        })
+
+        if (!response.ok) {
+          throw new Error('Failed to submit application')
         }
 
         store.setDialogState('success')

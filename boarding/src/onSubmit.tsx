@@ -15,7 +15,7 @@ export function useFormLogic(
 
   async function onSuccess(values: FormSchemaType) {
     try {
-      const response = await fetch('/api/submitApp', {
+      const response = await fetch('/api/createApp', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',

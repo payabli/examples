@@ -18,6 +18,7 @@ type FormInputProps = Omit<FormWrapperProps, 'children'> & {
   prefix?: string
   postfix?: string
   maxLength?: number
+  includeMaskedChars?: boolean
 }
 
 export default function FormInput({
@@ -39,6 +40,7 @@ export default function FormInput({
   prefix,
   postfix,
   maxLength,
+  includeMaskedChars = false,
 }: FormInputProps) {
   const [visible, setVisible] = React.useState(false)
 
@@ -49,11 +51,21 @@ export default function FormInput({
     )
   }
 
-  const handleNumericInput = (e: React.ChangeEvent<HTMLInputElement>) => {
+  const handleInputChange = (
+    e: React.ChangeEvent<HTMLInputElement>,
+    onChange: (value: string) => void,
+  ) => {
+    let value = e.target.value
+
     if (numeric) {
-      const value = e.target.value.replace(/[^0-9.]/g, '')
-      e.target.value = value
+      value = value.replace(/[^0-9.]/g, '')
     }
+
+    if (mask && !includeMaskedChars) {
+      value = value.replace(/\D/g, '')
+    }
+
+    onChange(value)
   }
 
   const renderInput = (field: any) => (
@@ -68,10 +80,9 @@ export default function FormInput({
           <InputMask
             mask={mask}
             value={field.value}
-            onChange={(e) => {
-              handleNumericInput(e)
-              field.onChange(e)
-            }}
+            onChange={(e: React.ChangeEvent<HTMLInputElement>) =>
+              handleInputChange(e, field.onChange)
+            }
             onBlur={field.onBlur}
             disabled={disabled}
             maxLength={maxLength}
@@ -105,10 +116,7 @@ export default function FormInput({
             aria-invalid={field.error ? 'true' : 'false'}
             aria-describedby={`${name}-error`}
             {...field}
-            onChange={(e) => {
-              handleNumericInput(e)
-              field.onChange(e)
-            }}
+            onChange={(e) => handleInputChange(e, field.onChange)}
             maxLength={maxLength}
           />
         )}
