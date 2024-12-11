@@ -277,13 +277,15 @@ export function PayabliForm() {
               name="btype"
               label="Business Type"
               options={[
-                {
-                  value: 'Limited Liability Company',
-                  label: 'Limited Liability Company',
-                },
-                { value: 'Corporation', label: 'Corporation' },
+                { value: 'Limited Liability Company', label: 'Limited Liability Company', },
+                { value: 'Non-Profit Org', label: 'Non-Profit Org', },
+                { value: 'Partnership', label: 'Partnership', },
+                { value: 'Private Corp', label: 'Private Corp', },
+                { value: 'Public Corp', label: 'Public Corp', },
+                { value: 'Tax Exempt', label: 'Tax Exempt', },
+                { value: 'Government', label: 'Government', },
                 { value: 'Partnership', label: 'Partnership' },
-                { value: 'Sole Proprietorship', label: 'Sole Proprietorship' },
+                { value: 'Sole Proprietor', label: 'Sole Proprietor' },
               ]}
               tooltip="The legal structure of your business"
             />
@@ -506,12 +508,8 @@ export function PayabliForm() {
                   label: 'When Service Provided',
                 },
                 {
-                  value: 'Before Service Provided',
-                  label: 'Before Service Provided',
-                },
-                {
-                  value: 'After Service Provided',
-                  label: 'After Service Provided',
+                  value: 'In Advance',
+                  label: 'In Advance',
                 },
               ]}
               tooltip="When customers are typically charged for your services"
@@ -521,7 +519,8 @@ export function PayabliForm() {
               label="When Provided"
               options={[
                 { value: '30 Days or Less', label: '30 Days or Less' },
-                { value: 'Over 30 Days', label: 'Over 30 Days' },
+                { value: '31-60 Days', label: '31-60 Days' },
+                { value: '60+ Days', label: '60+ Days' },
               ]}
               tooltip="Typical timeframe for providing services after charging"
             />
@@ -529,7 +528,9 @@ export function PayabliForm() {
               name="whenDelivered"
               label="When Delivered"
               options={[
-                { value: '30 Days or Less', label: '30 Days or Less' },
+                { value: '0-7 Days', label: '0-7 Days' },
+                { value: '8-14 Days', label: '8-14 Days' },
+                { value: '15-30 Days', label: '15-30 Days' },
                 { value: 'Over 30 Days', label: 'Over 30 Days' },
               ]}
               tooltip="Typical timeframe for delivering products or services"
@@ -538,8 +539,10 @@ export function PayabliForm() {
               name="whenRefunded"
               label="When Refunded"
               options={[
+                { value: 'Exchange Only', label: 'Exchange Only' },
+                { value: 'No Refund or Exchange', label: 'No Refund or Exchange' },
                 { value: '30 Days or Less', label: '30 Days or Less' },
-                { value: 'Over 30 Days', label: 'Over 30 Days' },
+                { value: 'More than 30 Days', label: 'More than 30 Days' },
               ]}
               tooltip="Typical timeframe for processing refunds"
             />

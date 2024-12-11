@@ -41,6 +41,16 @@ export function useFormLogic(
   }
 
   function onError(errors: FieldValues) {
+    const { binphone, binperson, binweb } = form.getValues()
+    const sum = Number(binphone) + Number(binperson) + Number(binweb)
+
+    if (sum !== 100) {
+      const errorMessage = 'The sum of percentages must equal 100'
+      form.setError('binphone', { type: 'manual', message: errorMessage })
+      form.setError('binperson', { type: 'manual', message: errorMessage })
+      form.setError('binweb', { type: 'manual', message: errorMessage })
+    }
+
     form.trigger().then(() => {
       if (steps && steps.props && steps.props.children) {
         const errorPages = React.Children.map(
