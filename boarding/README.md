@@ -159,6 +159,27 @@ A combined country and region picker field is available and recommended for use 
 state management. It accepts the same props as the country picker and region picker fields, prefixed by either
 `country` or `region` in camel case, i.e. `countryName` or `regionTooltip`.
 
+File uploads accept the following props:
+1. `maxSizeMB?: number` - The maximum file size allowed in megabytes.
+2. `accept?: string` - The file types that are accepted. This is a string that specifies the file extensions or MIME types.
+3. `disabled?: boolean`- Whether the file upload is disabled.
+4. `file: File | null` - The selected file. This is a File object or null if no file is selected.
+5. `setFile: (file: File | null) => void` - A function to update the selected file.
+6. `type: string` - The file type. This is a string that represents the type of file (e.g., "image/jpeg").
+7. `setType: (type: string) => void` - A function to update the file type.
+8. `extension: string` - The file extension. This is a string that represents the file extension (e.g., "jpg").
+9. `setExtension: (extension: string) => void` - A function to update the file extension.
+10. `contents: string | null` - The contents of the file. This is a string or null if the file has no contents (e.g., for binary files).
+11. `setContents: (contents: string | null) => void` - A function to update the file contents.
+12. `id?: string` - An ID for the file upload component (necessary if multiple are present).
+
+Checkbox groups accept the following props:
+1. `options: { name: string, label: string }[]` - An array of options for the checkbox group.
+
+> [!NOTE]
+> All form components use the `FormWrapper.tsx` component as a base for shared props and formatting, with the exception of the checkbox group component.
+
+
 ### Dynamic Sections
 
 The DynamicFormSection component handles repeatable form sections, such as a list of contacts.
