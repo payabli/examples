@@ -1,4 +1,11 @@
-# Payabli Example Apps
 
-This repo contains example apps written by Payabli that demonstrate how to utilize Payabli's APIs. \
-Check out the subfolders for more information on each example app.
+# Payabli Example Apps
+This repository contains official example applications that demonstrate various implementations and use cases of Payabli's APIs. 
+
+These example apps are designed to showcase best practices and common integration patterns. Each example application is self-contained within its own directory and includes detailed documentation on setup and usage.
+
+This repo is an ongoing project, so check back often for new example apps. 
+
+## Example apps
+
+- [Boarding Application](https://github.com/payabli/examples/tree/main/boarding): An example implementation of an API-driven Payabli boarding application
