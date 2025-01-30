@@ -1,0 +1,26 @@
+---
+import { auth } from "../../auth"; // import your Better Auth instance
+import { Button } from '../components/ui/button'
+import { UserIcon, LogOutIcon } from 'lucide-react'
+---
+
+<Button 
+  variant="ghost" 
+  size="icon" 
+  id="sessionControl" 
+  className="rounded-none fixed top-0 left-0 z-50 border-r-[1px] border-b-[1px] border-border bg-background rounded-br"
+>
+  <LogOutIcon className="h-[1.3rem] w-[1.3rem]" />
+</Button>
+
+<script>
+  const { authClient } = await import("../lib/authClient")
+  document.querySelector('#sessionControl').onclick = () => authClient.signOut({
+    fetchOptions: {
+      onSuccess: () => {
+        window.location.href = '/'
+      },
+    },
+  })
+</script>
+
