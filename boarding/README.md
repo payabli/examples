@@ -23,16 +23,18 @@ Discuss with your Payabli solutions engineer to understand the implications of t
 - 🚀 Built on [Astro.js](https://astro.build/) for optimal performance
 - 😊 Icons support with [Lucide](https://lucide.dev/icons/)
 - 💾 Save progress to come back later (encrypted with [FingerprintJS](https://github.com/fingerprintjs/fingerprintjs) and stored via [DrizzleORM](https://orm.drizzle.team/))
+- 🔒 All routes secured by [better-auth](https://www.better-auth.com/)
 
 ## Project Structure
 
 ```
-  .env                        # Put your API token and environment here
-  .env.template               # Template to copy and edit
+  .env                          # Put your API token and environment here
+  .env.template                 # Template to copy and edit
+  auth.ts                       # better-auth configuration
   src/
   ├── components/
-  │   ├── ui/                 # shadcn/ui components
-  │   ├── form/               # Form components
+  │   ├── ui/                   # shadcn/ui components
+  │   ├── form/                 # Form components
   │   │   ├── DeleteButton.tsx
   │   │   ├── DynamicFormSection.tsx
   │   │   ├── ESignature.tsx
@@ -42,32 +44,37 @@ Discuss with your Payabli solutions engineer to understand the implications of t
   │   │   ├── FormInput.tsx
   │   │   ├── FormSelect.tsx
   │   │   ├── FormSwitch.tsx
-  │   │   ├── FormWrapper.tsx # Base for all form fields
+  │   │   ├── FormWrapper.tsx   # Base for all form fields
   │   │   └── Wizard.tsx
-  │   ├── PayabliForm.tsx     # Main form component
-  │   ├── ThemeToggle.astro   # Toggle dark mode
-  │   ├── Header.astro        # Common nav/header
-  │   ├── HeadSEO.astro       # Controls SEO meta tags
-  │   └── Footer.astro        # Common footer
+  │   ├── PayabliForm.tsx       # Main form component
+  │   ├── LoginForm.tsx         # Login form component
+  │   ├── ThemeToggle.astro     # Toggle dark mode
+  │   ├── SessionControls.astro # Toggle dark mode
+  │   ├── Header.astro          # Common nav/header
+  │   ├── HeadSEO.astro         # Controls SEO meta tags
+  │   └── Footer.astro          # Common footer
   ├── layouts/
-  │   └── BaseLayout.astro    # Base layout
+  │   └── BaseLayout.astro      # Base layout
   ├── pages/
-  │   ├── api/                # API routes
-  │   │   ├── formData.tsx    # Save form data
-  │   │   ├── createApp.tsx   # Create Boarding application
-  │   │   ├── attachFiles.tsx # Attach e-signature/files to application
-  │   │   └── submitApp.tsx   # Change app status to submitted
-  │   ├── 404.astro           # 404 page
-  │   └── index.astro         # Main page
-  ├── lib/                    # Utility functions
-  │   ├── clientDb.ts         # Client-side DB logic
-  │   ├── getUrl.ts           # Get URL from .env
-  │   ├── helpers.ts          # Country/region data functions
-  │   ├── serverDb.ts         # Server-side DB logic
-  │   └── utils.ts            # Miscellaneous utility functions
-  ├── db.ts                   # Basic DB schema
-  ├── Schema.ts               # Zod validation schema
-  └── onSubmit.tsx            # Form submission logic
+  │   ├── api/                  # API routes
+  │   │   ├── formData.tsx      # Save form data
+  │   │   ├── createApp.tsx     # Create Boarding application
+  │   │   ├── attachFiles.tsx   # Attach e-signature/files to application
+  │   │   └── submitApp.tsx     # Change app status to submitted
+  │   ├── 404.astro             # 404 page
+  │   ├── login.astro           # login/sign-up page
+  │   └── index.astro           # Main page
+  ├── lib/                      # Utility functions
+  │   ├── authClient.ts         # better-auth client-side logic 
+  │   ├── clientDb.ts           # Client-side DB logic
+  │   ├── getUrl.ts             # Get URL from .env
+  │   ├── helpers.ts            # Country/region data functions
+  │   ├── serverDb.ts           # Server-side DB logic
+  │   └── utils.ts              # Miscellaneous utility functions
+  ├── middleware.ts             # Middleware (authentication)
+  ├── db.ts                     # Basic DB schema
+  ├── Schema.ts                 # Zod validation schema
+  └── onSubmit.tsx              # Form submission logic
 ```
 
 ## Setup Instructions
@@ -88,6 +95,24 @@ cd examples/boarding
 
 ```bash
 npm install
+```
+
+4. Copy the `.env.template` file to `.env` and fill in the required values.
+
+```bash
+cp .env.template .env
+```
+
+5. Set up better-auth.
+```bash
+npx @better-auth/cli generate
+npx @better-auth/cli migrate
+```
+
+6. Start the development server.
+
+```bash
+npm run dev
 ```
 
 ## Form Configuration API
@@ -377,6 +402,82 @@ export const POST: APIRoute = async ({ request }) => {
   }
 }
 ```
+
+## Authentication 
+
+This project uses [better-auth](https://www.better-auth.com/) for authentication. The `auth.ts` file contains the configuration for the authentication client.
+If you want to add email verification, password reset, social logins (Google, Facebook, GitHub), or any other features, this is the place to do it.
+Visit the [better-auth documentation](https://www.better-auth.com/docs) for more information on how to configure it.
+```ts 
+// auth.ts
+import { betterAuth } from "better-auth";
+import Database from "better-sqlite3";
+ 
+export const auth = betterAuth({
+    database: new Database("./auth.db"),
+    emailAndPassword: {
+      enabled: true,
+    }
+})
+```
+
+The `src/middleware.ts` file contains the middleware that checks if the user is authenticated before allowing access to the boarding app.
+Here, you can define which routes require authentication and which do not, or add custom logic.
+```ts
+import { auth } from "../auth"; // import your Better Auth instance
+import { defineMiddleware } from "astro:middleware";
+
+export const onRequest = defineMiddleware(async (context, next) => {
+  const isAuthed = await auth.api
+    .getSession({
+      headers: context.request.headers,
+    })
+  if ((context.url.pathname === "/" || 
+       context.url.pathname === "/api/attachFiles" || 
+       context.url.pathname === "/api/createApp" || 
+       context.url.pathname === "/api/formData" || 
+       context.url.pathname === "/api/submitApp") && !isAuthed) {
+    return context.redirect("/login");
+  }
+  return next();
+});
+```
+
+To edit the login form itself, go to `src/components/LoginForm.tsx`. 
+Here, you can call methods on `authClient` to perform actions like logging in, signing up, or logging out.
+If you set up email verification, password reset, or social logins in `auth.ts`, you can call those methods here as well.
+```ts
+const handleLogin = async (email: string, password: string) => {
+// Implement your login logic here
+const { data, error } = await authClient.signIn.email({ 
+  email, 
+  password,
+}, { 
+  onRequest: (ctx) => { 
+    //show loading
+  }, 
+  onSuccess: (ctx) => { 
+    // redirect to home page
+    window.location.href = "/";
+  }, 
+  onError: (ctx) => { 
+    // show error message
+    alert(ctx.error.message); 
+  },
+})
+
+if (error) {
+  console.error("Login failed:", error)
+  return false
+}
+
+// Return true if login is successful, false otherwise
+return true
+}
+```
+
+> [!NOTE]
+> When you deploy your app to production, make sure to change the `BETTER_AUTH_URL` environment variable in your `.env` file.
 
 ## Styling
 
