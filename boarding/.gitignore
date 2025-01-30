@@ -22,5 +22,8 @@ pnpm-debug.log*
 
 
 form.db
+auth.db
+
+better-auth_migrations/
 
 .vscode
