@@ -1,12 +1,18 @@
 ---
 import { buttonVariants } from '../components/ui/button'
 import ThemeToggle from '../components/ThemeToggle.astro'
+import Clerk from '../components/Clerk.astro'
 ---
 
-<header
-  class="flex justify-end fixed top-0 z-50 w-full"
->
-    <div class="rounded-bl border-b-[1px] border-l-[1px] border-border bg-background">
-        <ThemeToggle />
+<header>
+  <div class="flex justify-end fixed top-0 z-50 w-[50%] right-0">
+    <div class="rounded-bl border-b-[1px] border-l-[1px] border-border bg-background w-10 h-10">
+      <ThemeToggle />
     </div>
+  </div>
+  <div class="flex justify-start fixed top-0 z-50 w-[50%]">
+    <div class="justify-start rounded-br border-b-[1px] border-r-[1px] border-border bg-background w-10 h-10 p-1">
+      <Clerk />
+    </div>
+  </div>
 </header>

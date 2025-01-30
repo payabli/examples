@@ -5,6 +5,7 @@ import Header from '../components/Header.astro'
 
 import { Toaster } from '../components/ui/toaster'
 
+
 interface Props {
   title?: string | undefined
   description?: string | undefined
@@ -16,6 +17,9 @@ const { title, description, ogImage } = Astro.props
 
 <html lang="en">
   <head>
+    <!--<script>-->
+    <!--  import "../lib/securefetch.ts"-->
+    <!--</script>-->
     <HeadSEO title={title} description={description} ogImage={ogImage} />
     <style>
       html,

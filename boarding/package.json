@@ -14,9 +14,10 @@
     "start": "astro dev"
   },
   "dependencies": {
-    "@astrojs/node": "^9.0.0",
+    "@astrojs/node": "^9.0.2",
     "@astrojs/react": "^3.6.2",
     "@astrojs/tailwind": "^5.1.2",
+    "@clerk/astro": "^2.1.16",
     "@fingerprintjs/fingerprintjs": "^4.5.1",
     "@hookform/resolvers": "^3.9.1",
     "@radix-ui/react-accordion": "^1.2.1",
