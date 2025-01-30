@@ -35,12 +35,14 @@ export default function LoginSignupForm() {
       password,
     }, { 
       onRequest: (ctx) => { 
-       //show loading
+        //show loading
       }, 
       onSuccess: (ctx) => { 
+        // redirect to home page
         window.location.href = "/";
       }, 
       onError: (ctx) => { 
+        // show error message
         alert(ctx.error.message); 
       },
     })
@@ -49,8 +51,6 @@ export default function LoginSignupForm() {
       console.error("Login failed:", error)
       return false
     }
-
-    //console.log(data)
 
     // Return true if login is successful, false otherwise
     return true
