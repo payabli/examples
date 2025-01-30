@@ -1,12 +1,18 @@
 ---
 import BaseLayout from '../layouts/BaseLayout.astro'
 import { PayabliForm } from '../components/PayabliForm'
+import SessionControls from '../components/SessionControls.astro'
 ---
 
 <BaseLayout
   title="Boarding Application"
   description="Get started boarding onto our payment platform."
 >
+  <div class="flex justify-end fixed top-0 z-50 w-full">
+      <div class="rounded-br border-b-[1px] border-r-[1px] border-border bg-background">
+          <SessionControls />
+      </div>
+  </div>
   <div class="mx-2 mt-12">
     <PayabliForm client:load>
       <div slot="fallback">
