@@ -90,6 +90,20 @@ cd examples/boarding
 npm install
 ```
 
+4. Copy the `.env.template` file to `.env` and fill in your credentials.
+
+```bash
+# your Payabli API token
+PAYABLI_API_TOKEN="123...XYZ"
+
+# what Payabli environment to use: "sandbox" for testing, "production" for live
+PAYABLI_ENVIRONMENT="sandbox"
+
+# your Clerk credentials
+PUBLIC_CLERK_PUBLISHABLE_KEY=123...XYZ
+CLERK_SECRET_KEY=123...XYZ
+```
+
 ## Form Configuration API
 
 ### Wizard Component
