@@ -5,7 +5,7 @@ import Database from 'better-sqlite3'
 
 // Define the schema
 export const formData = sqliteTable('formData', {
-  deviceToken: text('deviceToken').primaryKey(),
+  userId: text('userId').primaryKey(),
   data: text('data').notNull(),
 })
 
@@ -16,7 +16,7 @@ export const db = drizzle(sqlite)
 // Create the table if it doesn't exist
 db.run(sql`
   CREATE TABLE IF NOT EXISTS formData (
-    deviceToken TEXT PRIMARY KEY,
+    userId TEXT PRIMARY KEY,
     data TEXT NOT NULL
   )
 `)

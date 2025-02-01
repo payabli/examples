@@ -22,7 +22,7 @@ Discuss with your Payabli solutions engineer to understand the implications of t
 - 🚧 Built with [shadcn/ui](https://ui.shadcn.com/)
 - 🚀 Built on [Astro.js](https://astro.build/) for optimal performance
 - 😊 Icons support with [Lucide](https://lucide.dev/icons/)
-- 💾 Save progress to come back later (encrypted with [FingerprintJS](https://github.com/fingerprintjs/fingerprintjs) and stored via [DrizzleORM](https://orm.drizzle.team/))
+- 💾 Save progress to come back later (via [DrizzleORM](https://orm.drizzle.team/))
 - 🔒 All routes secured by [better-auth](https://www.better-auth.com/)
 
 ## Project Structure
