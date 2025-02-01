@@ -2,37 +2,34 @@ import { z } from 'zod'
 import { toast } from '@/hooks/use-toast'
 import React, { useCallback, useState, useEffect } from 'react'
 import { formSchema, useFormWithSchema } from '../Schema'
-import FingerprintJS, { Agent } from '@fingerprintjs/fingerprintjs'
+import { authClient } from './authClient'
 
 type FormSchemaType = z.infer<typeof formSchema>
 
 export const useDrizzle = () => {
   const form = useFormWithSchema()
   const [isLoading, setIsLoading] = useState(true)
-  const [fpInstance, setFpInstance] = useState<Agent | null>(null)
-  const [encryptedIdentifier, setEncryptedIdentifier] = useState<string | null>(null)
+  const [userId, setUserId] = useState<string | null>(null)
   const [isReady, setIsReady] = useState(false)
 
   useEffect(() => {
     let isMounted = true;
-    const initializeFingerprintJS = async () => {
+    const initializeAuth = async () => {
       try {
-        const fp = await FingerprintJS.load();
-        if (isMounted) {
-          setFpInstance(fp);
-          const identifier = await getEncryptedIdentifier(fp);
-          setEncryptedIdentifier(identifier);
+        const { data } = await authClient.getSession();
+        if (isMounted && data?.user?.id) {
+          setUserId(data.user.id);
           setIsReady(true);
         }
       } catch (error) {
-        console.error('Error initializing FingerprintJS:', error);
+        console.error('Error initializing auth:', error);
         if (isMounted) {
           setIsReady(true); // Set to true even on error to allow the app to proceed
         }
       }
     };
 
-    initializeFingerprintJS();
+    initializeAuth();
 
     return () => {
       isMounted = false;
@@ -40,15 +37,11 @@ export const useDrizzle = () => {
   }, []);
 
   useEffect(() => {
-    if (!isReady) return;
+    if (!isReady || !userId) return;
 
     const loadInitialData = async () => {
-      if (!fpInstance || !encryptedIdentifier) {
-        setIsLoading(false);
-        return;
-      }
       try {
-        const savedData = await loadFromDrizzle(encryptedIdentifier, fpInstance)
+        const savedData = await loadFromDrizzle(userId)
         if (savedData) {
           form.reset(savedData)
         }      
@@ -65,12 +58,12 @@ export const useDrizzle = () => {
     }
 
     loadInitialData();
-  }, [form, fpInstance, encryptedIdentifier, isReady]);
+  }, [form, userId, isReady]);
 
   const saveForLater = useCallback(async (formData: FormSchemaType) => {
-    if (!fpInstance || !encryptedIdentifier) return
+    if (!userId) return
     try {
-      await saveToDrizzle(formData, encryptedIdentifier, fpInstance)
+      await saveToDrizzle(formData, userId)
       toast({
         variant: 'default',
         title: 'Saved!',
@@ -85,13 +78,13 @@ export const useDrizzle = () => {
         description: 'Failed to save form data. Please try again.',
       })
     }
-  }, [fpInstance, encryptedIdentifier])
+  }, [userId])
 
   const clearFormData = useCallback(async () => {
-    if (!fpInstance || !encryptedIdentifier) return
+    if (!userId) return
     try {
       form.reset()
-      await clearDrizzle(encryptedIdentifier)
+      await clearDrizzle(userId)
       toast({
         variant: 'default',
         title: 'Cleared!',
@@ -105,13 +98,13 @@ export const useDrizzle = () => {
         description: 'Failed to clear form data. Please try again.',
       })
     }
-  }, [form, fpInstance, encryptedIdentifier])
+  }, [form, userId])
 
   const loadSavedData = useCallback(async (): Promise<FormSchemaType | null> => {
-    if (!fpInstance || !encryptedIdentifier) return null
+    if (!userId) return null
     try {
       setIsLoading(true)
-      const savedData = await loadFromDrizzle(encryptedIdentifier, fpInstance)
+      const savedData = await loadFromDrizzle(userId)
       if (savedData) {
         form.reset(savedData)
         return savedData
@@ -128,14 +121,13 @@ export const useDrizzle = () => {
     } finally {
       setIsLoading(false)
     }
-  }, [form, fpInstance, encryptedIdentifier])
+  }, [form, userId])
 
   return { form, isLoading, saveForLater, clearFormData, loadSavedData, isReady }
 }
 
-async function saveToDrizzle(data: FormSchemaType, encryptedIdentifier: string, fpInstance: Agent) {
+async function saveToDrizzle(data: FormSchemaType, userId: string) {
   try {
-    const encryptedData = await encryptData(JSON.stringify(data), fpInstance);
     const response = await fetch('/api/formData', {
       method: 'POST',
       headers: {
@@ -143,8 +135,8 @@ async function saveToDrizzle(data: FormSchemaType, encryptedIdentifier: string, 
       },
       body: JSON.stringify({
         action: 'save',
-        encryptedIdentifier,
-        encryptedData,
+        encryptedIdentifier: userId, // Use userId as the encryptedIdentifier
+        encryptedData: JSON.stringify(data), // Encrypt data if needed
       }),
     });
 
@@ -163,8 +155,7 @@ async function saveToDrizzle(data: FormSchemaType, encryptedIdentifier: string, 
   }
 }
 
-async function loadFromDrizzle(encryptedIdentifier: string, fpInstance: Agent): Promise<FormSchemaType | null> {
-  
+async function loadFromDrizzle(userId: string): Promise<FormSchemaType | null> {
   try {
     const response = await fetch('/api/formData', {
       method: 'POST',
@@ -173,7 +164,7 @@ async function loadFromDrizzle(encryptedIdentifier: string, fpInstance: Agent): 
       },
       body: JSON.stringify({
         action: 'load',
-        encryptedIdentifier,
+        encryptedIdentifier: userId, // Use userId as the encryptedIdentifier
       }),
     });
 
@@ -185,16 +176,7 @@ async function loadFromDrizzle(encryptedIdentifier: string, fpInstance: Agent): 
     const { encryptedData } = await response.json();
     
     if (encryptedData) {
-      
-      try {
-        const decryptedData = await decryptData(encryptedData, fpInstance);
-        
-        const parsedData = JSON.parse(decryptedData) as FormSchemaType;
-        return parsedData;
-      } catch (decryptError) {
-        console.error('Error during decryption or parsing:', decryptError);
-        throw new Error('Failed to decrypt or parse loaded data');
-      }
+      return JSON.parse(encryptedData) as FormSchemaType;
     }
     
     return null;
@@ -204,8 +186,7 @@ async function loadFromDrizzle(encryptedIdentifier: string, fpInstance: Agent): 
   }
 }
 
-async function clearDrizzle(encryptedIdentifier: string) {
-  
+async function clearDrizzle(userId: string) {
   const response = await fetch('/api/formData', {
     method: 'POST',
     headers: {
@@ -213,7 +194,7 @@ async function clearDrizzle(encryptedIdentifier: string) {
     },
     body: JSON.stringify({
       action: 'clear',
-      encryptedIdentifier,
+      encryptedIdentifier: userId, // Use userId as the encryptedIdentifier
     }),
   });
 
@@ -222,149 +203,3 @@ async function clearDrizzle(encryptedIdentifier: string) {
     throw new Error(`Failed to clear data: ${errorData.error}`);
   }
 }
-
-async function getEncryptedIdentifier(fpInstance: Agent): Promise<string> {
-  const result = await fpInstance.get();
-  
-  // Use only stable components that are unlikely to change between sessions
-  const stableIdentifier = [
-    result.visitorId,
-  ].join('|');
-
-
-  const encryptedId = await deterministicEncrypt(stableIdentifier);
-  return encryptedId;
-}
-
-async function encryptData(data: string, fpInstance: Agent): Promise<string> {
-  const result = await fpInstance.get();
-  const visitorId = result.visitorId;
-  const encoder = new TextEncoder();
-  const dataBuffer = encoder.encode(data);
-  
-  try {
-    const keyMaterial = await crypto.subtle.importKey(
-      'raw',
-      encoder.encode(visitorId),
-      { name: 'PBKDF2' },
-      false,
-      ['deriveBits', 'deriveKey']
-    );
-    
-    const salt = crypto.getRandomValues(new Uint8Array(16));
-    const iv = crypto.getRandomValues(new Uint8Array(12));
-    
-    const key = await crypto.subtle.deriveKey(
-      {
-        name: 'PBKDF2',
-        salt: salt,
-        iterations: 100000,
-        hash: 'SHA-256'
-      },
-      keyMaterial,
-      { name: 'AES-GCM', length: 256 },
-      false,
-      ['encrypt']
-    );
-
-    const encryptedBuffer = await crypto.subtle.encrypt(
-      { name: 'AES-GCM', iv: iv },
-      key,
-      dataBuffer
-    ).catch(error => {
-      console.error('Encryption operation failed:', error);
-      throw error;
-    });
-
-    const encryptedArray = new Uint8Array(salt.length + iv.length + encryptedBuffer.byteLength);
-    encryptedArray.set(salt, 0);
-    encryptedArray.set(iv, salt.length);
-    encryptedArray.set(new Uint8Array(encryptedBuffer), salt.length + iv.length);
-
-    const encryptedBase64 = btoa(String.fromCharCode.apply(null, encryptedArray as any));
-
-    return encryptedBase64;
-  } catch (error) {
-    console.error('Encryption failed:', error);
-    if (error instanceof Error) {
-      console.error('Error name:', error.name);
-      console.error('Error message:', error.message);
-      console.error('Error stack:', error.stack);
-    }
-    throw new Error('Failed to encrypt data: ' + (error instanceof Error ? error.message : String(error)));
-  }
-}
-
-async function decryptData(encryptedData: string, fpInstance: Agent): Promise<string> {
-  const result = await fpInstance.get();
-  const visitorId = result.visitorId;
-  const encoder = new TextEncoder();
-  
-  try {
-    const encryptedArray = Uint8Array.from(atob(encryptedData), c => c.charCodeAt(0));
-
-    if (encryptedArray.length < 28) {
-      throw new Error('Encrypted data is too short');
-    }
-
-    const salt = encryptedArray.slice(0, 16);
-    const iv = encryptedArray.slice(16, 28);
-    const data = encryptedArray.slice(28);
-
-    const keyMaterial = await crypto.subtle.importKey(
-      'raw',
-      encoder.encode(visitorId),
-      { name: 'PBKDF2' },
-      false,
-      ['deriveBits', 'deriveKey']
-    );
-
-    const key = await crypto.subtle.deriveKey(
-      {
-        name: 'PBKDF2',
-        salt: salt,
-        iterations: 100000,
-        hash: 'SHA-256'
-      },
-      keyMaterial,
-      { name: 'AES-GCM', length: 256 },
-      false,
-      ['decrypt']
-    );
-
-    const decryptedBuffer = await crypto.subtle.decrypt(
-      { name: 'AES-GCM', iv: iv },
-      key,
-      data
-    ).catch(error => {
-      console.error('Decryption operation failed:', error);
-      throw error;
-    });
-
-    const decoder = new TextDecoder();
-    const decryptedText = decoder.decode(decryptedBuffer);
-
-    return decryptedText;
-  } catch (error) {
-    console.error('Decryption failed:', error);
-    if (error instanceof Error) {
-      console.error('Error name:', error.name);
-      console.error('Error message:', error.message);
-      console.error('Error stack:', error.stack);
-    }
-    throw new Error('Failed to decrypt data: ' + (error instanceof Error ? error.message : String(error)));
-  }
-}
-
-async function deterministicEncrypt(data: string): Promise<string> {
-  const encoder = new TextEncoder();
-  const dataBuffer = encoder.encode(data);
-  
-  // Use SHA-256 for a deterministic hash
-  const hashBuffer = await crypto.subtle.digest('SHA-256', dataBuffer);
-  const hashArray = Array.from(new Uint8Array(hashBuffer));
-  const hashHex = hashArray.map(b => b.toString(16).padStart(2, '0')).join('');
-  
-  return hashHex;
-}
-
