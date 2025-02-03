@@ -1,0 +1,85 @@
+---
+import "prismjs/themes/prism.css";
+---
+
+<div
+    x-data="{
+    isOpen: false,
+    codeText: $store.codeText,
+    toggleSidebar() {
+      this.isOpen = !this.isOpen;
+     if (this.isOpen) {
+        this.$nextTick(() => Prism.highlightAll());
+      }
+    },
+  }"
+    class="fixed top-0 left-0 h-full z-50"
+    x-cloak
+>
+    <div
+        x-transition
+        :class="isOpen ? 'left-[-40em]' : 'left-0'"
+        class="h-full w-full bg-white transition-all duration-300 ease-in-out overflow-hidden"
+    >
+        <button
+            @click="toggleSidebar"
+            :class="isOpen ? 'hidden' : ''"
+            class="animate-bounce shadow-2xl drop-shadow-2xl ring-2 ring-gray-300/30 left-2 fixed bottom-2 border-white border-2 -translate-y-1/2 bg-white text-indigo-500 p-2 rounded-md transition-all duration-300"
+            aria-label="Toggle code viewer"
+        >
+            <svg
+                class="w-6 h-6 transition-transform duration-300"
+                xmlns="http://www.w3.org/2000/svg"
+                fill="none"
+                viewBox="0 0 24 24"
+                stroke="currentColor"
+            >
+                <path
+                    stroke-linecap="round"
+                    stroke-linejoin="round"
+                    stroke-width="3"
+                    d="M9 5l7 7-7 7"></path>
+            </svg>
+        </button>
+
+        <div x-show="isOpen" class="h-full flex flex-col">
+            <div class="flex justify-between items-center p-4 border-b">
+                <h2 class="text-lg font-semibold">Code Viewer</h2>
+                <button
+                    @click="isOpen = false"
+                    class="text-gray-500 hover:text-gray-700"
+                    aria-label="Close sidebar"
+                >
+                    <svg
+                        xmlns="http://www.w3.org/2000/svg"
+                        class="h-6 w-6"
+                        fill="none"
+                        viewBox="0 0 24 24"
+                        stroke="currentColor"
+                    >
+                        <path
+                            stroke-linecap="round"
+                            stroke-linejoin="round"
+                            stroke-width="2"
+                            d="M6 18L18 6M6 6l12 12"></path>
+                    </svg>
+                </button>
+            </div>
+            <div class="overflow-auto flex-grow">
+                <pre><code x-text="codeText" class="language-javascript" /></pre>
+            </div>
+        </div>
+    </div>
+</div>
+
+<style>
+    pre {
+        margin: 0;
+        padding: 1rem;
+    }
+    code {
+        font-family: Consolas, Monaco, "Andale Mono", "Ubuntu Mono", monospace;
+        font-size: 0.875rem;
+        line-height: 1.5;
+    }
+</style>
