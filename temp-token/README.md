@@ -25,7 +25,14 @@ cd examples/temp-token
 ```bash
 npm install
 ```
-4. Start the development server.
+
+4. Copy the `.env.template` file to `.env` and fill in the required values.
+
+```bash
+cp .env.template .env
+```
+
+5. Start the development server.
 
 ```bash
 npm run dev
