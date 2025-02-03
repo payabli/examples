@@ -1,3 +1,5 @@
+import { makeOneTimeTransaction } from "../pages/api/transaction";
+
 const $store = index => window.Alpine.store(index);
 const $ping = message => $store('sidebar').messages.push(message);
 
@@ -15,23 +17,42 @@ const fetchJSON = (url, body) =>
         return json;
     });
 
-const convertToPermanent = tempToken => {
+const getTemporaryToken = tempToken => {
     $ping(`### Status: Temp Token\n\nThe embedded component processed the payment information and generated a temporary token with a value of \`${tempToken}\`.\n\nThe temp token can be used [directly in a one-time payment](https://docs.payabli.com/developer-guides/tokenization-temporary-flow#option-2-process-a-payment) or [converted to a permanent token](https://docs.payabli.com/developer-guides/tokenization-temporary-flow#option-1-create-a-permanent-token).`);
-    return fetchJSON('/api/conversion', { token: tempToken }).then(res => res.data.responseData.referenceId);
+    return Promise.resolve(tempToken)
+}
+
+const convertToPermanent = tempToken => {
+    return fetchJSON('/api/conversion', { token: tempToken }).then(res => {
+      const out = res.data.responseData.referenceId;
+      $ping(`### Status: Stored Method\n\`\`\`\nPOST /api/TokenStorage/add\n\`\`\`\n\nThe temporary token was sent to Payabli's API and converted to a permanent token with a value of \`${out}\`.\n\nThis permanent token is referred to as \`storedMethodId\` in \`/api/MoneyIn\` endpoints and can be [used to process a transaction](https://docs.payabli.com/references/money-in-schemas#make-a-transaction-with-a-stored-payment-method).`);
+      return out;
+    });
 };
 
+
 const makeTransaction = method => {
-    $ping(`### Status: Stored Method\n\`\`\`\nPOST /api/TokenStorage/add\n\`\`\`\n\nThe temporary token was sent to Payabli's API and converted to a permanent token with a value of \`${method}\`.\n\nThis permanent token is referred to as \`storedMethodId\` in \`/api/MoneyIn\` endpoints and can be [used to process a transaction](https://docs.payabli.com/references/money-in-schemas#make-a-transaction-with-a-stored-payment-method).`);
-    return fetchJSON('/api/transaction', { method: method }).then(res => res.data.responseData.referenceId);
+    return fetchJSON('/api/transaction', { method: method }).then(res => {
+      const out = res.data.responseData.referenceId
+      $ping(`### Status: Transaction\n\`\`\`\nPOST /api/MoneyIn/getpaid\n\`\`\`\n\nThe permanent token was used to make a payment with a \`PaymentTransId\` of \`${out}\`. The \`PaymentTransId\` can be used to [query the transaction](https://docs.payabli.com/api-reference/query/get-list-of-transactions-for-an-entrypoint) to check information. The payment flow is now complete!`);
+      return out
+    });
+};
+
+const oneTimeTransaction = tempToken => {
+    return fetchJSON('/api/transaction', { token: tempToken }).then(res => {
+      const out = res.data.responseData.referenceId
+      $ping(`### Status: Transaction\n\`\`\`\nPOST /api/MoneyIn/getpaid\n\`\`\`\n\nThe temporary token was used to make a ***one-time payment*** with a \`PaymentTransId\` of \`${out}\`. The \`PaymentTransId\` can be used to [query the transaction](https://docs.payabli.com/api-reference/query/get-list-of-transactions-for-an-entrypoint) to check information. The payment flow is now complete!`);
+      return out
+    });
 };
 
 const queryTransaction = transactionId => {
-    $ping(`### Status: Transaction\n\`\`\`\nPOST /api/MoneyIn/getpaid\n\`\`\`\n\nThe permanent token was used to make a transaction with a \`PaymentTransId\` of \`${transactionId}\`. The \`PaymentTransId\` can be used to [query the transaction](https://docs.payabli.com/api-reference/query/get-list-of-transactions-for-an-entrypoint) later to check information. The payment flow is now complete!`);
-    return fetchJSON('/api/query', { transactionId: transactionId }).then(res => res.data.Records[0]);
-};
-
-const reportQuery = record => {
-    $ping(`### Status: Query\n\`\`\`\nGET /api/Query/transactions\n\`\`\`\n\nThe transaction was successfully queried:\n\`\`\`\n${JSON.stringify(record)}\n\`\`\`\n\nCheck the \`PaymentTransId\` field to verify the transaction:\n\`\`\`\n${JSON.stringify(record.PaymentTransId)}\n\`\`\`\n\nThe \`PaymentTransId\` from the query and the transaction should match.`);
+    return fetchJSON('/api/query', { transactionId: transactionId }).then(res => {
+      const out = res.data.Records[0]
+      $ping(`### Status: Query\n\`\`\`\nGET /api/Query/transactions\n\`\`\`\n\nThe transaction was successfully queried:\n\`\`\`\n${JSON.stringify(out)}\n\`\`\`\n\nCheck the \`PaymentTransId\` field to verify the transaction:\n\`\`\`\n${JSON.stringify(out.PaymentTransId)}\n\`\`\`\n\nThe \`PaymentTransId\` from the query and the transaction should match.\n\nFinally, check that the \`orderId\` field is present:\n\`\`\`\n${JSON.stringify(out.OrderId)}\n\`\`\`\n\nIf you see the \`orderId\` field, then the temporary token flow was successfully implemented!`);
+      return out
+    });
 };
 
 const payabliToken = "o.R+3YBWVpwylYodK6bxJZYlvYmhgDH5/Biy2xdSqXhWR1cT4kHF62ELgT1/CHuyN6ULv+lDcDZBloaADozDr7brcmIcCwYVzpuvyLNBjgkGJNCgDuOQ+4lRDCgJCefxHrOqBQH0rOCxuqdXs9OY1lk0H0K/PomiZZ0DHUdxnV7jXn+54KG76bWX8T+9pcGXYR32fpffPi/AEgGMH9XWmQpl8ERep44ZO1L9ozPkyaOD1ENZwzNRqrIGrEVozbkGGF19BYnNYx+MgbumMI4y1ou7yhHPEoFUHna8dnSYHsb6RkjZeHJFlZCituRLswEZsNOkhDBhFUKP4PQ7ZT0T57dU9aR4ja88ynbFvc2eFoSUtZd9GWK4kn1awU9CIi19YgFPSo9/43srT1B47cxZ3xj+PK8ulE1B7Od14mtLzKVd+i5KdSuFGKuq2SGPEhMuZaIXI6hEVPYk3oDmeSTRn/O1ycYynTGNPkmC/bqWXdiLyRtpIl4i2AP3LFkO14aCp8.Zd2dL8uS1ToCTc8lXg4dozOcUcbPYj42UUWKHSqAB4Y="
@@ -115,11 +136,18 @@ var payabliConfig0 = {
     switch (response.responseText) {
       case "Success":
         // Tokenization was successful
-        convertToPermanent(response.responseData.referenceId)
-        .then(makeTransaction)
-        .then(queryTransaction)
-        .then(reportQuery)
-        .catch(error => console.error('Error:', error));
+        if (document.getElementById("saved-payment").checked) {
+          getTemporaryToken(response.responseData.referenceId)
+          .then(convertToPermanent)
+          .then(makeTransaction)
+          .then(queryTransaction)
+          .catch(error => console.error('Error:', error));
+        } else {
+          getTemporaryToken(response.responseData.referenceId)
+          .then(oneTimeTransaction)
+          .then(queryTransaction)
+          .catch(error => console.error('Error:', error));
+        }
         break;
       case "Declined":
         // Transaction or tokenization failed due to processor decline or validation errors
