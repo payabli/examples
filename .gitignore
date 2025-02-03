@@ -2,3 +2,4 @@
 */.env
 **/.astro/
 **/node_modules/
+**/.git.bk/
