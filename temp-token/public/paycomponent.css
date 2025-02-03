@@ -1,0 +1,21 @@
+.payabliPaymentForm {
+  padding: 20px;
+  paddig-bottom: 0;
+  font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, "Noto Sans", sans-serif, "Apple Color Emoji", "Segoe UI Emoji", "Segoe UI Symbol", "Noto Color Emoji" !important;
+}
+
+label {
+  font-weight: 500 !important;
+}
+
+input:focus {
+  box-shadow: 0 0 0 2px #6366f1 !important;
+}
+
+#main-loading-layer{
+    background-color: transparent !important;
+}
+
+body {
+    background-color: transparent !important;
+}

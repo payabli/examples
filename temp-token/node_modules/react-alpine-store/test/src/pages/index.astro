@@ -1,0 +1,38 @@
+---
+import Layout from '../layouts/Layout.astro';
+import CounterReact from '../components/CounterReact.jsx';
+import CounterAlpine from '../components/CounterAlpine.astro';
+---
+
+<Layout>
+  <!-- Testing different index values -->
+  <div x-data>
+    <h1>$store.count</h1>
+    <CounterReact index="count" client:load/>
+    <CounterAlpine index="count"/>
+    <br/>
+    <button @click="$store.count = null"> 
+      Nullify Count
+    </button>
+  </div>
+
+  <div x-data>
+    <h1>$store.counter.count</h1>
+    <CounterReact index="counter.count" client:load/>
+    <CounterAlpine index="counter.count"/>
+    <br/>
+    <button @click="$store.counter.count = $store.counter.count.toString()"> 
+      Stringify Count
+    </button>
+  </div>
+
+  <div x-data>
+    <h1>$store.counter.counted.count</h1>
+    <CounterReact index="counter.counted.count" client:load/>
+    <CounterAlpine index="counter.counted.count"/>
+    <br/>
+    <button @click="$store.counter.counted.count = { value: $store.counter.counted.count }"> 
+      Objectify Count
+    </button>
+  </div>
+</Layout>
