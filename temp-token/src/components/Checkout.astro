@@ -5,14 +5,14 @@ import { ShoppingCart, CreditCard, Lock, Minus, Plus, Store, Menu, FacebookIcon,
 const products = [
     {
         id: 1,
-        name: "Premium Wireless Headphones",
+        name: "Circuit Replacement and Outlet Repair",
         price: 199.99,
         image: "https://picsum.photos/seed/headphones/200/200",
         quantity: 1,
     },
     {
         id: 2,
-        name: "Smart Fitness Tracker",
+        name: "Smart Light Installation",
         price: 89.99,
         image: "https://picsum.photos/seed/fitness/200/200",
         quantity: 2,
@@ -22,20 +22,20 @@ const products = [
 const recommendedProducts = [
     {
         id: 3,
-        name: "Portable Charger",
-        price: 49.99,
+        name: "Full Breaker Replacement and Upgrade",
+        price: 999.99,
         image: "https://picsum.photos/seed/charger/150/150",
     },
     {
         id: 4,
-        name: "Bluetooth Speaker",
-        price: 79.99,
+        name: "Exterior Light Installation",
+        price: 169.99,
         image: "https://picsum.photos/seed/speaker/150/150",
     },
     {
         id: 5,
-        name: "Wireless Earbuds",
-        price: 129.99,
+        name: "Complete Electrical Safety Inspection",
+        price: 29.99,
         image: "https://picsum.photos/seed/earbuds/150/150",
     },
 ];
@@ -145,6 +145,7 @@ const total = subtotal + tax;
                     >
                         Checkout
                     </h1>
+                    <p class="text-lg font-bold tracking-tight text-gray-700 dark:text-gray-400 pt-1">Our technicians will be in contact with you as soon as they're able.</p>
                     <ul role="list" class="mt-6 divide-y divide-gray-200 dark:divide-gray-700">
                         {
                             products.map((product) => (
@@ -240,7 +241,11 @@ const total = subtotal + tax;
                             </div>
                         </div>
                         <div x-data class="border-t border-gray-200 dark:border-gray-700">
-                            <div id="pay-component-1" class="px-2"></div>
+                            <div id="pay-component-1" class="px-2 -mb-6"></div>
+                            <div class="flex items-center justify-center mb-12">
+                                <input checked id="saved-payment" type="checkbox" value="" class="w-4 h-4 text-indigo-500 bg-gray-100 border-gray-300 rounded-md focus:ring-indigo-500 dark:focus:ring-blue-600 dark:ring-offset-gray-800 focus:ring-2 dark:bg-gray-700 dark:border-gray-600">
+                                <label for="saved-payment" class="ms-2 text-sm font-medium rounded-md text-gray-900 dark:text-gray-300">Save information for future visits</label>
+                            </div>
                             <div class="flex justify-center">
                               <button
                                 id="payabli-checkout"
