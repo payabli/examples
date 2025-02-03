@@ -1,4 +1,4 @@
-An guided tour of Payabli's temp token flow.
+A guided tour of Payabli's temp token flow.
 
 ## Summary
 
