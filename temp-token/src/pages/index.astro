@@ -1,0 +1,10 @@
+---
+import Layout from "../layouts/Layout.astro";
+import Checkout from "../components/Checkout.astro";
+import SidebarChat from "../components/Sidebar.tsx";  
+---
+
+<Layout>
+    <SidebarChat client:load />
+    <Checkout />
+</Layout>
