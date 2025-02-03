@@ -1,0 +1,37 @@
+{
+  "name": "bundle-n-require",
+  "version": "1.1.1",
+  "description": "Require and bundle Typescript and Javascript files in NodeJS",
+  "main": "dist/index.js",
+  "module": "dist/index.mjs",
+  "keywords": [
+    "esbuild",
+    "tsup",
+    "require",
+    "bundle",
+    "nodejs"
+  ],
+  "files": [
+    "dist"
+  ],
+  "publishConfig": {
+    "access": "public"
+  },
+  "author": "Segun Adebayo <joseshegs@gmail.com>",
+  "license": "MIT",
+  "dependencies": {
+    "esbuild": "^0.20.0",
+    "node-eval": "^2.0.0"
+  },
+  "devDependencies": {
+    "@types/node": "^20.11.16",
+    "rimraf": "^5.0.5",
+    "tsup": "^8.0.1",
+    "typescript": "^5.3.3"
+  },
+  "scripts": {
+    "build": "tsup src --format cjs,esm --shims --dts",
+    "pub": "pnpm build && pnpm publish --no-git-checks --access public",
+    "clean": "rimraf dist"
+  }
+}

@@ -1,0 +1,99 @@
+{
+	"name": "colorjs.io",
+	"version": "0.4.5",
+	"description": "Let’s get serious about color",
+	"files": [
+		"dist/color.cjs",
+		"dist/color.cjs.map",
+		"dist/color.js",
+		"dist/color.js.map",
+		"dist/color.legacy.cjs",
+		"dist/color.legacy.cjs.map",
+		"dist/color.legacy.js",
+		"dist/color.legacy.js.map",
+		"src/",
+		"types/dist/",
+		"types/src/",
+		"types/index.d.ts"
+	],
+	"exports": {
+		".": {
+			"types": "./types/index.d.ts",
+			"import": "./dist/color.js",
+			"require": "./dist/color.cjs"
+		},
+		"./fn": {
+			"types": "./types/src/index-fn.d.ts",
+			"import": "./src/index-fn.js"
+		},
+		"./dist/*": "./dist/*"
+	},
+	"typesVersions": {
+		"*": {
+			"fn": [
+				"./types/src/index-fn.d.ts"
+			]
+		}
+	},
+	"type": "module",
+	"main": "./dist/color.cjs",
+	"module": "./dist/color.js",
+	"types": "./types",
+	"directories": {
+		"test": "tests"
+	},
+	"scripts": {
+		"test": "open tests/",
+		"dtslint": "dtslint types",
+		"lint": "eslint . --fix --ext .js --ext .ts --ext .js --ext .cjs",
+		"build:css": "npx postcss \"**/*.postcss\" --base . --dir . --ext .css --config postcss.config.cjs",
+		"build:html": "npx @11ty/eleventy --config=.eleventy.cjs",
+		"build:js": "rollup -c",
+		"build:js:legacy": "rollup -c rollup.legacy.config.js",
+		"build": "npm run build:html && npm run build:css && npm run build:js && npm run build:js:legacy",
+		"watch:css": "npx postcss \"**/*.postcss\" --base . --dir . --ext .css --config postcss.config.cjs --watch",
+		"watch:html": "npx @11ty/eleventy --config=.eleventy.cjs --watch",
+		"watch:js": "rollup -c --watch",
+		"watch": "npm run watch:css & npm run watch:html & npm run watch:js",
+		"prepack": "npm run build"
+	},
+	"repository": {
+		"type": "git",
+		"url": "git+https://github.com/LeaVerou/color.js.git"
+	},
+	"keywords": [
+		"color"
+	],
+	"contributors": [
+		"Lea Verou",
+		"Chris Lilley"
+	],
+	"license": "MIT",
+	"bugs": {
+		"url": "https://github.com/LeaVerou/color.js/issues"
+	},
+	"homepage": "https://colorjs.io",
+	"devDependencies": {
+		"@11ty/eleventy": "^2.0",
+		"@babel/core": "^7.21.4",
+		"@babel/preset-env": "^7.21.4",
+		"@definitelytyped/dtslint": "latest",
+		"@rollup/plugin-babel": "^6.0.3",
+		"@rollup/plugin-commonjs": "^24.1.0",
+		"@rollup/plugin-node-resolve": "^15.0.2",
+		"@rollup/plugin-terser": "^0.4.1",
+		"@typescript-eslint/parser": "^5.59.1",
+		"acorn": "latest",
+		"core-js": "^3.30.1",
+		"eslint": "latest",
+		"postcss": "latest",
+		"postcss-cli": "latest",
+		"postcss-nesting": "latest",
+		"rollup": "^3.21",
+		"typescript": "^5.0.4"
+	},
+	"sideEffects": [
+		"./src/index.js",
+		"./src/spaces/index.js"
+	]
+}

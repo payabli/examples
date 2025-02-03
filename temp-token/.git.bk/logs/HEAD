@@ -1,0 +1,4 @@
+0000000000000000000000000000000000000000 2eda95ee335b1ac77dfd923bb5849c2d416b025c Elijah Skeirik <elijah@payabli.com> 1736372255 -0500	commit (initial): Initial commit from Astro
+2eda95ee335b1ac77dfd923bb5849c2d416b025c 1b67437f9e1066c9c494fee9f9fc51dcd716263e Elijah Skeirik <elijah@payabli.com> 1736378481 -0500	commit: placeholder markup and code viewer sidebar done
+1b67437f9e1066c9c494fee9f9fc51dcd716263e 97f6ae8d1be9b8a199b3e5249c9f9ddba266df60 Elias Michaias <emskeirik@gmail.com> 1737752558 -0500	commit: sidebar fully functioning and darkmode progress
+97f6ae8d1be9b8a199b3e5249c9f9ddba266df60 b4906690a6e4f1acae4dd4eb72fa46340ec01092 payablijah <elijah@payabli.com> 1738560917 -0500	commit: finish transaction logic and ping updates around the transaction logic

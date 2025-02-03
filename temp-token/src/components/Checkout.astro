@@ -1,0 +1,345 @@
+---
+import Layout from "../layouts/Layout.astro";
+import { ShoppingCart, CreditCard, Lock, Minus, Plus, Store, Menu, FacebookIcon, InstagramIcon, TwitterIcon, Check, Loader2 } from 'lucide-react';
+
+const products = [
+    {
+        id: 1,
+        name: "Premium Wireless Headphones",
+        price: 199.99,
+        image: "https://picsum.photos/seed/headphones/200/200",
+        quantity: 1,
+    },
+    {
+        id: 2,
+        name: "Smart Fitness Tracker",
+        price: 89.99,
+        image: "https://picsum.photos/seed/fitness/200/200",
+        quantity: 2,
+    },
+];
+
+const recommendedProducts = [
+    {
+        id: 3,
+        name: "Portable Charger",
+        price: 49.99,
+        image: "https://picsum.photos/seed/charger/150/150",
+    },
+    {
+        id: 4,
+        name: "Bluetooth Speaker",
+        price: 79.99,
+        image: "https://picsum.photos/seed/speaker/150/150",
+    },
+    {
+        id: 5,
+        name: "Wireless Earbuds",
+        price: 129.99,
+        image: "https://picsum.photos/seed/earbuds/150/150",
+    },
+];
+
+const subtotal = products.reduce(
+    (sum, product) => sum + product.price * product.quantity,
+    0,
+);
+const tax = subtotal * 0.08;
+const total = subtotal + tax;
+---
+
+<Layout title="Checkout - Your Store">
+    <div class="min-h-screen bg-gray-100 dark:bg-gray-900">
+        <!-- Navigation -->
+        <nav class="bg-white dark:bg-gray-800 shadow-sm">
+            <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+                <div class="flex justify-between h-16">
+                    <div class="flex items-center">
+                        <div class="flex-shrink-0 flex items-center">
+                            <Store className="text-indigo-500 dark:text-indigo-400" />
+                            <a href="#" class="ml-2 text-xl font-bold border-b-2 border-indigo-500 dark:border-indigo-400 text-gray-900 dark:text-white">
+                                LoremSoft
+                            </a>
+                        </div>
+                    </div>
+                    <div class="flex items-center">
+                        <!-- Hamburger menu for mobile -->
+                        <div class="sm:hidden">
+                            <label
+                                for="menu-toggle"
+                                class="block text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white cursor-pointer"
+                            >
+                                <Menu size={24} />
+                            </label>
+                            <input
+                                type="checkbox"
+                                id="menu-toggle"
+                                class="hidden"
+                            />
+                            <div
+                                class="hidden absolute top-16 left-0 right-0 bg-white dark:bg-gray-800 shadow-md"
+                                id="mobile-menu"
+                            >
+                                <div class="px-2 pt-2 pb-3 space-y-1">
+                                    <a
+                                        href="#"
+                                        class="block px-3 py-2 rounded-md text-base font-medium text-gray-700 dark:text-gray-300 hover:text-gray-900 dark:hover:text-white hover:bg-gray-50 dark:hover:bg-gray-700"
+                                        >Shop</a
+                                    >
+                                    <a
+                                        href="#"
+                                        class="block px-3 py-2 rounded-md text-base font-medium text-gray-700 dark:text-gray-300 hover:text-gray-900 dark:hover:text-white hover:bg-gray-50 dark:hover:bg-gray-700"
+                                        >About</a
+                                    >
+                                    <a
+                                        href="#"
+                                        class="block px-3 py-2 rounded-md text-base font-medium text-gray-700 dark:text-gray-300 hover:text-gray-900 dark:hover:text-white hover:bg-gray-50 dark:hover:bg-gray-700"
+                                        >Contact</a
+                                    >
+                                </div>
+                            </div>
+                        </div>
+                        <!-- Desktop menu -->
+                        <div class="hidden sm:ml-6 sm:flex sm:space-x-8">
+                            <a
+                                href="#"
+                                class="border-indigo-500 dark:border-indigo-400 text-gray-900 dark:text-white inline-flex items-center px-1 pt-1 border-b-2 text-sm font-medium"
+                            >
+                                Shop
+                            </a>
+                            <a
+                                href="#"
+                                class="border-transparent text-gray-500 dark:text-gray-400 hover:border-gray-300 dark:hover:border-gray-600 hover:text-gray-700 dark:hover:text-gray-200 inline-flex items-center px-1 pt-1 border-b-2 text-sm font-medium"
+                            >
+                                About
+                            </a>
+                            <a
+                                href="#"
+                                class="border-transparent text-gray-500 dark:text-gray-400 hover:border-gray-300 dark:hover:border-gray-600 hover:text-gray-700 dark:hover:text-gray-200 inline-flex items-center px-1 pt-1 border-b-2 text-sm font-medium"
+                            >
+                                Contact
+                            </a>
+                        </div>
+                        <!-- Shopping cart icon (visible on all screen sizes) -->
+                        <div class="ml-4 flex items-center">
+                            <button
+                                type="button"
+                                class="bg-white dark:bg-gray-800 p-1 rounded-full text-gray-400 dark:text-gray-300 hover:text-gray-500 dark:hover:text-gray-200 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 dark:focus:ring-offset-gray-800"
+                            >
+                                <span class="sr-only">View cart</span>
+                                <ShoppingCart size={24} />
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </nav>
+
+        <!-- Main Content -->
+        <main class="max-w-7xl mx-auto py-16 px-4 sm:py-24 sm:px-6 lg:px-8">
+            <div class="lg:grid lg:grid-cols-2 lg:gap-x-12 xl:gap-x-16">
+                <!-- Cart -->
+                <div>
+                    <h1
+                        class="text-3xl font-extrabold tracking-tight text-gray-900 dark:text-white sm:text-4xl"
+                    >
+                        Checkout
+                    </h1>
+                    <ul role="list" class="mt-6 divide-y divide-gray-200 dark:divide-gray-700">
+                        {
+                            products.map((product) => (
+                                <li class="py-6 flex">
+                                    <div class="flex-shrink-0 w-24 h-24 border border-gray-200 dark:border-gray-700 rounded-md overflow-hidden">
+                                        <img
+                                            src={product.image || "/placeholder.svg"}
+                                            alt={product.name}
+                                            class="w-full h-full object-center object-cover"
+                                        />
+                                    </div>
+                                    <div class="ml-4 flex-1 flex flex-col">
+                                        <div>
+                                            <div class="flex justify-between text-base font-medium text-gray-900 dark:text-white">
+                                                <h3>{product.name}</h3>
+                                                <p class="ml-4">
+                                                    ${product.price.toFixed(2)}
+                                                </p>
+                                            </div>
+                                        </div>
+                                        <div class="flex-1 flex items-end justify-between text-sm">
+                                            <div class="flex items-center">
+                                                <button class="text-gray-500 dark:text-gray-400 hover:text-gray-600 dark:hover:text-gray-300">
+                                                    <Minus size={20} />
+                                                </button>
+                                                <span class="mx-2 text-gray-700 dark:text-gray-300">
+                                                    {product.quantity}
+                                                </span>
+                                                <button class="text-gray-500 dark:text-gray-400 hover:text-gray-600 dark:hover:text-gray-300">
+                                                    <Plus size={20} />
+                                                </button>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </li>
+                            ))
+                        }
+                    </ul>
+                </div>
+
+                <!-- Order summary -->
+                <div class="mt-10 lg:mt-0">
+                    <h2
+                        class="text-2xl font-extrabold tracking-tight text-gray-900 dark:text-white"
+                    >
+                        Order summary
+                    </h2>
+                    <div
+                        class="mt-4 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg shadow-sm"
+                    >
+                        <div class="p-6">
+                            <div class="flow-root">
+                                <dl
+                                    class="-my-4 text-sm divide-y divide-gray-200 dark:divide-gray-700"
+                                >
+                                    <div
+                                        class="py-4 flex items-center justify-between"
+                                    >
+                                        <dt
+                                            class="text-base font-medium text-gray-900 dark:text-white"
+                                        >
+                                            Subtotal
+                                        </dt>
+                                        <dd
+                                            class="text-base font-medium text-gray-900 dark:text-white"
+                                        >
+                                            ${subtotal.toFixed(2)}
+                                        </dd>
+                                    </div>
+                                    <div
+                                        class="py-4 flex items-center justify-between"
+                                    >
+                                        <dt class="text-gray-600 dark:text-gray-400">Tax</dt>
+                                        <dd class="text-gray-600 dark:text-gray-400">
+                                            ${tax.toFixed(2)}
+                                        </dd>
+                                    </div>
+                                    <div
+                                        class="py-4 flex items-center justify-between"
+                                    >
+                                        <dt
+                                            class="text-base font-medium text-gray-900 dark:text-white"
+                                        >
+                                            Total
+                                        </dt>
+                                        <dd
+                                            class="text-base font-medium text-gray-900 dark:text-white"
+                                        >
+                                            ${total.toFixed(2)}
+                                        </dd>
+                                    </div>
+                                </dl>
+                            </div>
+                        </div>
+                        <div x-data class="border-t border-gray-200 dark:border-gray-700">
+                            <div id="pay-component-1" class="px-2"></div>
+                            <div class="flex justify-center">
+                              <button
+                                id="payabli-checkout"
+                                type="submit"
+                                class="w-48 justify-center bg-indigo-600 border border-transparent rounded-md shadow-sm 
+                                       py-3 px-4 text-base font-medium text-white hover:bg-indigo-700 focus:outline-none 
+                                       focus:ring-2 focus:ring-offset-2 focus:ring-offset-gray-50 dark:focus:ring-offset-gray-900 focus:ring-indigo-500
+                                       mb-4 -mt-6 flex
+                                       disabled:opacity-50 disabled:cursor-not-allowed disabled:bg-indigo-400"
+                                disabled
+                              >
+                                Confirm order
+                                <Check className="ml-1" />
+                              </button>
+                            </div>
+                        </div>
+                        <div class="border-t border-gray-200 dark:border-gray-700 py-6 px-4 sm:px-6">
+                            <div class="flex items-center" x-data>
+                                <button @click="$store.sidebar.messages.push('hey')">
+                                  <Lock size={20} className="text-gray-400 dark:text-gray-500 mr-2" />
+                                </button>
+                                <p class="text-sm text-gray-500 dark:text-gray-400 ml-2">
+                                Secure checkout powered by 
+                                <strong class="text-indigo-500 dark:text-indigo-400 border-b-2 border-indigo-500 dark:border-indigo-400"><a href="https://payabli.com" target="_blank">Payabli</a></strong>
+                                </p>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- You May Also Like Section -->
+            <div class="mt-24">
+                <h2
+                    class="text-2xl font-extrabold tracking-tight text-gray-900 dark:text-white"
+                >
+                    You May Also Like
+                </h2>
+                <div
+                    class="mt-6 grid grid-cols-1 gap-y-10 gap-x-6 sm:grid-cols-2 lg:grid-cols-3 xl:gap-x-8"
+                >
+                    {
+                        recommendedProducts.map((product) => (
+                            <div class="group relative">
+                                <div class="w-full min-h-80 bg-gray-200 dark:bg-gray-700 aspect-w-1 aspect-h-1 rounded-md overflow-hidden group-hover:opacity-75 lg:h-80 lg:aspect-none">
+                                    <img
+                                        src={product.image || "/placeholder.svg"}
+                                        alt={product.name}
+                                        class="w-full h-full object-center object-cover lg:w-full lg:h-full"
+                                    />
+                                </div>
+                                <div class="mt-4 flex justify-between">
+                                    <div>
+                                        <h3 class="text-sm text-gray-700 dark:text-gray-300">
+                                            <a href="#">
+                                                <span
+                                                    aria-hidden="true"
+                                                    class="absolute inset-0"
+                                                />
+                                                {product.name}
+                                            </a>
+                                        </h3>
+                                    </div>
+                                    <p class="text-sm font-medium text-gray-900 dark:text-gray-100">
+                                        ${product.price.toFixed(2)}
+                                    </p>
+                                </div>
+                            </div>
+                        ))
+                    }
+                </div>
+            </div>
+        </main>
+
+        <!-- Footer -->
+        <footer class="bg-white dark:bg-gray-950">
+            <div
+                class="max-w-7xl mx-auto py-12 px-4 sm:px-6 md:flex md:items-center md:justify-between lg:px-8"
+            >
+                <div class="flex justify-center space-x-6 md:order-2">
+                    <a href="#" class="text-gray-400 hover:text-gray-500 dark:text-gray-500 dark:hover:text-gray-400">
+                        <span class="sr-only">Facebook</span>
+                        <FacebookIcon size={24} />
+                    </a>
+                    <a href="#" class="text-gray-400 hover:text-gray-500 dark:text-gray-500 dark:hover:text-gray-400">
+                        <span class="sr-only">Instagram</span>
+                        <InstagramIcon size={24} />
+                    </a>
+                    <a href="#" class="text-gray-400 hover:text-gray-500 dark:text-gray-500 dark:hover:text-gray-400">
+                        <span class="sr-only">Twitter</span>
+                        <TwitterIcon size={24} />
+                    </a>
+                </div>
+                <div class="mt-8 md:mt-0 md:order-1">
+                    <p class="text-center text-base text-gray-400 dark:text-gray-500">
+                        &copy; 2025 Your Company, Inc. All rights reserved.
+                    </p>
+                </div>
+            </div>
+        </footer>
+    </div>
+</Layout>
