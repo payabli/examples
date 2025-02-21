@@ -127,6 +127,7 @@ The Wizard component manages the multi-step form flow.
   setCurrentPage={setCurrentPage}
   preChildren={componentThatAppearsAboveSteps}
   postChildren={componentThatAppearsBelowSteps}
+  onPageChange={(page: number) => console.log('Page changed:', page)}
 >
   <WizardStep icon={<User />} label="Step 1">
     {/* Step content */}
@@ -136,6 +137,26 @@ The Wizard component manages the multi-step form flow.
   </WizardStep>
 </Wizard>
 ```
+
+#### Save progress on page change
+ 
+To save the form data progress on page change, you can use the `onPageChange` prop.
+This snippet is taken from the `PayabliForm.tsx` file.
+By default, the `handleSaveForLater()` function is commented out.
+Uncomment the function to enable saving form data progress on page change.
+```tsx
+<Wizard
+  currentPage={currentPage}
+  setCurrentPage={setCurrentPage}
+  preChildren={controls}
+  onPageChange={(page: number) => {
+    // any logic to run when the page changes
+    handleSaveForLater()
+    console.log('Page changed:', page)
+  }}
+>
+```
+
 ### Form Fields
 
 The form fields accept various different props in order to enhance configurability with minimal code.
@@ -160,6 +181,8 @@ Input fields accept the following props:
 8. `numeric?: boolean` - Whether the input field should only accept numbers.
 9. `includeMaskedChars?: boolean` - Whether to include the mask characters in the value.
 10. `maxLength?: number` - The maximum length of the input field.
+11. `autoComplete?: string[]` - An array of strings to use for autocompleting the input field.
+12. `onAutoComplete?: (value: string) => void` - A function to handle the autocompleted value.
 
 Select fields accept the following props:
 
@@ -205,6 +228,67 @@ Checkbox groups accept the following props:
 > [!NOTE]
 > All form components use the `FormWrapper.tsx` component as a base for shared props and formatting, with the exception of the checkbox group component.
 
+#### Form Input Autocomplete 
+
+The `autoComplete` prop on the `FormInput` component receives an array of strings to use for autocompleting the input field.
+The `onAutoComplete` prop receives a function to handle the autocompleted value.
+These props allow for custom logic to be implemented when autocompleting fields, such as fetching suggestions from an API and filling multiple fields.
+The following snippet is taken from the `PayabliForm.tsx` file and demonstrates how to use the `autoComplete` and `onAutoComplete` props across multiple fields to handle addresses.
+```tsx
+<FormInput
+  name="baddress"
+  label="Business Address"
+  tooltip="The primary address of your business"
+  // Use country and region codes that match the country and region pickers
+  autoComplete={[
+    '123 Main St, New York, NY 10001, US', 
+    '456 Elm St, Los Angeles, CA 90001, US',
+  ]}
+  onAutoComplete={(value) => {
+    console.log('Autocompleted:', value)
+    const [address, city, stateZip, country] = value.split(',').map(part => part.trim());
+    const [state, zip] = stateZip.split(' ').map(part => part.trim())
+    form.setValue('baddress', address)
+    form.setValue('bcity', city)
+    form.setValue('bzip', zip)
+    form.setValue('bcountry', country)
+    setBusinessCountry(country)
+    // delay setting state to allow country to update first
+    // because the region select is dependent on the country
+    setTimeout(() => {
+      form.setValue('bstate', state)
+    }, 1)
+  }}
+/>
+<FormInput
+  name="baddress1"
+  label="Business Address Line 2"
+  tooltip="Additional address information (if needed)"
+/>
+<FormInput
+  name="bcity"
+  label="Business City"
+  tooltip="The city where your business is located"
+/>
+<FormCountryRegionCombined
+  countryName="bcountry"
+  countryLabel="Business Country"
+  countryTooltip="The country where your business is located"
+  regionName="bstate"
+  regionLabel="Business State"
+  regionTooltip="The state where your business is located"
+/>
+<FormInput
+  name="bzip"
+  label="Business ZIP"
+  tooltip="The ZIP code of your business location"
+/>
+```
+
+The example uses placeholder address data to demonstrate how to handle the autocompleted value.
+For production, we recommend using an `onChange` handler to fetch suggestions from an API (such as [Google Places](https://developers.google.com/maps/documentation/places/web-service/overview) or [Smarty](https://www.smarty.com/)) and update the autocomplete suggestions.
+
+If you want to add custom validation for addresses fields, use the `superRefine` method as seen in [Validation Schema](#validation-schema).
 
 ### Dynamic Sections
 
