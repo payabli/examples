@@ -121,7 +121,7 @@ export function PayabliForm() {
       try {
         const savedData = await loadSavedData()
         if (savedData) {
-          await form.reset(savedData)
+          form.reset(savedData)
 
           setBusinessCountry(savedData.bcountry || '')
           setMailingCountry(savedData.mcountry || '')
@@ -209,6 +209,11 @@ export function PayabliForm() {
         currentPage={currentPage}
         setCurrentPage={setCurrentPage}
         preChildren={controls}
+        onPageChange={(page: number) => {
+          // any logic to run when the page changes
+          // handleSaveForLater()
+          console.log('Page changed:', page)
+        }}
       >
         <WizardStep icon={<Building />} label="Business Information">
           <h2 className="mb-4 w-full text-center text-2xl font-bold">
@@ -229,12 +234,6 @@ export function PayabliForm() {
               name="website"
               label="Website"
               tooltip="Your business website URL"
-            />
-            <FormInput
-              name="ein"
-              label="EIN"
-              tooltip="Your Employer Identification Number (9 digits)"
-              mask="99-9999999"
             />
             <FormInput
               name="taxfillname"
@@ -277,10 +276,7 @@ export function PayabliForm() {
               name="btype"
               label="Business Type"
               options={[
-                {
-                  value: 'Limited Liability Company',
-                  label: 'Limited Liability Company',
-                },
+                { value: 'Limited Liability Company', label: 'Limited Liability Company' },
                 { value: 'Non-Profit Org', label: 'Non-Profit Org' },
                 { value: 'Partnership', label: 'Partnership' },
                 { value: 'Private Corp', label: 'Private Corp' },
@@ -291,11 +287,6 @@ export function PayabliForm() {
                 { value: 'Sole Proprietor', label: 'Sole Proprietor' },
               ]}
               tooltip="The legal structure of your business"
-            />
-            <FormInput
-              name="mcc"
-              label="MCC"
-              tooltip="Merchant Category Code (4 digits)"
             />
           </div>
         </WizardStep>
@@ -309,6 +300,26 @@ export function PayabliForm() {
               name="baddress"
               label="Business Address"
               tooltip="The primary address of your business"
+              // Use country and region codes that match the country and region pickers
+              autoComplete={[
+                '123 Main St, New York, NY 10001, US', 
+                '456 Elm St, Los Angeles, CA 90001, US',
+              ]}
+              onAutoComplete={(value) => {
+                console.log('Autocompleted:', value)
+                const [address, city, stateZip, country] = value.split(',').map(part => part.trim());
+                const [state, zip] = stateZip.split(' ').map(part => part.trim())
+                form.setValue('baddress', address)
+                form.setValue('bcity', city)
+                form.setValue('bzip', zip)
+                form.setValue('bcountry', country)
+                setBusinessCountry(country)
+                // delay setting state to allow country to update first
+                // because the region select is dependent on the country
+                setTimeout(() => {
+                  form.setValue('bstate', state)
+                }, 1)
+              }}
             />
             <FormInput
               name="baddress1"
@@ -497,6 +508,17 @@ export function PayabliForm() {
             Step 4: Financial Information
           </h2>
           <div className="items-end gap-4 md:grid md:grid-cols-2">
+            <FormInput
+              name="mcc"
+              label="MCC"
+              tooltip="Merchant Category Code (4 digits)"
+            />
+            <FormInput
+              name="ein"
+              label="EIN"
+              tooltip="Your Employer Identification Number (9 digits)"
+              mask="99-9999999"
+            />
             <FormInput
               name="bsummary"
               label="Business Summary"
