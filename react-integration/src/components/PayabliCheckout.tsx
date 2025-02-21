@@ -1,5 +1,5 @@
 // PayabliCheckout.tsx
-import { usePayabli } from '../hooks/usePayabli.ts';
+import { usePayabli } from '../hooks/usePayabli';
 
 export const PayabliCheckout = () => {
   const token = "o.z8j8aaztW9tUtUg4dlVeYAx+L2MazOFGr0DY8yuK3u79MCYlGK4/q0t5AD1UgLAjXOohnxN8VTZfPswyZcwtChGNn1a8jFMmYWHmLN2cPDW9IrBt1RtrSuu+85HJI+4kML5sIk9SYvULDAU2k0X0E1KFYcPwjmmkUjktrEGtz48XCUM70aKUupkrTh8nL7CXpAXATzVUZ2gEld9jGINwECPPLWmu+cZ4CJb7QMJxnzKFD073+nq/eL+pMth7+u/SkmAWC0+jn8y+Lf6T5Q5PqB6wN7Mvosp8g7U7lbEW2wC0DA92pjblfDHVJOQUkjgT7B1GvryMokLvBjoiaLhKa55iKZE1YDlyqruILkoNF+zGSPS9r17qU6w4ziKhoMdSPzPBJBlLhQhz3MVANXbjfEfJwmtr/JJ1uStUfBFJ710cS1x7goxMJO/cl+q+LVtPy788EKFkgMc5OjfBNCsNL+dBDVbK5CiIJUSbOFzdqdjY/VJ14MEodsHYOwMAjuF4.KRFMeEj0SOur8MLZ362c/UZ/U/Az3CSUkr3/8EVDE6Y="
