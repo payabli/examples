@@ -288,7 +288,7 @@ The following snippet is taken from the `PayabliForm.tsx` file and demonstrates 
 The example uses placeholder address data to demonstrate how to handle the autocompleted value.
 For production, we recommend using an `onChange` handler to fetch suggestions from an API (such as [Google Places](https://developers.google.com/maps/documentation/places/web-service/overview) or [Smarty](https://www.smarty.com/)) and update the autocomplete suggestions.
 
-If you want to add custom validation for addresses fields, use the `superRefine` method as seen in [Validation Schema](#validation-schema).
+If you want to add custom validation for address fields, use the `superRefine` method as seen in [Validation Schema](#validation-schema).
 
 ### Dynamic Sections
 
