@@ -1,8 +1,8 @@
-import React, { useState, ReactNode, useRef, useEffect } from 'react'
-import { motion, AnimatePresence } from 'framer-motion'
-import { ChevronLeft, ChevronRight, Check, Save, X, LoaderIcon, Loader2Icon } from 'lucide-react'
-import { Button } from '@/components/ui/button'
-import { Card, CardContent } from '@/components/ui/card'
+import React, { useState, type ReactNode, useRef } from "react"
+import { motion, AnimatePresence } from "framer-motion"
+import { ChevronLeft, ChevronRight, Check, Loader2Icon } from "lucide-react"
+import { Button } from "@/components/ui/button"
+import { Card, CardContent } from "@/components/ui/card"
 
 type WizardStepProps = {
   icon: ReactNode
@@ -20,6 +20,7 @@ type WizardProps = {
   preChildren?: ReactNode
   postChildren?: ReactNode
   children: ReactNode
+  onPageChange?: (newPage: number) => void
 }
 
 export function Wizard({
@@ -28,24 +29,30 @@ export function Wizard({
   children,
   preChildren,
   postChildren,
+  onPageChange,
 }: WizardProps) {
   const steps = React.Children.toArray(children).filter(
-    (child) =>
-      React.isValidElement(child) && child.props.className !== 'wizard-step',
+    (child) => React.isValidElement(child) && child.props.className !== "wizard-step",
   ) as React.ReactElement<WizardStepProps>[]
   const totalPages = steps.length
 
   const nextPage = (event: React.MouseEvent<HTMLButtonElement, MouseEvent>) => {
     event.preventDefault()
-    setCurrentPage(Math.min(currentPage + 1, totalPages - 1))
+    const newPage = Math.min(currentPage + 1, totalPages - 1)
+    setCurrentPage(newPage)
+    if (onPageChange) onPageChange(newPage)
     scrollToTop()
   }
   const prevPage = () => {
-    setCurrentPage(Math.max(currentPage - 1, 0))
+    const newPage = Math.max(currentPage - 1, 0)
+    setCurrentPage(newPage)
+    if (onPageChange) onPageChange(newPage)
     scrollToTop()
   }
   const goToPage = (page: number) => {
-    setCurrentPage(Math.max(0, Math.min(page, totalPages - 1)))
+    const newPage = Math.max(0, Math.min(page, totalPages - 1))
+    setCurrentPage(newPage)
+    if (onPageChange) onPageChange(newPage)
     scrollToTop()
   }
 
@@ -53,7 +60,7 @@ export function Wizard({
 
   const scrollToTop = () => {
     if (wizardHeaderRef.current) {
-      wizardHeaderRef.current.scrollIntoView({ behavior: 'smooth' })
+      wizardHeaderRef.current.scrollIntoView({ behavior: "smooth" })
     }
   }
 
@@ -108,37 +115,23 @@ type WizardStepIndicatorProps = {
   goToPage: (page: number) => void
 }
 
-function WizardStepIndicator({
-  steps,
-  currentPage,
-  setCurrentPage,
-  totalPages,
-  goToPage,
-}: WizardStepIndicatorProps) {
+function WizardStepIndicator({ steps, currentPage, setCurrentPage, totalPages, goToPage }: WizardStepIndicatorProps) {
   return (
     <div className="mb-6">
       <div className="hidden justify-between sm:flex">
         {steps.map((step, index) => (
-          <div
-            key={index}
-            className="flex flex-1 cursor-pointer flex-col items-center"
-            onClick={() => goToPage(index)}
-          >
+          <div key={index} className="flex flex-1 cursor-pointer flex-col items-center" onClick={() => goToPage(index)}>
             <div
               className={`flex h-10 w-10 items-center justify-center rounded-full border-2 ${
                 index === currentPage
-                  ? 'border-primary bg-primary text-primary-foreground'
-                  : 'border-muted bg-background text-muted-foreground'
+                  ? "border-primary bg-primary text-primary-foreground"
+                  : "border-muted bg-background text-muted-foreground"
               }`}
             >
               {step.props.icon}
             </div>
             <span
-              className={`mt-2 text-sm ${
-                index === currentPage
-                  ? 'font-medium text-primary'
-                  : 'text-muted-foreground'
-              }`}
+              className={`mt-2 text-sm ${index === currentPage ? "font-medium text-primary" : "text-muted-foreground"}`}
             >
               {step.props.label}
             </span>
@@ -158,9 +151,7 @@ function WizardStepIndicator({
             <div className="flex h-10 w-10 items-center justify-center rounded-full border-2 border-primary bg-primary text-primary-foreground">
               {steps[currentPage].props.icon}
             </div>
-            <span className="mt-2 text-sm font-medium text-primary">
-              {steps[currentPage].props.label}
-            </span>
+            <span className="mt-2 text-sm font-medium text-primary">{steps[currentPage].props.label}</span>
           </motion.div>
         </AnimatePresence>
         <div className="text-center sm:hidden">
@@ -183,10 +174,7 @@ function ProgressBar({ currentPage, totalPages }: ProgressBarProps) {
 
   return (
     <div className="h-1.5 w-full overflow-hidden rounded-full bg-muted">
-      <div
-        className="h-full bg-primary transition-all duration-300 ease-in-out"
-        style={{ width: `${progress}%` }}
-      />
+      <div className="h-full bg-primary transition-all duration-300 ease-in-out" style={{ width: `${progress}%` }} />
     </div>
   )
 }
@@ -199,17 +187,11 @@ type WizardNavigationProps = {
   prevPage: () => void
 }
 
-function WizardNavigation({
-  currentPage,
-  setCurrentPage,
-  totalPages,
-  nextPage,
-  prevPage,
-}: WizardNavigationProps) {
+function WizardNavigation({ currentPage, setCurrentPage, totalPages, nextPage, prevPage }: WizardNavigationProps) {
   const isLastPage = currentPage === totalPages - 1
-  
+
   const [loading, setLoading] = useState(false)
-  
+
   const handleClick = () => {
     setLoading(true)
     setTimeout(() => {
@@ -219,12 +201,7 @@ function WizardNavigation({
 
   return (
     <div className="relative mt-6 flex items-center justify-between">
-      <Button
-        type="button"
-        onClick={prevPage}
-        disabled={currentPage === 0}
-        className="min-w-[100px]"
-      >
+      <Button type="button" onClick={prevPage} disabled={currentPage === 0} className="min-w-[100px]">
         <ChevronLeft className="mr-2 h-4 w-4" /> Previous
       </Button>
       <div className="absolute left-1/2 top-1/2 hidden -translate-x-1/2 -translate-y-1/2 transform text-sm text-muted-foreground sm:block">
@@ -235,10 +212,12 @@ function WizardNavigation({
           Next <ChevronRight className="ml-2 h-4 w-4" />
         </Button>
       ) : (
-          <Button type="submit" className="min-w-[100px]" onClick={handleClick}>
-          Confirm {!loading ? <Check className="ml-2 h-4 w-4" /> : <Loader2Icon className="ml-2 h-4 w-4 animate-spin"/>}
+        <Button type="submit" className="min-w-[100px]" onClick={handleClick}>
+          Confirm{" "}
+          {!loading ? <Check className="ml-2 h-4 w-4" /> : <Loader2Icon className="ml-2 h-4 w-4 animate-spin" />}
         </Button>
       )}
     </div>
   )
 }
+
