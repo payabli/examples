@@ -88,62 +88,79 @@ export const formSchema = z
         }),
       )
       .nonempty(),
-    ownership: z
-      .array(
-        z.object({
-          ownername: requiredString(),
-          ownertitle: requiredString(),
-          ownerpercent: requiredNumber().min(0).max(100),
-          ownerssn: requiredString().regex(/^\d{9}$/, {
-            message: 'SSN must be 9 digits',
-          }),
-          ownerdob: requiredDate(),
-          ownerphone1: requiredString().regex(/^\d{10}$/, {
-            message: 'Phone number must be 10 digits',
-          }),
-          ownerphone2: z
-            .string()
-            .regex(/^(\d{10})?$/, { message: 'Phone number must be 10 digits' })
-            .optional(),
-          owneremail: requiredString().email({
-            message: 'Invalid email address',
-          }),
-          ownerdriver: requiredString(),
-          odriverstate: requiredString(),
-          oaddress: requiredString(),
-          ostate: z.string().optional(),
-          ocountry: requiredString(),
-          ocity: requiredString(),
-          ozip: requiredString().regex(/^\d{5}$/, {
-            message: 'ZIP code must be 5 digits',
-          }),
+    ownership: z.array(
+      z.object({
+        ownername: requiredString(),
+        ownertitle: requiredString(),
+        ownerpercent: requiredNumber().min(0).max(100),
+        ownerssn: requiredString().regex(/^\d{9}$/, {
+          message: 'SSN must be 9 digits',
         }),
-      )
-      .nonempty(),
-    depositAccount: z.object({
-      id: z.number().default(123),
-      bankName: requiredString(),
-      routingAccount: requiredString().regex(/^\d{9}$/, {
-        message: 'Routing number must be 9 digits',
+        ownerdob: requiredDate(),
+        ownerphone1: requiredString().regex(/^\d{10}$/, {
+          message: 'Phone number must be 10 digits',
+        }),
+        ownerphone2: z
+          .string()
+          .regex(/^(\d{10})?$/, { message: 'Phone number must be 10 digits' })
+          .optional(),
+        owneremail: requiredString().email({
+          message: 'Invalid email address',
+        }),
+        ownerdriver: requiredString(),
+        odriverstate: requiredString(),
+        oaddress: requiredString(),
+        ostate: z.string().optional(),
+        ocountry: requiredString(),
+        ocity: requiredString(),
+        ozip: requiredString().regex(/^\d{5}$/, {
+          message: 'ZIP code must be 5 digits',
+        }),
       }),
-      accountNumber: requiredString(),
-      typeAccount: requiredString(),
-      bankAccountHolderName: requiredString(),
-      bankAccountHolderType: requiredString(),
-      bankAccountFunction: z.number().min(0).max(2).default(0),
-      fileUpload: z.any(),
-    }),
-    withdrawalAccount: z.object({
-      id: z.number().default(123),
-      bankName: requiredString(),
-      routingAccount: requiredString().regex(/^\d{9}$/, {
-        message: 'Routing number must be 9 digits',
-      }),
-      accountNumber: requiredString(),
-      typeAccount: requiredString(),
-      bankAccountHolderName: requiredString(),
-      bankAccountHolderType: requiredString(),
-      bankAccountFunction: z.number().min(0).max(2).default(1),
+    ).nonempty(),
+    //depositAccount: z.object({
+    //  id: z.number().default(123),
+    //  bankName: requiredString(),
+    //  routingAccount: requiredString().regex(/^\d{9}$/, {
+    //    message: 'Routing number must be 9 digits',
+    //  }),
+    //  accountNumber: requiredString(),
+    //  typeAccount: requiredString(),
+    //  bankAccountHolderName: requiredString(),
+    //  bankAccountHolderType: requiredString(),
+    //  bankAccountFunction: z.number().min(0).max(2).default(0),
+    //  fileUpload: z.any(),
+    //}),
+    //withdrawalAccount: z.object({
+    //  id: z.number().default(123),
+    //  bankName: requiredString(),
+    //  routingAccount: requiredString().regex(/^\d{9}$/, {
+    //    message: 'Routing number must be 9 digits',
+    //  }),
+    //  accountNumber: requiredString(),
+    //  typeAccount: requiredString(),
+    //  bankAccountHolderName: requiredString(),
+    //  bankAccountHolderType: requiredString(),
+    //  bankAccountFunction: z.number().min(0).max(2).default(1),
+    //}),
+    bankData: z.array(
+      z.object({
+        nickname: z.string().optional(), 
+        bankName: requiredString(),
+        routingAccount: requiredString().regex(/^\d{9}$/, {
+          message: 'Routing number must be 9 digits',
+        }), 
+        accountNumber: requiredString(), 
+        typeAccount: z.enum(['Checking', 'Savings']).default('Checking'), 
+        bankAccountHolderName: requiredString(),       
+        bankAccountHolderType: z.enum(['Business', 'Personal']).default('Business'), 
+        bankAccountFunction: z.number().min(0).max(3).default(0),   
+      })
+    ).length(2).transform(account => {
+      account.map((item, index) => ({
+        ...item,
+        nickname: index === 0 ? 'Deposit Account' : 'Withdrawal Account', // Ensure the first is Deposit and second is Withdrawal
+      }))
     }),
     services: z.object({
       card: z.object({
