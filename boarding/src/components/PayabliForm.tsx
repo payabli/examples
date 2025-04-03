@@ -72,9 +72,7 @@ export function PayabliForm() {
   const [depositExtension, setDepositExtension] = useState<string>('')
   const [withdrawalFile, setWithdrawalFile] = useState<File | null>(null)
   const [withdrawalType, setWithdrawalType] = useState<string>('')
-  const [withdrawalContents, setWithdrawalContents] = useState<string | null>(
-    '',
-  )
+  const [withdrawalContents, setWithdrawalContents] = useState<string | null>('')
   const [withdrawalExtension, setWithdrawalExtension] = useState<string>('')
 
   const addContact = () => setContacts([...contacts, {}])
@@ -696,24 +694,24 @@ export function PayabliForm() {
               <h3 className="text-lg font-semibold">Deposit Account</h3>
               <div className="items-end gap-4 md:grid md:grid-cols-2">
                 <FormInput
-                  name="depositAccount.bankName"
+                  name="bankData[0].bankName"
                   label="Bank Name"
                   tooltip="Name of the bank for deposits"
                 />
                 <FormInput
-                  name="depositAccount.routingAccount"
+                  name="bankData[0].routingAccount"
                   label="Routing Number"
                   tooltip="9-digit routing number for the deposit account"
                   numeric
                   maxLength={9}
                 />
                 <FormInput
-                  name="depositAccount.accountNumber"
+                  name="bankData[0].accountNumber"
                   label="Account Number"
                   tooltip="Account number for deposits"
                 />
                 <FormSelect
-                  name="depositAccount.typeAccount"
+                  name="bankData[0].typeAccount"
                   label="Account Type"
                   options={[
                     { value: 'Checking', label: 'Checking' },
@@ -722,12 +720,12 @@ export function PayabliForm() {
                   tooltip="Type of deposit account"
                 />
                 <FormInput
-                  name="depositAccount.bankAccountHolderName"
+                  name="bankData[0].bankAccountHolderName"
                   label="Accountholder Name"
                   tooltip="Name of the deposit accountholder"
                 />
                 <FormSelect
-                  name="depositAccount.bankAccountHolderType"
+                  name="bankData[0].bankAccountHolderType"
                   label="Accountholder Type"
                   options={[
                     { value: 'Business', label: 'Business' },
@@ -758,24 +756,24 @@ export function PayabliForm() {
               <h3 className="text-lg font-semibold">Withdrawal Account</h3>
               <div className="items-end gap-4 md:grid md:grid-cols-2">
                 <FormInput
-                  name="withdrawalAccount.bankName"
+                  name="bankData[1].bankName"
                   label="Bank Name"
                   tooltip="Name of the bank for withdrawals"
                 />
                 <FormInput
-                  name="withdrawalAccount.routingAccount"
+                  name="bankData[1].routingAccount"
                   label="Routing Number"
                   tooltip="9-digit routing number for the withdrawal account"
                   numeric
                   maxLength={9}
                 />
                 <FormInput
-                  name="withdrawalAccount.accountNumber"
+                  name="bankData[1].accountNumber"
                   label="Account Number"
                   tooltip="Account number for withdrawals"
                 />
                 <FormSelect
-                  name="withdrawalAccount.typeAccount"
+                  name="bankData[1].typeAccount"
                   label="Account Type"
                   options={[
                     { value: 'Checking', label: 'Checking' },
@@ -784,12 +782,12 @@ export function PayabliForm() {
                   tooltip="Type of withdrawal account"
                 />
                 <FormInput
-                  name="withdrawalAccount.bankAccountHolderName"
+                  name="bankData[1].bankAccountHolderName"
                   label="Accountholder Name"
                   tooltip="Name of the withdrawal accountholder"
                 />
                 <FormSelect
-                  name="withdrawalAccount.bankAccountHolderType"
+                  name="bankData[1].bankAccountHolderType"
                   label="Accountholder Type"
                   options={[
                     { value: 'Business', label: 'Business' },
