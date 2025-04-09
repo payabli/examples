@@ -1,6 +1,6 @@
-# Payabli React Integration
+# Payabli Vue Integration
 
-An example project showing how to use Payabli's embedded components in React.
+An example project showing how to use Payabli's embedded components in Vue.
 
 ## Usage
 
@@ -9,9 +9,9 @@ An example project showing how to use Payabli's embedded components in React.
 git clone https://github.com/payabli/examples
 ```
 
-2. Navigate to the React integration example 
+2. Navigate to the Vue integration example 
 ```bash
-cd examples/react-integration
+cd examples/vue-integration
 ```
 
 3. Install dependencies
