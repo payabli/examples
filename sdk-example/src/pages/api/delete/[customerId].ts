@@ -9,16 +9,14 @@ export async function DELETE({ params }: { params: any }) {
   const client = new PayabliClient({ apiKey: apiKey });
 
   try {
-    setTimeout(async () => {
-      const res = await client.customer.deleteCustomer(params.customerId);
-      console.log(res);
-      return new Response("", {
-        status: 200,
-        headers: {
-          'Content-Type': 'text/html'
-        }
-      });
-    }, 5000);
+    const res = await client.customer.deleteCustomer(params.customerId);
+    console.log(res);
+    return new Response("", {
+      status: 200,
+      headers: {
+        'Content-Type': 'text/html'
+      }
+    });
   } catch (err: any) {
     console.log(err);
     return new Response(JSON.stringify(
