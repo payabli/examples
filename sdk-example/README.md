@@ -1,5 +1,5 @@
 A basic example application using the Payabli Node SDK to perform customer operations.
-See [`@payabli/sdk-node`](https://github.com/payabli/sdk-node/pkgs/npm/sdk-node) for more information.
+See [`@payabli/sdk-node`](https://www.npmjs.com/package/@payabli/sdk-node) for more information.
 
 ## Summary
 
