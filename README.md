@@ -10,7 +10,7 @@ This repo is an ongoing project, so check back often for new example apps.
 
 - [Boarding Application](https://github.com/payabli/examples/tree/main/boarding): An example implementation of an API-driven Payabli boarding application
 - [Temp Token App](https://github.com/payabli/examples/tree/main/temp-token): An example implementation of the temporary token flow
-- [SDK Example](https://github.com/payabli/examples/tree/main/sdk-example): An example application built with the Payabli Node SDK ([`@payabli/sdk-node`](https://github.com/payabli/sdk-node/pkgs/npm/sdk-node))
+- [SDK Example](https://github.com/payabli/examples/tree/main/sdk-example): An example application built with the Payabli Node SDK ([`@payabli/sdk-node`](https://www.npmjs.com/package/@payabli/sdk-node))
 
 ## Framework Integrations
 
