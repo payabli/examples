@@ -30,10 +30,10 @@ See [Use the TypeScript SDK](https://docs.payabli.com/developers/developer-guide
 
 ### [React](https://github.com/payabli/examples/tree/main/react-integration)
 
-An example application demonstrationg how to integrate Payabli's embedded components with React.
+An example application demonstrating how to integrate Payabli's embedded components with React.
 See [Embedded components framework integrations](https://docs.payabli.com/developers/developer-guides/embedded-components-frameworks#react) for more information.
 
 ### [Vue](https://github.com/payabli/examples/tree/main/vue-integration)
 
-An example application demonstrationg how to integrate Payabli's embedded components with Vue.
+An example application demonstrating how to integrate Payabli's embedded components with Vue.
 See [Embedded components framework integrations](https://docs.payabli.com/developers/developer-guides/embedded-components-frameworks#vue) for more information.
