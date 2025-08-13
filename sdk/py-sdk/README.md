@@ -1,5 +1,5 @@
 A basic example application using the Payabli Python SDK to perform customer operations.
-See the [Payabli Python SDK](#not-yet-available) for more information.
+See the [Payabli Python SDK](https://github.com/payabli/sdk-python) for more information.
 
 ## Summary
 
