@@ -1,0 +1,28 @@
+{
+    "name": "payabli/sdk-example-php",
+    "description": "A basic example application using the Payabli PHP SDK",
+    "type": "project",
+    "license": "MIT",
+    "require": {
+        "php": "^8.1",
+        "vlucas/phpdotenv": "^5.0",
+        "payabli/payabli": "*"
+    },
+    "repositories": [
+        {
+            "type": "path",
+            "url": "../../../fern-php-sdk"
+        }
+    ],
+    "autoload": {
+        "psr-4": {
+            "App\\": "src/"
+        }
+    },
+    "scripts": {
+        "serve": [
+            "Composer\\Config::disableProcessTimeout",
+            "php -S localhost:8000"
+        ]
+    }
+}
