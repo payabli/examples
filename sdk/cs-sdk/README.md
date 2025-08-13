@@ -13,6 +13,15 @@ The application has two pages:
 
 ### Option 1: Quick Start (Recommended)
 
+1. Clone this repo and navigate to the project directory:
+
+```bash
+git clone https://github.com/payabli/examples
+cd examples/sdk/py-sdk
+```
+
+2. Run the startup script:
+
 **Windows:**
 ```cmd
 start.bat
@@ -32,10 +41,11 @@ The start scripts will automatically:
 
 ### Option 2: Manual Setup
 
-1. Navigate to the project directory.
+1. Clone this repo and navigate to the project directory:
 
 ```bash
-cd cs-sdk
+git clone https://github.com/payabli/examples
+cd examples/sdk/py-sdk
 ```
 
 2. Copy the `.env.template` file to `.env` and fill in the required values.
@@ -55,8 +65,3 @@ dotnet restore
 ```bash
 dotnet run
 ```
-
-## Prerequisites
-
-- [.NET 9 SDK](https://dotnet.microsoft.com/download/dotnet/9.0) or later
-- Valid Payabli API credentials (get them from [Partner Hub](https://partnerhub.payabli.com))
