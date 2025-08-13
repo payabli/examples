@@ -1,0 +1,30 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="utf-8" />
+
+    <!-- Using pico.css for styling -->
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@picocss/pico@2/css/pico.min.css">
+
+    <!-- Using htmx for AJAX requests -->
+    <script src="https://unpkg.com/htmx.org@2.0.4"></script>
+
+    <meta name="viewport" content="width=device-width" />
+    <title>Payabli SDK Example</title>
+</head>
+<body>
+    <main class="container">
+    <nav>
+      <ul>
+        <li><strong>Payabli SDK Test</strong></li>
+      </ul>
+      <ul hx-boost="true">
+        <li><a href="/">Create Customer</a></li>
+        <li><a href="/list">List Customers</a></li>
+      </ul>
+    </nav>
+    </main>
+    
+    {% block content %}{% endblock %}
+</body>
+</html>
