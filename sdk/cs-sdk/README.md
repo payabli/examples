@@ -1,7 +1,7 @@
 # Payabli C# SDK Example
 
 A basic example application using the Payabli C# SDK to perform customer operations.
-See the [Payabli C# SDK](https://github.com/payabli/payabli-csharp-sdk) for more information.
+See the [Payabli C# SDK](https://github.com/payabli/sdk-csharp) for more information.
 
 ## Summary
 
@@ -58,5 +58,5 @@ dotnet run
 
 ## Prerequisites
 
-- [.NET 8 SDK](https://dotnet.microsoft.com/download/dotnet/8.0) or later
+- [.NET 9 SDK](https://dotnet.microsoft.com/download/dotnet/9.0) or later
 - Valid Payabli API credentials (get them from [Partner Hub](https://partnerhub.payabli.com))
