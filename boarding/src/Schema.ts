@@ -120,6 +120,23 @@ export const formSchema = z
         }),
       )
       .nonempty(),
+    bankData: z
+      .array(
+        z.object({
+          nickname: requiredString(),
+          bankName: requiredString(),
+          routingAccount: requiredString().regex(/^\d{9}$/, {
+            message: 'Routing number must be 9 digits',
+          }),
+          accountNumber: requiredString(),
+          typeAccount: requiredString(),
+          bankAccountHolderName: requiredString(),
+          bankAccountHolderType: requiredString(),
+          bankAccountFunction: z.number().min(0).max(3),
+        }),
+      )
+      .nonempty({ message: 'At least one bank account is required' }),
+    // Keep deprecated fields for backward compatibility temporarily
     depositAccount: z.object({
       id: z.number().default(123),
       bankName: requiredString(),
@@ -132,7 +149,7 @@ export const formSchema = z
       bankAccountHolderType: requiredString(),
       bankAccountFunction: z.number().min(0).max(2).default(0),
       fileUpload: z.any(),
-    }),
+    }).optional(),
     withdrawalAccount: z.object({
       id: z.number().default(123),
       bankName: requiredString(),
@@ -144,7 +161,7 @@ export const formSchema = z
       bankAccountHolderName: requiredString(),
       bankAccountHolderType: requiredString(),
       bankAccountFunction: z.number().min(0).max(2).default(1),
-    }),
+    }).optional(),
     services: z.object({
       card: z.object({
         acceptVisa: z.boolean().default(false),
@@ -213,4 +230,51 @@ export function useFormWithSchema() {
   return useForm<FormSchemaType>({
     resolver: zodResolver(formSchema),
   })
+}
+
+// Helper function to migrate from old bank account format to new bankData array
+export function migrateBankAccounts(data: any): any {
+  if (data.bankData) {
+    // Already in new format
+    return data;
+  }
+
+  const migrated = { ...data };
+  const bankDataArray = [];
+
+  // Migrate depositAccount if it exists
+  if (data.depositAccount) {
+    const { id, fileUpload, ...rest } = data.depositAccount;
+    bankDataArray.push({
+      nickname: 'Deposit Account',
+      ...rest,
+      bankAccountFunction: 0,
+    });
+  }
+
+  // Migrate withdrawalAccount if it exists
+  if (data.withdrawalAccount) {
+    const { id, ...rest } = data.withdrawalAccount;
+    bankDataArray.push({
+      nickname: 'Withdrawal Account',
+      ...rest,
+      bankAccountFunction: 1,
+    });
+  }
+
+  // If we have any migrated accounts, set bankData
+  if (bankDataArray.length > 0) {
+    migrated.bankData = bankDataArray;
+    // Remove old fields
+    delete migrated.depositAccount;
+    delete migrated.withdrawalAccount;
+  } else {
+    // Default bank accounts if none exist
+    migrated.bankData = [
+      { nickname: 'Deposit Account', bankAccountFunction: 0 },
+      { nickname: 'Withdrawal Account', bankAccountFunction: 1 },
+    ];
+  }
+
+  return migrated;
 }
