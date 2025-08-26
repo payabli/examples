@@ -60,8 +60,26 @@ export function PayabliForm() {
   const [contacts, setContacts] = useState([{}])
   const [ownership, setOwnership] = useState([{}])
   const [bankData, setBankData] = useState([
-    { nickname: 'Deposit Account', bankAccountFunction: 0 },
-    { nickname: 'Withdrawal Account', bankAccountFunction: 1 },
+    { 
+      nickname: 'Deposit Account',
+      bankName: '',
+      routingAccount: '',
+      accountNumber: '',
+      typeAccount: 'Checking',
+      bankAccountHolderName: '',
+      bankAccountHolderType: 'Business',
+      bankAccountFunction: '0',
+    },
+    { 
+      nickname: 'Withdrawal Account',
+      bankName: '',
+      routingAccount: '',
+      accountNumber: '',
+      typeAccount: 'Checking',
+      bankAccountHolderName: '',
+      bankAccountHolderType: 'Business',
+      bankAccountFunction: '1',
+    },
   ])
   const [ownershipCountries, setOwnershipCountries] = useState<string[]>([''])
   const [ownershipIndex, setOwnershipIndex] = useState(0)
@@ -109,7 +127,23 @@ export function PayabliForm() {
   }
 
   const addBankAccount = () => {
-    setBankData([...bankData, { nickname: '', bankAccountFunction: 0 }])
+    const newBankAccount = {
+      nickname: '',
+      bankName: '',
+      routingAccount: '',
+      accountNumber: '',
+      typeAccount: 'Checking',
+      bankAccountHolderName: '',
+      bankAccountHolderType: 'Business',
+      bankAccountFunction: '0',
+    }
+    
+    setBankData([...bankData, newBankAccount])
+    
+    // Update form values to include the new bank account
+    const currentValues = form.getValues()
+    const updatedBankData = [...(currentValues.bankData || []), newBankAccount]
+    form.setValue('bankData', updatedBankData as any)
   }
   const removeBankAccount = (index: number) => {
     setBankData((prevBankData) => prevBankData.filter((_, i) => i !== index))
@@ -153,8 +187,34 @@ export function PayabliForm() {
           if (savedData.ownership) {
             setOwnership(savedData.ownership)
           }
-          if (savedData.bankData) {
+          if (savedData.bankData && savedData.bankData.length > 0) {
             setBankData(savedData.bankData)
+          } else {
+            // Ensure default bank accounts if none exist
+            const defaultBankData = [
+              { 
+                nickname: 'Deposit Account',
+                bankName: '',
+                routingAccount: '',
+                accountNumber: '',
+                typeAccount: 'Checking',
+                bankAccountHolderName: '',
+                bankAccountHolderType: 'Business',
+                bankAccountFunction: '0',
+              },
+              { 
+                nickname: 'Withdrawal Account',
+                bankName: '',
+                routingAccount: '',
+                accountNumber: '',
+                typeAccount: 'Checking',
+                bankAccountHolderName: '',
+                bankAccountHolderType: 'Business',
+                bankAccountFunction: '1',
+              },
+            ]
+            setBankData(defaultBankData)
+            form.setValue('bankData', defaultBankData as any)
           }
         }
 
@@ -731,10 +791,10 @@ export function PayabliForm() {
                 name="bankData[].bankAccountFunction"
                 label="Account Function"
                 options={[
-                  { value: 0, label: 'Deposit' },
-                  { value: 1, label: 'Withdrawal' },
-                  { value: 2, label: 'Both' },
-                  { value: 3, label: 'Remittance' },
+                  { value: '0', label: 'Deposit' },
+                  { value: '1', label: 'Withdrawal' },
+                  { value: '2', label: 'Both' },
+                  { value: '3', label: 'Remittance' },
                 ]}
                 tooltip="The purpose of this bank account"
               />
