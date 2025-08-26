@@ -100,7 +100,7 @@ export default function FormSelect({
           <div className="relative">
             <Select
               onValueChange={field.onChange}
-              defaultValue={field.value}
+              value={String(field.value)}
               disabled={disabled}
             >
               <SelectTrigger className={`w-full ${iconleft ? 'pl-10' : ''}`}>
