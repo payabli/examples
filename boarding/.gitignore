@@ -27,3 +27,5 @@ auth.db
 better-auth_migrations/
 
 .vscode
+
+package-lock.json
