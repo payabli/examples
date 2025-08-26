@@ -132,7 +132,7 @@ export const formSchema = z
           typeAccount: requiredString(),
           bankAccountHolderName: requiredString(),
           bankAccountHolderType: requiredString(),
-          bankAccountFunction: z.number().min(0).max(3),
+          bankAccountFunction: z.coerce.number().min(0).max(3),
         }),
       )
       .nonempty({ message: 'At least one bank account is required' }),
@@ -247,8 +247,13 @@ export function migrateBankAccounts(data: any): any {
     const { id, fileUpload, ...rest } = data.depositAccount;
     bankDataArray.push({
       nickname: 'Deposit Account',
-      ...rest,
-      bankAccountFunction: 0,
+      bankName: rest.bankName || '',
+      routingAccount: rest.routingAccount || '',
+      accountNumber: rest.accountNumber || '',
+      typeAccount: rest.typeAccount || 'Checking',
+      bankAccountHolderName: rest.bankAccountHolderName || '',
+      bankAccountHolderType: rest.bankAccountHolderType || 'Business',
+      bankAccountFunction: String(rest.bankAccountFunction || 0),
     });
   }
 
@@ -257,8 +262,13 @@ export function migrateBankAccounts(data: any): any {
     const { id, ...rest } = data.withdrawalAccount;
     bankDataArray.push({
       nickname: 'Withdrawal Account',
-      ...rest,
-      bankAccountFunction: 1,
+      bankName: rest.bankName || '',
+      routingAccount: rest.routingAccount || '',
+      accountNumber: rest.accountNumber || '',
+      typeAccount: rest.typeAccount || 'Checking',
+      bankAccountHolderName: rest.bankAccountHolderName || '',
+      bankAccountHolderType: rest.bankAccountHolderType || 'Business',
+      bankAccountFunction: String(rest.bankAccountFunction || 1),
     });
   }
 
@@ -271,8 +281,26 @@ export function migrateBankAccounts(data: any): any {
   } else {
     // Default bank accounts if none exist
     migrated.bankData = [
-      { nickname: 'Deposit Account', bankAccountFunction: 0 },
-      { nickname: 'Withdrawal Account', bankAccountFunction: 1 },
+      { 
+        nickname: 'Deposit Account',
+        bankName: '',
+        routingAccount: '',
+        accountNumber: '',
+        typeAccount: 'Checking',
+        bankAccountHolderName: '',
+        bankAccountHolderType: 'Business',
+        bankAccountFunction: '0',
+      },
+      { 
+        nickname: 'Withdrawal Account',
+        bankName: '',
+        routingAccount: '',
+        accountNumber: '',
+        typeAccount: 'Checking',
+        bankAccountHolderName: '',
+        bankAccountHolderType: 'Business',
+        bankAccountFunction: '1',
+      },
     ];
   }
 
