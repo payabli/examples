@@ -15,12 +15,30 @@ export function useFormLogic(
 
   async function onSuccess(values: FormSchemaType) {
     try {
+      // Transform the data to match the new API format
+      const transformedValues = {
+        ...values,
+        // Remove id from bankData items for POST requests and ensure bankAccountFunction is a number
+        bankData: values.bankData?.map(({ ...bank }) => {
+          // Don't include id field in POST requests
+          const bankWithoutId = { ...bank };
+          delete (bankWithoutId as any).id;
+          // Ensure bankAccountFunction is a number
+          bankWithoutId.bankAccountFunction = Number(bankWithoutId.bankAccountFunction);
+          return bankWithoutId;
+        }) || [],
+      };
+
+      // Remove deprecated fields if they exist
+      delete (transformedValues as any).depositAccount;
+      delete (transformedValues as any).withdrawalAccount;
+
       const response = await fetch('/api/createApp', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
         },
-        body: JSON.stringify(values),
+        body: JSON.stringify(transformedValues),
       })
 
       if (!response.ok) {

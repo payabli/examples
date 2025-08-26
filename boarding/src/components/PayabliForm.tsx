@@ -35,7 +35,7 @@ import { useDrizzle } from '@/lib/clientDb'
 import { useFormWithSchema } from '@/Schema'
 import { documentPages } from './ESigDocument'
 import { useESignature } from '@/hooks/use-esignature'
-import { formSchema } from '@/Schema'
+import { formSchema, migrateBankAccounts } from '@/Schema'
 import z from 'zod'
 
 import { ESignature } from './form/ESignature'
@@ -59,6 +59,10 @@ export function PayabliForm() {
   const [currentPage, setCurrentPage] = useState(0)
   const [contacts, setContacts] = useState([{}])
   const [ownership, setOwnership] = useState([{}])
+  const [bankData, setBankData] = useState([
+    { nickname: 'Deposit Account', bankAccountFunction: 0 },
+    { nickname: 'Withdrawal Account', bankAccountFunction: 1 },
+  ])
   const [ownershipCountries, setOwnershipCountries] = useState<string[]>([''])
   const [ownershipIndex, setOwnershipIndex] = useState(0)
   const [businessCountry, setBusinessCountry] = useState('')
@@ -104,6 +108,19 @@ export function PayabliForm() {
     form.trigger('ownership')
   }
 
+  const addBankAccount = () => {
+    setBankData([...bankData, { nickname: '', bankAccountFunction: 0 }])
+  }
+  const removeBankAccount = (index: number) => {
+    setBankData((prevBankData) => prevBankData.filter((_, i) => i !== index))
+
+    const currentValues = form.getValues()
+    const updatedBankData = currentValues.bankData?.filter((_, i) => i !== index) || []
+    form.setValue('bankData', updatedBankData as any)
+
+    form.trigger('bankData')
+  }
+
   const form = useFormWithSchema()
   const { saveForLater, clearFormData, loadSavedData } = useDrizzle()
 
@@ -119,8 +136,11 @@ export function PayabliForm() {
       setIsLoading(true)
       setIsDataLoaded(false)
       try {
-        const savedData = await loadSavedData()
+        let savedData = await loadSavedData()
         if (savedData) {
+          // Migrate old bank account format to new format if needed
+          savedData = migrateBankAccounts(savedData)
+          
           form.reset(savedData)
 
           setBusinessCountry(savedData.bcountry || '')
@@ -132,6 +152,9 @@ export function PayabliForm() {
           }
           if (savedData.ownership) {
             setOwnership(savedData.ownership)
+          }
+          if (savedData.bankData) {
+            setBankData(savedData.bankData)
           }
         }
 
@@ -692,129 +715,70 @@ export function PayabliForm() {
             Step 5: Payment Information
           </h2>
           <div className="space-y-8">
-            <div className="space-y-4">
-              <h3 className="text-lg font-semibold">Deposit Account</h3>
-              <div className="items-end gap-4 md:grid md:grid-cols-2">
-                <FormInput
-                  name="depositAccount.bankName"
-                  label="Bank Name"
-                  tooltip="Name of the bank for deposits"
-                />
-                <FormInput
-                  name="depositAccount.routingAccount"
-                  label="Routing Number"
-                  tooltip="9-digit routing number for the deposit account"
-                  numeric
-                  maxLength={9}
-                />
-                <FormInput
-                  name="depositAccount.accountNumber"
-                  label="Account Number"
-                  tooltip="Account number for deposits"
-                />
-                <FormSelect
-                  name="depositAccount.typeAccount"
-                  label="Account Type"
-                  options={[
-                    { value: 'Checking', label: 'Checking' },
-                    { value: 'Savings', label: 'Savings' },
-                  ]}
-                  tooltip="Type of deposit account"
-                />
-                <FormInput
-                  name="depositAccount.bankAccountHolderName"
-                  label="Accountholder Name"
-                  tooltip="Name of the deposit accountholder"
-                />
-                <FormSelect
-                  name="depositAccount.bankAccountHolderType"
-                  label="Accountholder Type"
-                  options={[
-                    { value: 'Business', label: 'Business' },
-                    { value: 'Personal', label: 'Personal' },
-                  ]}
-                  tooltip="Type of deposit accountholder"
-                />
-              </div>
-            </div>
-
-            <FormFileUpload
-              name="deposit-check"
-              id="deposit-check"
-              label="Deposit Check"
-              tooltip="Upload a voided check as proof of account"
-              accept="image/png, image/jpeg, application/pdf"
-              file={depositFile}
-              setFile={setDepositFile}
-              type={depositType}
-              setType={setDepositType}
-              contents={depositContents}
-              setContents={setDepositContents}
-              extension={depositExtension}
-              setExtension={setDepositExtension}
-            />
-
-            <div className="space-y-4">
-              <h3 className="text-lg font-semibold">Withdrawal Account</h3>
-              <div className="items-end gap-4 md:grid md:grid-cols-2">
-                <FormInput
-                  name="withdrawalAccount.bankName"
-                  label="Bank Name"
-                  tooltip="Name of the bank for withdrawals"
-                />
-                <FormInput
-                  name="withdrawalAccount.routingAccount"
-                  label="Routing Number"
-                  tooltip="9-digit routing number for the withdrawal account"
-                  numeric
-                  maxLength={9}
-                />
-                <FormInput
-                  name="withdrawalAccount.accountNumber"
-                  label="Account Number"
-                  tooltip="Account number for withdrawals"
-                />
-                <FormSelect
-                  name="withdrawalAccount.typeAccount"
-                  label="Account Type"
-                  options={[
-                    { value: 'Checking', label: 'Checking' },
-                    { value: 'Savings', label: 'Savings' },
-                  ]}
-                  tooltip="Type of withdrawal account"
-                />
-                <FormInput
-                  name="withdrawalAccount.bankAccountHolderName"
-                  label="Accountholder Name"
-                  tooltip="Name of the withdrawal accountholder"
-                />
-                <FormSelect
-                  name="withdrawalAccount.bankAccountHolderType"
-                  label="Accountholder Type"
-                  options={[
-                    { value: 'Business', label: 'Business' },
-                    { value: 'Personal', label: 'Personal' },
-                  ]}
-                  tooltip="Type of withdrawal accountholder"
-                />
-              </div>
-            </div>
-
-            <FormFileUpload
-              name="withdrawal-check"
-              id="withdrawal-check"
-              label="Withdrawal Check"
-              tooltip="Upload a voided check as proof of account"
-              accept="image/png, image/jpeg, application/pdf"
-              file={withdrawalFile}
-              setFile={setWithdrawalFile}
-              type={withdrawalType}
-              setType={setWithdrawalType}
-              contents={withdrawalContents}
-              setContents={setWithdrawalContents}
-              extension={withdrawalExtension}
-              setExtension={setWithdrawalExtension}
-            />
+            <DynamicFormSection
+              title="Bank Accounts"
+              items={bankData}
+              addItem={addBankAccount}
+              removeItem={removeBankAccount}
+              addButtonText="Add Bank Account"
+            >
+              <FormInput
+                name="bankData[].nickname"
+                label="Account Nickname"
+                tooltip="A friendly name for this account (e.g., 'Deposit Account', 'Withdrawal Account')"
+              />
+              <FormSelect
+                name="bankData[].bankAccountFunction"
+                label="Account Function"
+                options={[
+                  { value: 0, label: 'Deposit' },
+                  { value: 1, label: 'Withdrawal' },
+                  { value: 2, label: 'Both' },
+                  { value: 3, label: 'Remittance' },
+                ]}
+                tooltip="The purpose of this bank account"
+              />
+              <FormInput
+                name="bankData[].bankName"
+                label="Bank Name"
+                tooltip="Name of the bank"
+              />
+              <FormInput
+                name="bankData[].routingAccount"
+                label="Routing Number"
+                tooltip="9-digit routing number"
+                numeric
+                maxLength={9}
+              />
+              <FormInput
+                name="bankData[].accountNumber"
+                label="Account Number"
+                tooltip="Bank account number"
+              />
+              <FormSelect
+                name="bankData[].typeAccount"
+                label="Account Type"
+                options={[
+                  { value: 'Checking', label: 'Checking' },
+                  { value: 'Savings', label: 'Savings' },
+                ]}
+                tooltip="Type of bank account"
+              />
+              <FormInput
+                name="bankData[].bankAccountHolderName"
+                label="Account Holder Name"
+                tooltip="Name of the account holder"
+              />
+              <FormSelect
+                name="bankData[].bankAccountHolderType"
+                label="Account Holder Type"
+                options={[
+                  { value: 'Business', label: 'Business' },
+                  { value: 'Personal', label: 'Personal' },
+                ]}
+                tooltip="Type of account holder"
+              />
+            </DynamicFormSection>
 
             <div className="space-y-4">
               <h3 className="text-lg font-semibold">Services</h3>
@@ -920,6 +884,7 @@ export function PayabliForm() {
       setCurrentPage,
       contacts,
       ownership,
+      bankData,
       businessCountry,
       mailingCountry,
       signerCountry,
