@@ -9,10 +9,7 @@
 
   <ItemGroup>
     <PackageReference Include="DotNetEnv" Version="3.1.1" />
-  </ItemGroup>
-
-  <ItemGroup>
-    <ProjectReference Include="../../../fern-csharp-sdk/src/PayabliApi/PayabliApi.csproj" />
+    <PackageReference Include="PayabliApi" Version="0.0.279" />
   </ItemGroup>
 
 </Project>
