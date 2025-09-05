@@ -10,12 +10,13 @@ import (
 	"strconv"
 	"strings"
 
-	api "sdk" // Import the Payabli Go SDK
-	"sdk/client"
-	"sdk/option"
-
 	"github.com/gorilla/mux"
 	"github.com/joho/godotenv"
+
+	// Import the Payabli Go SDK
+	api "github.com/payabli/sdk-go"
+	"github.com/payabli/sdk-go/client"
+	"github.com/payabli/sdk-go/option"
 )
 
 var (
@@ -149,17 +150,15 @@ func createCustomerAPI(w http.ResponseWriter, r *http.Request) {
 	entry := api.Entrypointfield(entryPoint)
 
 	// Create customer request matching the TypeScript SDK structure
-	ptr_email := &email
-	ptr_timeZone := &timeZoneInt
 
 	customerRequest := &api.AddCustomerRequest{
 		ForceCustomerCreation: api.Bool(true),
 		Body: &api.CustomerData{
 			Firstname:        api.String(firstname),
 			Lastname:         api.String(lastname),
-			Email:            &ptr_email,
+			Email:            api.String(email),
 			Zip:              api.String(zip),
-			TimeZone:         &ptr_timeZone,
+			TimeZone:         &timeZoneInt,
 			Country:          api.String(country),
 			State:            api.String(state),
 			City:             api.String(city),
@@ -207,14 +206,14 @@ func listCustomersAPI(w http.ResponseWriter, r *http.Request) {
 			// Use TypeScript field naming convention (capitalized)
 			firstname := safeStringValue(record.Firstname)
 			lastname := safeStringValue(record.Lastname)
-			email := safeStringValue(*record.Email)
+			email := safeStringValue(record.Email)
 			address := safeStringValue(record.Address)
 			city := safeStringValue(record.City)
 			state := safeStringValue(record.State)
 			zipCode := safeStringValue(record.Zip)
-			timeZone := safeIntValue(*record.TimeZone)
+			timeZone := safeIntValue(record.TimeZone)
 			// CustomerId type is *int64
-			customerId := **record.CustomerId
+			customerId := *record.CustomerId
 
 			tableRows.WriteString(fmt.Sprintf(`
 				<tr>

@@ -13,9 +13,6 @@ load_dotenv()
 
 app = FastAPI(title="Payabli SDK Example", description="A basic example using the Payabli Python SDK")
 
-# Mount static files
-app.mount("/static", StaticFiles(directory="static"), name="static")
-
 # Set up templates
 templates = Jinja2Templates(directory="templates")
 
@@ -155,7 +152,7 @@ async def list_customers():
             '''
         
         table = f'''
-        <table class="striped">
+        <table class="striped" style="layout: fixed">
           <thead>
             <tr>
               <th>First Name</th>
