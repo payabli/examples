@@ -1,12 +1,13 @@
 package com.payabli.example;
 
-import com.payabli.api.PayabliApiClient;
-import com.payabli.api.PayabliApiClientBuilder;
-import com.payabli.api.resources.customer.requests.AddCustomerRequest;
-import com.payabli.api.types.CustomerData;
-import com.payabli.api.types.QueryCustomerResponse;
-import com.payabli.api.types.CustomerQueryRecords;
-import com.payabli.api.types.PayabliApiResponseCustomerQuery;
+import io.github.cdimascio.dotenv.Dotenv;
+import io.github.payabli.api.PayabliApiClient;
+import io.github.payabli.api.PayabliApiClientBuilder;
+import io.github.payabli.api.resources.customer.requests.AddCustomerRequest;
+import io.github.payabli.api.types.CustomerData;
+import io.github.payabli.api.types.QueryCustomerResponse;
+import io.github.payabli.api.types.CustomerQueryRecords;
+import io.github.payabli.api.types.PayabliApiResponseCustomerQuery;
 import io.javalin.Javalin;
 import io.javalin.http.Context;
 import org.slf4j.Logger;
@@ -20,14 +21,22 @@ public class PayabliExampleApp {
     private static String entryPoint;
 
     public static void main(String[] args) {
-        // Load environment variables
-        String apiKey = System.getenv("PAYABLI_KEY");
-        entryPoint = System.getenv("PAYABLI_ENTRY");
+        // Load environment variables from .env file
+        Dotenv dotenv = Dotenv.configure()
+                .ignoreIfMissing() // Don't fail if .env doesn't exist
+                .load();
+        
+        // First try to get from .env file, then fall back to system environment
+        String apiKey = dotenv.get("PAYABLI_KEY", System.getenv("PAYABLI_KEY"));
+        entryPoint = dotenv.get("PAYABLI_ENTRY", System.getenv("PAYABLI_ENTRY"));
 
         if (apiKey == null || entryPoint == null) {
             logger.error("PAYABLI_KEY and PAYABLI_ENTRY environment variables must be set");
+            logger.error("Please ensure your .env file exists and contains these variables, or set them as system environment variables");
             System.exit(1);
         }
+        
+        logger.info("Successfully loaded configuration - Entry Point: {}", entryPoint);
 
         // Initialize Payabli client
         payabliClient = new PayabliApiClientBuilder()
