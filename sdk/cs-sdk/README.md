@@ -12,36 +12,6 @@ The application has two pages:
 
 ## Setup Instructions
 
-### Option 1: Quick Start (Recommended)
-
-1. Clone this repo and navigate to the project directory:
-
-```bash
-git clone https://github.com/payabli/examples
-cd examples/sdk/py-sdk
-```
-
-2. Run the startup script:
-
-**Windows:**
-```cmd
-start.bat
-```
-
-**macOS/Linux:**
-```bash
-chmod +x start.sh
-./start.sh
-```
-
-The start scripts will automatically:
-- Check for .NET 9 SDK
-- Create `.env` file from template if needed
-- Prompt you to add your Payabli credentials
-- Start the development server
-
-### Option 2: Manual Setup
-
 1. Clone this repo and navigate to the project directory:
 
 ```bash

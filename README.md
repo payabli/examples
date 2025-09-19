@@ -20,11 +20,11 @@ An example application that demonstrates how to use Payabli's temporary token fl
 The application features an interactive sidebar that explains the lifecycle of a transaction using a temporary token.
 See [Temporary token example app](https://docs.payabli.com/developers/developer-guides/temp-token-app) for more information.
 
-### [SDK Example](https://github.com/payabli/examples/tree/main/sdk-example)
+### [SDK Examples](https://github.com/payabli/examples/tree/main/sdk)
 
-An example application built with Payabli's TypeScript SDK ([`@payabli/sdk-node`](https://www.npmjs.com/package/@payabli/sdk-node)).
-The application demonstrates how to use the SDK to interact with Payabli's APIs to create and update customers.
-See [Use the TypeScript SDK](https://docs.payabli.com/developers/developer-guides/sdk-typescript-guide) for more information.
+An example application built with Payabli's official SDKs.
+The application demonstrates how to use the SDK to interact with Payabli's APIs to manage customers and tokenize payment methods.
+See [SDKs](https://docs.payabli.com/developers/developer-guides/tools-overview#sdks) for more information.
 
 ## Framework Integrations
 
