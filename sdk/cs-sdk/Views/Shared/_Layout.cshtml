@@ -1,0 +1,33 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="utf-8" />
+    
+    <!-- Using pico.css for styling -->
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@@picocss/pico@@2/css/pico.min.css">
+    
+    <!-- Using htmx for AJAX requests -->
+    <script src="https://unpkg.com/htmx.org@@2.0.4"></script>
+    
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Payabli SDK Example</title>
+</head>
+<body>
+    <main class="container">
+        <nav>
+            <ul>
+                <li><strong>Payabli SDK Test</strong></li>
+            </ul>
+            <ul>
+                <li><a href="/">Create Customer</a></li>
+                <li><a href="/Home/List">List Customers</a></li>
+                <li><a href="/Home/Transaction">Process Transaction</a></li>
+            </ul>
+        </nav>
+    </main>
+    
+    @RenderBody()
+    
+    @await RenderSectionAsync("Scripts", required: false)
+</body>
+</html>

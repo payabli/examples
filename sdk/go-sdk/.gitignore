@@ -1,0 +1,89 @@
+########################################
+# Go build artifacts
+########################################
+*.exe
+*.exe~
+*.dll
+*.so
+*.dylib
+*.test
+/bin/
+/build/
+/dist/
+/out/
+
+########################################
+# Coverage and profiling
+########################################
+*.out
+*.cover
+*.coverprofile
+coverage.*
+coverage/
+profile.out
+cpu.prof
+mem.prof
+trace.out
+
+########################################
+# Modules, workspace, and vendoring
+########################################
+go.work
+go.work.sum
+# If you don't commit vendored deps, uncomment the next line
+# vendor/
+
+########################################
+# Environment files
+########################################
+.env
+.env.local
+.env.*.local
+.env.*
+!.env.template
+
+########################################
+# Logs
+########################################
+*.log
+logs/
+*.pid
+
+########################################
+# IDE / editor
+########################################
+.vscode/
+.idea/
+*.iml
+*.swp
+*.swo
+*~
+
+########################################
+# OS / filesystem
+########################################
+.DS_Store
+.DS_Store?
+._*
+.Spotlight-V100
+.Trashes
+ehthumbs.db
+Thumbs.db
+
+########################################
+# Temp files
+########################################
+*.tmp
+*.bak
+tmp/
+
+########################################
+# Dev tools
+########################################
+.air
+.air.toml
+
+
+vendor/
+
+go.sum
