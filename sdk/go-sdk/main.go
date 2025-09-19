@@ -22,6 +22,7 @@ import (
 var (
 	payabliClient *client.Client
 	entryPoint    string
+	publicToken   string
 	templates     *template.Template
 )
 
@@ -33,9 +34,10 @@ func init() {
 
 	apiKey := os.Getenv("PAYABLI_KEY")
 	entryPoint = os.Getenv("PAYABLI_ENTRY")
+	publicToken = os.Getenv("PAYABLI_PUBLIC_TOKEN")
 
-	if apiKey == "" || entryPoint == "" {
-		log.Fatal("PAYABLI_KEY and PAYABLI_ENTRY must be set in environment variables")
+	if apiKey == "" || entryPoint == "" || publicToken == "" {
+		log.Fatal("PAYABLI_KEY, PAYABLI_ENTRY, and PAYABLI_PUBLIC_TOKEN must be set in environment variables")
 	}
 
 	// Initialize Payabli client
@@ -61,9 +63,11 @@ func main() {
 	// Routes
 	r.HandleFunc("/", createCustomerPage).Methods("GET")
 	r.HandleFunc("/list", listCustomersPage).Methods("GET")
+	r.HandleFunc("/transaction", makeTransactionPage).Methods("GET")
 	r.HandleFunc("/api/create", createCustomerAPI).Methods("POST")
 	r.HandleFunc("/api/list", listCustomersAPI).Methods("GET")
 	r.HandleFunc("/api/delete/{customerId}", deleteCustomerAPI).Methods("DELETE")
+	r.HandleFunc("/api/transaction/{token}", processTransactionAPI).Methods("POST")
 
 	// Add CORS headers for HTMX requests
 	r.Use(corsMiddleware)
@@ -98,6 +102,22 @@ func createCustomerPage(w http.ResponseWriter, r *http.Request) {
 
 func listCustomersPage(w http.ResponseWriter, r *http.Request) {
 	err := templates.ExecuteTemplate(w, "list.html", nil)
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		log.Printf("Template execution error: %v", err)
+	}
+}
+
+func makeTransactionPage(w http.ResponseWriter, r *http.Request) {
+	data := struct {
+		PublicToken string
+		EntryPoint  string
+	}{
+		PublicToken: publicToken,
+		EntryPoint:  entryPoint,
+	}
+
+	err := templates.ExecuteTemplate(w, "transaction.html", data)
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		log.Printf("Template execution error: %v", err)
@@ -304,6 +324,85 @@ func deleteCustomerAPI(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Content-Type", "text/html")
 	w.WriteHeader(http.StatusOK)
 	w.Write([]byte(""))
+}
+
+func processTransactionAPI(w http.ResponseWriter, r *http.Request) {
+	vars := mux.Vars(r)
+	token := vars["token"]
+
+	ctx := context.Background()
+
+	log.Printf("Converting temporary token to permanent: %s", token)
+
+	// Step 1: Convert temporary token to permanent using token storage
+	tokenRequest := &api.AddMethodRequest{
+		CreateAnonymous: api.Bool(true),
+		Temporary:       api.Bool(false),
+		Body: &api.RequestTokenStorage{
+			CustomerData: &api.PayorDataRequest{
+				CustomerId: &[]api.CustomerId{4440}[0], // This should be dynamic based on your needs
+			},
+			EntryPoint: api.String(entryPoint),
+			PaymentMethod: &api.RequestTokenStoragePaymentMethod{
+				ConvertToken: &api.ConvertToken{
+					Method:  "card",
+					TokenId: token, // The temporary token from the embedded component
+				},
+			},
+			Source:            api.String("web"),
+			MethodDescription: api.String("Main card"),
+		},
+	}
+
+	tokenResult, err := payabliClient.TokenStorage.AddMethod(ctx, tokenRequest)
+	if err != nil {
+		log.Printf("API Error storing token: %v", err)
+		w.Header().Set("Content-Type", "text/html")
+		w.WriteHeader(http.StatusOK)
+		w.Write([]byte(fmt.Sprintf(`<input type="text" name="invalid" value="Token storage failed: %v" aria-invalid="true" readonly>`, err)))
+		return
+	}
+
+	storedMethodId := *tokenResult.ResponseData.ReferenceId
+	log.Printf("Token stored successfully with ID: %s", storedMethodId)
+
+	// Step 2: Process payment using the stored method
+	paymentRequest := &api.RequestPayment{
+		Body: &api.TransRequestBody{
+			CustomerData: &api.PayorDataRequest{
+				CustomerId: &[]api.CustomerId{4440}[0],
+			},
+			EntryPoint: api.String(entryPoint),
+			Ipaddress:  api.String("255.255.255.255"), // This should be dynamic based on request
+			PaymentDetails: &api.PaymentDetail{
+				ServiceFee:  api.Float64(0.0),
+				TotalAmount: 100.0, // This should be dynamic based on your needs
+			},
+			PaymentMethod: &api.PaymentMethod{
+				PayMethodStoredMethod: &api.PayMethodStoredMethod{
+					Initiator:             api.String("payor"),
+					Method:                api.PayMethodStoredMethodMethodCard,
+					StoredMethodId:        api.String(storedMethodId),
+					StoredMethodUsageType: api.String("unscheduled"),
+				},
+			},
+		},
+	}
+
+	paymentResult, err := payabliClient.MoneyIn.Getpaid(ctx, paymentRequest)
+	if err != nil {
+		log.Printf("API Error processing payment: %v", err)
+		w.Header().Set("Content-Type", "text/html")
+		w.WriteHeader(http.StatusOK)
+		w.Write([]byte(fmt.Sprintf(`<input type="text" name="invalid" value="Payment failed: %v" aria-invalid="true" readonly>`, err)))
+		return
+	}
+
+	log.Printf("Payment processed successfully: %+v", paymentResult)
+
+	w.Header().Set("Content-Type", "text/html")
+	w.WriteHeader(http.StatusOK)
+	w.Write([]byte(`<input type="text" name="valid" value="Payment processed successfully!" aria-invalid="false" readonly>`))
 }
 
 // Helper functions for safe value extraction

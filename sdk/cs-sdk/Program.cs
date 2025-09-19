@@ -1,5 +1,6 @@
 using PayabliApi;
 using DotNetEnv;
+using PayabliSdkExample.Services;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -16,8 +17,11 @@ var apiKey = Environment.GetEnvironmentVariable("PAYABLI_KEY")
 var entryPoint = Environment.GetEnvironmentVariable("PAYABLI_ENTRY") 
     ?? throw new InvalidOperationException("PAYABLI_ENTRY environment variable is required");
 
+var publicToken = Environment.GetEnvironmentVariable("PAYABLI_PUBLIC_TOKEN") 
+    ?? throw new InvalidOperationException("PAYABLI_PUBLIC_TOKEN environment variable is required");
+
 builder.Services.AddSingleton<PayabliApiClient>(_ => new PayabliApiClient(apiKey));
-builder.Services.AddSingleton<string>(entryPoint); // Store entry point for DI
+builder.Services.AddSingleton(provider => new ConfigurationService(entryPoint, publicToken));
 
 var app = builder.Build();
 

@@ -24,7 +24,7 @@
         <dependency>
             <groupId>io.github.payabli</groupId>
             <artifactId>sdk-java</artifactId>
-            <version>[0.0.293,)</version>
+            <version>0.0.300</version>
         </dependency>
         
         <!-- SDK Dependencies -->
@@ -63,6 +63,13 @@
             <groupId>io.github.cdimascio</groupId>
             <artifactId>dotenv-java</artifactId>
             <version>3.0.0</version>
+        </dependency>
+
+        <!-- Thymeleaf templating engine -->
+        <dependency>
+            <groupId>org.thymeleaf</groupId>
+            <artifactId>thymeleaf</artifactId>
+            <version>3.1.2.RELEASE</version>
         </dependency>
 
         <!-- SLF4J and Logback for logging -->

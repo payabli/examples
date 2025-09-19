@@ -7,5 +7,6 @@
         "**/Thumbs.db": true,
         "**/.vscode": true
     },
-    "hide-files.files": []
+    "hide-files.files": [],
+    "java.configuration.updateBuildConfiguration": "interactive"
 }

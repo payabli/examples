@@ -1,6 +1,6 @@
 # Payabli C# SDK Example
 
-A basic example application using the Payabli C# SDK to perform customer operations.
+A basic example application using the Payabli C# SDK to perform customer operations and payment method tokenization.
 See the [Payabli C# SDK](https://github.com/payabli/sdk-csharp) for more information.
 
 ## Summary
@@ -8,6 +8,7 @@ See the [Payabli C# SDK](https://github.com/payabli/sdk-csharp) for more informa
 The application has two pages:
 1. **Create Customer** - this page has a form that allows you to create a new customer in your paypoint.
 2. **List Customers** - this page lists all the customers in your paypoint.
+3. **Make Transaction** - this page has an embedded component to save payment methods securely and send them to the API to process transactions.
 
 ## Setup Instructions
 

@@ -1,0 +1,62 @@
+<!DOCTYPE html>
+<html lang="en" xmlns:th="http://www.thymeleaf.org">
+<head>
+    <meta charset="utf-8" />
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@picocss/pico@2/css/pico.min.css">
+    <title>Debug - Payabli SDK Example</title>
+</head>
+<body>
+    <main class="container">
+        <nav>
+            <ul><li><strong>Debug Page</strong></li></ul>
+            <ul><li><a href="/transaction">Back to Transaction</a></li></ul>
+        </nav>
+        <article>
+            <header><h1>Environment Debug</h1></header>
+            <table>
+                <tr><td>Public Token</td><td th:text="${publicTokenDisplay}">***</td></tr>
+                <tr><td>Entry Point</td><td th:text="${entryPoint}">***</td></tr>
+                <tr><td>Component URL</td><td>https://embedded-component-sandbox.payabli.com/component.js</td></tr>
+                <tr><td>CSS URL</td><td>http://localhost:8000/static/pico-important.css</td></tr>
+            </table>
+            <div id="test-container" style="border: 2px solid red; padding: 20px; margin: 20px 0;">
+                <h3>Test Component Container</h3>
+                <div id="debug-component"></div>
+                <button id="debug-init" onclick="initDebugComponent()">Initialize Component</button>
+            </div>
+        </article>
+    </main>
+    <script src="https://embedded-component-sandbox.payabli.com/component.js" data-test></script>
+    <script th:inline="javascript">
+        function initDebugComponent() {
+            const publicToken = /*[[${publicToken}]]*/ "";
+            const entryPoint = /*[[${entryPoint}]]*/ "";
+            
+            console.log('Debug: PayabliComponent available:', typeof PayabliComponent);
+            console.log('Debug: Public Token:', publicToken);
+            console.log('Debug: Entry Point:', entryPoint);
+            
+            if (typeof PayabliComponent !== 'undefined') {
+                try {
+                    const config = {
+                        type: 'methodEmbedded',
+                        rootContainer: 'debug-component',
+                        token: publicToken,
+                        entryPoint: entryPoint,
+                        defaultOpen: 'card',
+                        temporaryToken: true,
+                        card: { enabled: true }
+                    };
+                    console.log('Debug: Config:', config);
+                    const component = new PayabliComponent(config);
+                    console.log('Debug: Component created:', component);
+                } catch (error) {
+                    console.error('Debug: Error creating component:', error);
+                }
+            } else {
+                console.error('Debug: PayabliComponent not available');
+            }
+        }
+    </script>
+</body>
+</html>
