@@ -1,18 +1,19 @@
 using Microsoft.AspNetCore.Mvc;
 using PayabliApi;
 using PayabliApi.Core;
+using PayabliSdkExample.Services;
 
 namespace PayabliSdkExample.Controllers
 {
     public class HomeController : Controller
     {
         private readonly PayabliApiClient _payabliClient;
-        private readonly string _entryPoint;
+        private readonly ConfigurationService _configService;
 
-        public HomeController(PayabliApiClient payabliClient, string entryPoint)
+        public HomeController(PayabliApiClient payabliClient, ConfigurationService configService)
         {
             _payabliClient = payabliClient;
-            _entryPoint = entryPoint;
+            _configService = configService;
         }
 
         public IActionResult Index()
@@ -58,7 +59,7 @@ namespace PayabliSdkExample.Controllers
                     Body = customerData
                 };
 
-                var result = await _payabliClient.Customer.AddCustomerAsync(_entryPoint, request);
+                var result = await _payabliClient.Customer.AddCustomerAsync(_configService.EntryPoint, request);
                 Console.WriteLine($"Customer created successfully: {result}");
 
                 return Content(
@@ -103,7 +104,7 @@ namespace PayabliSdkExample.Controllers
                     LimitRecord = 100 // Get up to 100 customers
                 };
 
-                var result = await _payabliClient.Query.ListCustomersAsync(_entryPoint, request);
+                var result = await _payabliClient.Query.ListCustomersAsync(_configService.EntryPoint, request);
 
                 var tableRows = "";
                 if (result.Records?.Any() == true)
@@ -190,6 +191,108 @@ namespace PayabliSdkExample.Controllers
                 Console.WriteLine($"Error deleting customer {id}: {ex.Message}");
                 return Content(
                     $"<td colspan=\"9\">Error deleting customer: {ex.Message}</td>",
+                    "text/html"
+                );
+            }
+        }
+
+        public IActionResult Transaction()
+        {
+            ViewBag.EntryPoint = _configService.EntryPoint;
+            ViewBag.PublicToken = _configService.PublicToken;
+            Console.WriteLine($"Transaction page - EntryPoint: {_configService.EntryPoint}");
+            Console.WriteLine($"Transaction page - PublicToken: {_configService.PublicToken?.Substring(0, Math.Min(50, _configService.PublicToken.Length))}...");
+            return View();
+        }
+
+        [HttpPost]
+        [Route("/api/transaction/{token}")]
+        public async Task<IActionResult> ProcessTransaction(string token)
+        {
+            try
+            {
+                Console.WriteLine($"Converting temporary token to permanent: {token}");
+
+                // Step 1: Use token storage to convert temporary token to permanent
+                var tokenRequest = new AddMethodRequest
+                {
+                    CreateAnonymous = true,
+                    Temporary = false,
+                    Body = new RequestTokenStorage
+                    {
+                        CustomerData = new PayorDataRequest
+                        {
+                            CustomerId = 4440 // This should be dynamic based on your needs
+                        },
+                        EntryPoint = _configService.EntryPoint,
+                        PaymentMethod = new ConvertToken
+                        {
+                            Method = "card",
+                            TokenId = token // The temporary token from the embedded component
+                        },
+                        Source = "web",
+                        MethodDescription = "Main card"
+                    }
+                };
+
+                var tokenResult = await _payabliClient.TokenStorage.AddMethodAsync(tokenRequest);
+                Console.WriteLine($"Token storage successful: {tokenResult.IsSuccess}");
+                
+                var storedMethodId = tokenResult.ResponseData?.ReferenceId;
+                if (string.IsNullOrEmpty(storedMethodId))
+                {
+                    throw new InvalidOperationException("Failed to get stored method ID from token storage response");
+                }
+                
+                Console.WriteLine($"Token stored successfully with ID: {storedMethodId}");
+
+                // Step 2: Process payment using the stored method
+                var paymentRequest = new RequestPayment
+                {
+                    Body = new TransRequestBody
+                    {
+                        CustomerData = new PayorDataRequest
+                        {
+                            CustomerId = 4440
+                        },
+                        EntryPoint = _configService.EntryPoint,
+                        Ipaddress = "255.255.255.255", // This should be dynamic based on request
+                        PaymentDetails = new PaymentDetail
+                        {
+                            ServiceFee = 0.0,
+                            TotalAmount = 100.0 // This should be dynamic based on your needs
+                        },
+                        PaymentMethod = new PayMethodStoredMethod
+                        {
+                            Initiator = "payor",
+                            Method = PayMethodStoredMethodMethod.Card,
+                            StoredMethodId = storedMethodId,
+                            StoredMethodUsageType = "unscheduled"
+                        }
+                    }
+                };
+
+                var paymentResult = await _payabliClient.MoneyIn.GetpaidAsync(paymentRequest);
+                Console.WriteLine($"Payment processed successfully: {paymentResult}");
+
+                return Content(
+                    "<input type=\"text\" name=\"valid\" value=\"Payment processed successfully!\" aria-invalid=\"false\" readonly>",
+                    "text/html"
+                );
+            }
+            catch (PayabliApiApiException ex)
+            {
+                Console.WriteLine($"API Error processing transaction: {ex.Message}");
+                return Content(
+                    $"<input type=\"text\" name=\"invalid\" value=\"Payment failed: {ex.Message}\" aria-invalid=\"true\" readonly>",
+                    "text/html"
+                );
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"Error processing transaction: {ex.Message}");
+                return Content(
+                    $"<input type=\"text\" name=\"invalid\" value=\"Error processing transaction: {ex.Message}\" aria-invalid=\"true\" readonly>",
                     "text/html"
                 );
             }

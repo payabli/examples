@@ -1,0 +1,340 @@
+---
+import MainLayout from '../layouts/main.astro'
+
+// Access environment variables on the server side
+const publicToken = import.meta.env.PUBLIC_PAYABLI_TOKEN || '';
+const entryPoint = import.meta.env.PUBLIC_PAYABLI_ENTRY || '';
+---
+
+<MainLayout>
+<main class="container">
+  <article>
+    <header>
+      <em><b>Make Transaction</b></em>
+      <div>
+        <h1>Payment Form</h1>  
+        <p>Enter your payment information below:</p>
+        <div class="payment-container">
+            <div class="tabs">
+            <button class="tab active" data-method="card">Payment Card</button>
+            <button class="tab" data-method="ach">Bank Debit</button>
+            </div>
+            <div>
+            <div id="pay-component-1"></div>
+            <button id="submit-btn" class="hidden">Process Payment</button>
+            </div>
+        </div>
+      </div>
+    </header>
+  </article>
+  <h1 id="transaction-result"></h1>
+</main>
+<style>
+.tabs {
+    display: flex;
+    margin-bottom: 20px;
+}
+
+.tab {
+    flex: 1;
+    padding: 16px 24px;
+    text-align: center;
+    cursor: pointer;
+    border: none;
+    border-bottom: 2px solid transparent;
+    transition: all 0.2s ease;
+    margin: 1em !important;
+}
+
+.hidden { 
+    display: none; 
+}
+
+#submit-btn {
+    padding: 12px 24px;
+    border: none;
+    border-radius: 6px;
+    cursor: pointer;
+    margin-top: 16px;
+}
+
+#submit-btn:disabled {
+    cursor: not-allowed;
+}
+
+.payment-container {
+    margin-top: 20px;
+}
+
+.form-content {
+    border: 1px solid #ddd;
+    border-radius: 8px;
+    padding: 20px;
+    background-color: #f9f9f9;
+}
+</style>
+<script src="https://embedded-component-sandbox.payabli.com/component.js" data-test></script>
+<script define:vars={{ publicToken, entryPoint }}>
+
+const cardConfig = {
+    type: "methodEmbedded",
+    rootContainer: "pay-component-1",
+    token: publicToken,
+    entryPoint: entryPoint,
+    defaultOpen: "card",
+    customCssUrl: "http://localhost:4321/static/pico-important.css",
+    temporaryToken: true,
+    card: {
+    enabled: true,
+    amex: true,
+    discover: true,
+    visa: true,
+    mastercard: true,
+    jcb: true,
+    diners: true,
+    inputs: {
+        cardHolderName: { 
+        label: "Cardholder Name", 
+        size: 12, 
+        row: 0, 
+        order: 0,
+        floating: false
+        },
+        cardNumber: { 
+        label: "Card Number", 
+        size: 6, 
+        row: 1, 
+        order: 0,
+        floating: false
+        },
+        cardExpirationDate: { 
+        label: "Expiration Date", 
+        size: 6, 
+        row: 1, 
+        order: 1,
+        floating: false
+        },
+        cardCvv: {
+        label: "CVV",
+        size: 6,
+        row: 2,
+        order: 0,
+        floating: false
+        },
+        cardZipcode: {
+        label: "Zip Code",
+        size: 6,
+        row: 2,
+        order: 1,
+        floating: false
+        }
+    }
+    },
+    functionCallBackSuccess: function (response) {
+    // This callback covers both 2XX and 4XX responses
+    console.log(response);
+    switch (response.responseText) {
+        case "Success":
+        // Tokenization was successful
+        console.log("Transaction ID:", response.responseData.referenceId);
+        
+        // Call the backend API to process the transaction with the stored method
+        fetch(`/api/transaction/${response.responseData.referenceId}`, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json'
+            },
+        })
+        .then(response => response.text())
+        .then(html => {
+            // Display the result from the backend
+            document.getElementById('transaction-result').innerHTML = html;
+        })
+        .catch(error => {
+            console.error('Error:', error);
+            document.getElementById('transaction-result').innerHTML = 
+                '<input type="text" name="invalid" value="Error processing transaction" aria-invalid="true" readonly>';
+        });
+        break;
+        case "Declined":
+        // Tokenization failed due to processor decline or validation errors
+        // Recommend reinitialization of the component so that the user can try again
+        // with different card data
+        document.getElementById('transaction-result').innerHTML = 
+            `<input type="text" name="invalid" value="Declined: ${response.responseData.resultText}" aria-invalid="true" readonly>`;
+        payComponent.payabliExec("reinit");
+        break;
+        default:
+        // Other response text. These are normally errors with Payabli internal validations
+        // before processor engagement
+        // We recommend reinitializing the component.
+        // If the problem persists, contact Payabli to help debug
+        document.getElementById('transaction-result').innerHTML = 
+            `<input type="text" name="invalid" value="Error: ${response.responseText}" aria-invalid="true" readonly>`;
+        payComponent.payabliExec("reinit");
+        break;
+    }
+    },
+    functionCallBackError: function(errors) {
+    console.log("Payment error:", errors);
+    document.getElementById('transaction-result').innerHTML = 
+        '<input type="text" name="invalid" value="Payment processing error occurred" aria-invalid="true" readonly>';
+    payComponent.payabliExec("reinit");
+    },
+    functionCallBackReady: function(data) {
+    const btn = document.getElementById("submit-btn");
+    if (data[1] === true) {
+        btn.classList.remove("hidden");
+    } else {
+        btn.classList.add("hidden");
+    }
+    }
+};
+
+const achConfig = {
+    type: "methodEmbedded",
+    rootContainer: "pay-component-1",
+    token: publicToken,
+    entryPoint: entryPoint,
+    defaultOpen: "ach",
+    customCssUrl: "http://localhost:4321/static/pico-important.css",
+    temporaryToken: true,
+    ach: {
+    enabled: true,
+    checking: true,
+    savings: true,
+    inputs: {
+        achAccountHolderName: {
+        label: "Account Holder Name",
+        placeholder: "Account Holder Name",
+        floating: false,
+        size: 6,
+        row: 0,
+        order: 0
+        },
+        achRouting: {
+        label: "Routing Number",
+        placeholder: "123456789",
+        floating: false,
+        size: 6,
+        row: 1,
+        order: 0
+        },
+        achAccount: {
+        label: "Account Number",
+        placeholder: "Account Number",
+        floating: false,
+        size: 6,
+        row: 1,
+        order: 1
+        },
+        achAccountType: {
+        label: "Account Type",
+        floating: false,
+        size: 6,
+        row: 0,
+        order: 1
+        }
+    }
+    },
+    functionCallBackSuccess: function (response) {
+    // This callback covers both 2XX and 4XX responses
+    console.log(response);
+    switch (response.responseText) {
+        case "Success":
+        // Tokenization was successful
+        console.log("Transaction ID:", response.responseData.referenceId);
+        
+        // Call the backend API to process the transaction with the stored method
+        fetch(`/api/transaction/${response.responseData.referenceId}`, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json'
+            },
+        })
+        .then(response => response.text())
+        .then(html => {
+            // Display the result from the backend
+            document.getElementById('transaction-result').innerHTML = html;
+        })
+        .catch(error => {
+            console.error('Error:', error);
+            document.getElementById('transaction-result').innerHTML = 
+                '<input type="text" name="invalid" value="Error processing transaction" aria-invalid="true" readonly>';
+        });
+        break;
+        case "Declined":
+        // Tokenization failed due to processor decline or validation errors
+        // Recommend reinitialization of the component so that the user can try again
+        // with different card data
+        document.getElementById('transaction-result').innerHTML = 
+            `<input type="text" name="invalid" value="Declined: ${response.responseData.resultText}" aria-invalid="true" readonly>`;
+        payComponent.payabliExec("reinit");
+        break;
+        default:
+        // Other response text. These are normally errors with Payabli internal validations
+        // before processor engagement
+        // We recommend reinitializing the component.
+        // If the problem persists, contact Payabli to help debug
+        document.getElementById('transaction-result').innerHTML = 
+            `<input type="text" name="invalid" value="Error: ${response.responseText}" aria-invalid="true" readonly>`;
+        payComponent.payabliExec("reinit");
+        break;
+    }
+    },
+    functionCallBackError: function(errors) {
+    console.log("Payment error:", errors);
+    document.getElementById('transaction-result').innerHTML = 
+        '<input type="text" name="invalid" value="Payment processing error occurred" aria-invalid="true" readonly>';
+    payComponent.payabliExec("reinit");
+    },
+    functionCallBackReady: function(data) {
+    const btn = document.getElementById("submit-btn");
+    if (data[1] === true) {
+        btn.classList.remove("hidden");
+    } else {
+        btn.classList.add("hidden");
+    }
+    }
+};
+
+// Tab switching
+document.querySelectorAll('.tab').forEach(tab => {
+    tab.addEventListener('click', function() {
+    const method = this.dataset.method;
+    
+    // Update active tab
+    document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+    this.classList.add('active');
+    
+    // Create new component with appropriate config
+    if (method === 'card') {
+        payComponent = new PayabliComponent(cardConfig);
+    } else {
+        payComponent = new PayabliComponent(achConfig);
+    }
+    });
+});
+
+// Initialize the Payabli component
+payComponent = new PayabliComponent(cardConfig);
+
+// Handle payment execution
+document.getElementById("submit-btn").addEventListener("click", function() {
+    payComponent.payabliExec('method', {
+        paymentDetails: {
+            totalAmount: 100.00,
+            serviceFee: 0,
+            categories: [{
+            label: "payment",
+            amount: 100.00,
+            qty: 1
+            }]
+        },
+        customerData: {
+            customerId: 4440
+        }
+    });
+});
+</script>
+</MainLayout>

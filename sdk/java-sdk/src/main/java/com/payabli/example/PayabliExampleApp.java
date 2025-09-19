@@ -4,14 +4,17 @@ import io.github.cdimascio.dotenv.Dotenv;
 import io.github.payabli.api.PayabliApiClient;
 import io.github.payabli.api.PayabliApiClientBuilder;
 import io.github.payabli.api.resources.customer.requests.AddCustomerRequest;
-import io.github.payabli.api.types.CustomerData;
-import io.github.payabli.api.types.QueryCustomerResponse;
-import io.github.payabli.api.types.CustomerQueryRecords;
-import io.github.payabli.api.types.PayabliApiResponseCustomerQuery;
+import io.github.payabli.api.resources.tokenstorage.requests.AddMethodRequest;
+import io.github.payabli.api.resources.tokenstorage.types.*;
+import io.github.payabli.api.resources.moneyin.requests.RequestPayment;
+import io.github.payabli.api.resources.moneyin.types.*;
+import io.github.payabli.api.types.*;
 import io.javalin.Javalin;
 import io.javalin.http.Context;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.thymeleaf.TemplateEngine;
+import org.thymeleaf.templateresolver.ClassLoaderTemplateResolver;
 
 import java.util.*;
 
@@ -19,6 +22,21 @@ public class PayabliExampleApp {
     private static final Logger logger = LoggerFactory.getLogger(PayabliExampleApp.class);
     private static PayabliApiClient payabliClient;
     private static String entryPoint;
+    private static String publicToken;
+    private static TemplateEngine templateEngine;
+
+    static {
+        // Initialize Thymeleaf template engine
+        ClassLoaderTemplateResolver templateResolver = new ClassLoaderTemplateResolver();
+        templateResolver.setTemplateMode("HTML");
+        templateResolver.setPrefix("templates/");
+        templateResolver.setSuffix(".html");
+        templateResolver.setCharacterEncoding("UTF-8");
+        templateResolver.setCacheable(false); // For development
+        
+        templateEngine = new TemplateEngine();
+        templateEngine.setTemplateResolver(templateResolver);
+    }
 
     public static void main(String[] args) {
         // Load environment variables from .env file
@@ -29,9 +47,10 @@ public class PayabliExampleApp {
         // First try to get from .env file, then fall back to system environment
         String apiKey = dotenv.get("PAYABLI_KEY", System.getenv("PAYABLI_KEY"));
         entryPoint = dotenv.get("PAYABLI_ENTRY", System.getenv("PAYABLI_ENTRY"));
+        publicToken = dotenv.get("PAYABLI_PUBLIC_TOKEN", System.getenv("PAYABLI_PUBLIC_TOKEN"));
 
-        if (apiKey == null || entryPoint == null) {
-            logger.error("PAYABLI_KEY and PAYABLI_ENTRY environment variables must be set");
+        if (apiKey == null || entryPoint == null || publicToken == null) {
+            logger.error("PAYABLI_KEY, PAYABLI_ENTRY, and PAYABLI_PUBLIC_TOKEN environment variables must be set");
             logger.error("Please ensure your .env file exists and contains these variables, or set them as system environment variables");
             System.exit(1);
         }
@@ -51,9 +70,12 @@ public class PayabliExampleApp {
         // Routes
         app.get("/", PayabliExampleApp::renderCreateCustomerPage);
         app.get("/list", PayabliExampleApp::renderListCustomersPage);
+        app.get("/transaction", PayabliExampleApp::renderTransactionPage);
+        app.get("/debug", PayabliExampleApp::renderDebugPage);
         app.post("/api/create", PayabliExampleApp::createCustomer);
         app.get("/api/list", PayabliExampleApp::listCustomers);
         app.delete("/api/delete/{customerId}", PayabliExampleApp::deleteCustomer);
+        app.post("/api/transaction/{token}", PayabliExampleApp::processTransaction);
 
         // Start server
         int port = Integer.parseInt(System.getProperty("server.port", "8000"));
@@ -63,176 +85,32 @@ public class PayabliExampleApp {
     }
 
     private static void renderCreateCustomerPage(Context ctx) {
-        String html = getCreateCustomerPageHtml();
+        org.thymeleaf.context.Context context = new org.thymeleaf.context.Context();
+        String html = templateEngine.process("create-customer", context);
         ctx.html(html);
     }
 
     private static void renderListCustomersPage(Context ctx) {
-        String html = getListCustomersPageHtml();
+        org.thymeleaf.context.Context context = new org.thymeleaf.context.Context();
+        String html = templateEngine.process("list-customers", context);
         ctx.html(html);
     }
 
-    private static String getCreateCustomerPageHtml() {
-        return "<!DOCTYPE html>" +
-                "<html lang=\"en\">" +
-                "<head>" +
-                "    <meta charset=\"utf-8\" />" +
-                "    <link rel=\"icon\" type=\"image/svg+xml\" href=\"/favicon.svg\" />" +
-                "    <link rel=\"stylesheet\" href=\"https://cdn.jsdelivr.net/npm/@picocss/pico@2/css/pico.min.css\">" +
-                "    <script src=\"https://unpkg.com/htmx.org@2.0.4\"></script>" +
-                "    <meta name=\"viewport\" content=\"width=device-width\" />" +
-                "    <title>Payabli SDK Example</title>" +
-                "</head>" +
-                "<body>" +
-                "    <main class=\"container\">" +
-                "        <nav>" +
-                "            <ul>" +
-                "                <li><strong>Payabli SDK Test</strong></li>" +
-                "            </ul>" +
-                "            <ul hx-boost=\"true\">" +
-                "                <li><a href=\"/\">Create Customer</a></li>" +
-                "                <li><a href=\"/list\">List Customers</a></li>" +
-                "            </ul>" +
-                "        </nav>" +
-                "    </main>" +
-                "    <main class=\"container\">" +
-                "        <article>" +
-                "            <header>" +
-                "                <em><b>Create Customer</b></em>" +
-                "            </header>" +
-                "            <form hx-post=\"/api/create\" hx-target=\"#form-result\" hx-swap=\"innerHTML\">" +
-                "                <fieldset>" +
-                "                    <div class=\"grid\">" +
-                "                        <label>" +
-                "                            First name" +
-                "                            <input name=\"firstname\" placeholder=\"John\" autocomplete=\"given-name\" aria-describedby=\"first_name-description\" required />" +
-                "                            <small id=\"first_name-description\">Your first name is used to personalize your experience.</small>" +
-                "                        </label>" +
-                "                        <label>" +
-                "                            Last name" +
-                "                            <input name=\"lastname\" placeholder=\"Doe\" autocomplete=\"family-name\" aria-describedby=\"last_name-description\" required />" +
-                "                            <small id=\"last_name-description\">Your last name is used for identification purposes.</small>" +
-                "                        </label>" +
-                "                    </div>" +
-                "                    <div class=\"grid\">" +
-                "                        <label>" +
-                "                            Email" +
-                "                            <input type=\"email\" name=\"email\" placeholder=\"Email\" autocomplete=\"email\" aria-describedby=\"email-description\" required />" +
-                "                            <small id=\"email-description\">We'll never share your email with anyone else.</small>" +
-                "                        </label>" +
-                "                        <label>" +
-                "                            Timezone" +
-                "                            <select name=\"timeZone\" aria-label=\"Select your timezone...\" aria-describedby=\"timezone-description\" required>" +
-                "                                <option selected disabled value=\"\">Select your timezone...</option>" +
-                "                                <option value=\"-5\">UTC-05:00 Eastern Time (US & Canada)</option>" +
-                "                                <option value=\"-6\">UTC-06:00 Central Time (US & Canada)</option>" +
-                "                                <option value=\"-7\">UTC-07:00 Mountain Time (US & Canada)</option>" +
-                "                                <option value=\"-8\">UTC-08:00 Pacific Time (US & Canada)</option>" +
-                "                            </select>" +
-                "                            <small id=\"timezone-description\">Your timezone is used to display transaction times correctly.</small>" +
-                "                        </label>" +
-                "                    </div>" +
-                "                    <div class=\"grid\">" +
-                "                        <label>" +
-                "                            Address" +
-                "                            <input name=\"address\" placeholder=\"123 Bishop's Trail\" aria-describedby=\"address-description\" required />" +
-                "                            <small id=\"address-description\">Your address is used for billing purposes.</small>" +
-                "                        </label>" +
-                "                        <label>" +
-                "                            City" +
-                "                            <input name=\"city\" placeholder=\"Mountain City\" aria-describedby=\"city-description\" required />" +
-                "                            <small id=\"city-description\">Your city is used for billing purposes.</small>" +
-                "                        </label>" +
-                "                    </div>" +
-                "                    <div class=\"grid\">" +
-                "                        <label>" +
-                "                            State" +
-                "                            <input name=\"state\" placeholder=\"TN\" aria-describedby=\"state-description\" required />" +
-                "                            <small id=\"state-description\">Your state is used for billing purposes.</small>" +
-                "                        </label>" +
-                "                        <label>" +
-                "                            Zip" +
-                "                            <input name=\"zip\" placeholder=\"37612\" aria-describedby=\"zip-description\" required />" +
-                "                            <small id=\"zip-description\">Your zip code is used for billing purposes.</small>" +
-                "                        </label>" +
-                "                    </div>" +
-                "                    <div class=\"grid\">" +
-                "                        <div>" +
-                "                            <fieldset>" +
-                "                                <legend>Country</legend>" +
-                "                                <input type=\"radio\" id=\"us\" name=\"country\" value=\"us\" checked />" +
-                "                                <label for=\"us\">US</label>" +
-                "                                <input type=\"radio\" id=\"ca\" name=\"country\" value=\"ca\" />" +
-                "                                <label for=\"ca\">CA</label>" +
-                "                            </fieldset>" +
-                "                            <small>Your country affects the currency and payment methods available to you.</small>" +
-                "                        </div>" +
-                "                        <div>" +
-                "                            <fieldset>" +
-                "                                <legend>Services</legend>" +
-                "                                <input type=\"checkbox\" id=\"hvac\" name=\"hvac\" value=\"on\" />" +
-                "                                <label for=\"hvac\">HVAC</label>" +
-                "                                <input type=\"checkbox\" id=\"electrical\" name=\"electrical\" value=\"on\" />" +
-                "                                <label for=\"electrical\">Electrical</label>" +
-                "                            </fieldset>" +
-                "                            <small>This helps us tailor our offerings to your needs.</small>" +
-                "                        </div>" +
-                "                    </div>" +
-                "                    <hr/>" +
-                "                    <label>" +
-                "                        <input name=\"terms\" type=\"checkbox\" role=\"switch\" required />" +
-                "                        I agree to the <a href=\"#\">terms and conditions</a>" +
-                "                    </label>" +
-                "                </fieldset>" +
-                "                <input type=\"submit\" value=\"Create\" />" +
-                "            </form>" +
-                "        </article>" +
-                "        <h1 id=\"form-result\"></h1>" +
-                "    </main>" +
-                "</body>" +
-                "</html>";
+    private static void renderTransactionPage(Context ctx) {
+        org.thymeleaf.context.Context context = new org.thymeleaf.context.Context();
+        context.setVariable("publicToken", publicToken);
+        context.setVariable("entryPoint", entryPoint);
+        String html = templateEngine.process("transaction", context);
+        ctx.html(html);
     }
 
-    private static String getListCustomersPageHtml() {
-        return "<!DOCTYPE html>" +
-                "<html lang=\"en\">" +
-                "<head>" +
-                "    <meta charset=\"utf-8\" />" +
-                "    <link rel=\"icon\" type=\"image/svg+xml\" href=\"/favicon.svg\" />" +
-                "    <link rel=\"stylesheet\" href=\"https://cdn.jsdelivr.net/npm/@picocss/pico@2/css/pico.min.css\">" +
-                "    <script src=\"https://unpkg.com/htmx.org@2.0.4\"></script>" +
-                "    <meta name=\"viewport\" content=\"width=device-width\" />" +
-                "    <title>Payabli SDK Example</title>" +
-                "</head>" +
-                "<body>" +
-                "    <main class=\"container\">" +
-                "        <nav>" +
-                "            <ul>" +
-                "                <li><strong>Payabli SDK Test</strong></li>" +
-                "            </ul>" +
-                "            <ul hx-boost=\"true\">" +
-                "                <li><a href=\"/\">Create Customer</a></li>" +
-                "                <li><a href=\"/list\">List Customers</a></li>" +
-                "            </ul>" +
-                "        </nav>" +
-                "    </main>" +
-                "    <main class=\"container\">" +
-                "        <article>" +
-                "            <header>" +
-                "                <em><b>Customer List</b></em>" +
-                "            </header>" +
-                "            <table hx-get=\"/api/list\" hx-swap=\"outerHTML\" hx-trigger=\"load\" hx-indicator=\"#spinner\"></table>" +
-                "        </article>" +
-                "    </main>" +
-                "    <div id=\"spinner\" style=\"position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); width: 300px; height: 300px; display: flex; justify-content: center; align-items: center;\" class=\"htmx-indicator\">" +
-                "        <svg width=\"240\" height=\"240\" viewBox=\"0 0 24 24\" xmlns=\"http://www.w3.org/2000/svg\">" +
-                "            <style>.spinner_ajPY{transform-origin:center;animation:spinner_AtaB .75s infinite linear}@keyframes spinner_AtaB{100%{transform:rotate(360deg)}}</style>" +
-                "            <path d=\"M12,1A11,11,0,1,0,23,12,11,11,0,0,0,12,1Zm0,19a8,8,0,1,1,8-8A8,8,0,0,1,12,20Z\" opacity=\".25\"/>" +
-                "            <path d=\"M10.14,1.16a11,11,0,0,0-9,8.92A1.59,1.59,0,0,0,2.46,12,1.52,1.52,0,0,0,4.11,10.7a8,8,0,0,1,6.66-6.61A1.42,1.42,0,0,0,12,2.69h0A1.57,1.57,0,0,0,10.14,1.16Z\" class=\"spinner_ajPY\"/>" +
-                "        </svg>" +
-                "    </div>" +
-                "</body>" +
-                "</html>";
+    private static void renderDebugPage(Context ctx) {
+        org.thymeleaf.context.Context context = new org.thymeleaf.context.Context();
+        context.setVariable("publicToken", publicToken);
+        context.setVariable("entryPoint", entryPoint);
+        context.setVariable("publicTokenDisplay", publicToken != null ? publicToken.substring(0, Math.min(20, publicToken.length())) + "..." : "null");
+        String html = templateEngine.process("debug", context);
+        ctx.html(html);
     }
 
     private static void createCustomer(Context ctx) {
@@ -397,5 +275,105 @@ public class PayabliExampleApp {
                 .replace(">", "&gt;")
                 .replace("\"", "&quot;")
                 .replace("'", "&#x27;");
+    }
+
+    private static void processTransaction(Context ctx) {
+        try {
+            String token = ctx.pathParam("token");
+            
+            if (token == null || token.trim().isEmpty()) {
+                ctx.html("<input type=\"text\" name=\"invalid\" value=\"No token provided\" aria-invalid=\"true\" readonly>")
+                   .status(400);
+                return;
+            }
+
+            System.out.println("\n");
+            System.out.println("========================================================================");
+            System.out.println("🚀 STARTING PAYMENT PROCESSING WITH TOKEN: " + token);
+            System.out.println("========================================================================");
+            logger.info("Converting temporary token to permanent: {}", token);
+
+            // Step 1: Use token storage to convert temporary token to permanent
+            System.out.println("\n📦 STEP 1: Converting temporary token to permanent stored method...");
+            AddMethodRequest tokenRequest = AddMethodRequest.builder()
+                .body(RequestTokenStorage.builder()
+                    .customerData(PayorDataRequest.builder()
+                        .customerId(4440L) // This should be dynamic based on your needs
+                        .build())
+                    .entryPoint(entryPoint)
+                    .paymentMethod(RequestTokenStoragePaymentMethod.of(
+                        ConvertToken.builder()
+                            .method("card")
+                            .tokenId(token) // The temporary token from the embedded component
+                            .build()))
+                    .source("web")
+                    .methodDescription("Main card")
+                    .build())
+                .createAnonymous(true)
+                .temporary(false)
+                .build();
+
+            System.out.println("\n\n\n\n\n⏳ Calling TokenStorage.addMethod()...\n\n\n\n\n\n\n");
+            var tokenResult = payabliClient.tokenStorage().addMethod(tokenRequest);
+            System.out.println("\n\n\n\n\n\n\n✅ TokenStorage.addMethod() completed!\n\n\n\n\n\n\n");
+            System.out.println("📋 Token storage result: " + tokenResult);
+            logger.info("Token storage result: {}", tokenResult);
+            
+            String storedMethodId = tokenResult.getResponseData().get().getReferenceId().get();
+            if (storedMethodId == null || storedMethodId.isEmpty()) {
+                throw new RuntimeException("Failed to get stored method ID from token storage response");
+            }
+            
+            System.out.println("🎯 STORED METHOD ID: " + storedMethodId);
+            logger.info("Token stored successfully with ID: {}", storedMethodId);
+
+            // Step 2: Process payment using the stored method
+            System.out.println("\n💳 STEP 2: Processing payment using stored method...");
+            RequestPayment paymentRequest = RequestPayment.builder()
+                .body(TransRequestBody.builder()
+                    .paymentDetails(PaymentDetail.builder()
+                        .totalAmount(100.0) // This should be dynamic based on your needs
+                        .serviceFee(0.0)
+                        .build())
+                    .paymentMethod(PaymentMethod.of(
+                        PayMethodStoredMethod.builder()
+                            .method(PayMethodStoredMethodMethod.CARD)
+                            .storedMethodId(storedMethodId)
+                            .initiator("payor")
+                            .storedMethodUsageType("unscheduled")
+                            .build()))
+                    .customerData(PayorDataRequest.builder()
+                        .customerId(4440L)
+                        .build())
+                    .entryPoint(entryPoint)
+                    .ipaddress("255.255.255.255") // This should be dynamic based on request
+                    .build())
+                .build();
+
+            System.out.println("⏳ Calling MoneyIn.getpaid()...");
+            var paymentResult = payabliClient.moneyIn().getpaid(paymentRequest);
+            System.out.println("✅ MoneyIn.getpaid() completed!");
+            System.out.println("💰 Payment result: " + paymentResult);
+            logger.info("Payment processed successfully: {}", paymentResult);
+
+            System.out.println("\n========================================================================");
+            System.out.println("🎉 PAYMENT PROCESSING COMPLETED SUCCESSFULLY!");
+            System.out.println("========================================================================");
+            System.out.println("\n");
+
+            ctx.html("<input type=\"text\" name=\"valid\" value=\"Payment processed successfully!\" aria-invalid=\"false\" readonly>")
+               .status(200);
+
+        } catch (Exception e) {
+            System.out.println("\n");
+            System.out.println("========================================================================");
+            System.out.println("❌ PAYMENT PROCESSING FAILED!");
+            System.out.println("🔥 ERROR: " + e.getMessage());
+            System.out.println("========================================================================");
+            System.out.println("\n");
+            logger.error("Error processing transaction: {}", e.getMessage(), e);
+            ctx.html("<input type=\"text\" name=\"invalid\" value=\"Error processing transaction: " + escapeHtml(e.getMessage()) + "\" aria-invalid=\"true\" readonly>")
+               .status(200);
+        }
     }
 }

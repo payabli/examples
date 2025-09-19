@@ -1,4 +1,4 @@
-A basic example application using the Payabli Python SDK to perform customer operations.
+A basic example application using the Payabli Python SDK to perform customer operations and payment method tokenization.
 See the [Payabli Python SDK](https://github.com/payabli/sdk-python) for more information.
 
 ## Summary
@@ -6,6 +6,7 @@ See the [Payabli Python SDK](https://github.com/payabli/sdk-python) for more inf
 The application has two pages:
 1. **Create Customer** - this page has a form that allows you to create a new customer in your paypoint.
 2. **List Customers** - this page lists all the customers in your paypoint.
+3. **Make Transaction** - this page has an embedded component to save payment methods securely and send them to the API to process transactions.
 
 ## Setup Instructions
 

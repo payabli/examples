@@ -1,0 +1,45 @@
+<!DOCTYPE html>
+<html lang="en" xmlns:th="http://www.thymeleaf.org">
+<head>
+    <meta charset="utf-8" />
+    <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@picocss/pico@2/css/pico.min.css">
+    <script src="https://unpkg.com/htmx.org@2.0.4"></script>
+    <meta name="viewport" content="width=device-width" />
+    <title th:text="${pageTitle} ?: 'Payabli SDK Example'">Payabli SDK Example</title>
+    <!-- Additional head content -->
+    <th:block th:fragment="additional-head"></th:block>
+</head>
+<body>
+    <main class="container">
+        <nav>
+            <ul>
+                <li><strong>Payabli SDK Test</strong></li>
+            </ul>
+            <ul th:classappend="${enableBoost} ? 'hx-boost=true' : ''">
+                <li><a href="/" th:classappend="${currentPage == 'create'} ? 'active' : ''">Create Customer</a></li>
+                <li><a href="/list" th:classappend="${currentPage == 'list'} ? 'active' : ''">List Customers</a></li>
+                <li><a href="/transaction" th:classappend="${currentPage == 'transaction'} ? 'active' : ''">Make Transaction</a></li>
+            </ul>
+        </nav>
+    </main>
+    <main class="container">
+        <article>
+            <header th:if="${pageHeader}">
+                <em><b th:text="${pageHeader}">Page Header</b></em>
+                <!-- Additional header content -->
+                <th:block th:fragment="additional-header"></th:block>
+            </header>
+            
+            <!-- Main content -->
+            <th:block th:fragment="main-content"></th:block>
+        </article>
+        
+        <!-- Result container -->
+        <h1 th:id="${resultId} ?: 'form-result'" th:if="${showResult}"></h1>
+    </main>
+    
+    <!-- Additional scripts -->
+    <th:block th:fragment="additional-scripts"></th:block>
+</body>
+</html>

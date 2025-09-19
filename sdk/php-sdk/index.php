@@ -4,6 +4,14 @@ require_once __DIR__ . '/vendor/autoload.php';
 use Payabli\PayabliClient;
 use Payabli\Customer\Requests\AddCustomerRequest;
 use Payabli\Types\CustomerData;
+use Payabli\TokenStorage\Requests\AddMethodRequest;
+use Payabli\TokenStorage\Types\RequestTokenStorage;
+use Payabli\TokenStorage\Types\ConvertToken;
+use Payabli\Types\PayorDataRequest;
+use Payabli\MoneyIn\Requests\RequestPayment;
+use Payabli\MoneyIn\Types\TransRequestBody;
+use Payabli\Types\PaymentDetail;
+use Payabli\Types\PayMethodStoredMethod;
 use Dotenv\Dotenv;
 
 // Load environment variables
@@ -57,6 +65,15 @@ switch ($requestUri) {
         }
         break;
     
+    case '/transaction':
+        if ($requestMethod === 'GET') {
+            renderTransactionPage();
+        } else {
+            http_response_code(405);
+            echo 'Method Not Allowed';
+        }
+        break;
+    
     case '/api/create':
         if ($requestMethod === 'POST') {
             handleCreateCustomer($payabliClient, $entryPoint);
@@ -81,6 +98,16 @@ switch ($requestUri) {
             if ($requestMethod === 'DELETE') {
                 $customerId = (int)$matches[1];
                 handleDeleteCustomer($payabliClient, $customerId);
+            } else {
+                http_response_code(405);
+                echo 'Method Not Allowed';
+            }
+        } 
+        // Handle transaction route with pattern /api/transaction/{token}
+        elseif (preg_match('/^\/api\/transaction\/(.+)$/', $requestUri, $matches)) {
+            if ($requestMethod === 'POST') {
+                $token = $matches[1];
+                handleProcessTransactionWithToken($payabliClient, $entryPoint, $token);
             } else {
                 http_response_code(405);
                 echo 'Method Not Allowed';
@@ -113,9 +140,10 @@ function renderLayout($title, $content) {
             <ul>
                 <li><strong>Payabli SDK Test</strong></li>
             </ul>
-            <ul hx-boost="true">
+            <ul>
                 <li><a href="/">Create Customer</a></li>
                 <li><a href="/list">List Customers</a></li>
+                <li><a href="/transaction">Process Transaction</a></li>
             </ul>
         </nav>
     </main>
@@ -313,6 +341,343 @@ HTML;
     renderLayout('Customer List', $content);
 }
 
+function renderTransactionPage() {
+    $publicToken = $_ENV['PAYABLI_PUBLIC_TOKEN'] ?? '';
+    $entryPoint = $_ENV['PAYABLI_ENTRY'] ?? '';
+    
+    // Debug: Log the values being used
+    error_log("Debug - Public Token: " . (empty($publicToken) ? 'EMPTY' : 'SET (length: ' . strlen($publicToken) . ')'));
+    error_log("Debug - Entry Point: " . (empty($entryPoint) ? 'EMPTY' : $entryPoint));
+    
+    $content = '
+<main class="container">
+  <article>
+    <header>
+      <em><b>Make Transaction</b></em>
+      <div>
+        <h1>Payment Form</h1>  
+        <p>Enter your payment information below:</p>
+        <div class="payment-container">
+            <div class="tabs">
+            <button class="tab active" data-method="card">Payment Card</button>
+            <button class="tab" data-method="ach">Bank Debit</button>
+            </div>
+            <div class="form-content">
+            <div id="pay-component-1"></div>
+            <button id="submit-btn" class="hidden">Process Payment</button>
+            </div>
+        </div>
+      </div>
+    </header>
+  </article>
+  <h1 id="transaction-result"></h1>
+</main>
+<style>
+.tabs {
+    display: flex;
+    margin-bottom: 20px;
+}
+
+.tab {
+    flex: 1;
+    padding: 16px 24px;
+    text-align: center;
+    cursor: pointer;
+    border: none;
+    border-bottom: 2px solid transparent;
+    transition: all 0.2s ease;
+    margin: 1em !important;
+}
+
+.hidden { 
+    display: none; 
+}
+
+#submit-btn {
+    padding: 12px 24px;
+    border: none;
+    border-radius: 6px;
+    cursor: pointer;
+    margin-top: 16px;
+}
+
+#submit-btn:disabled {
+    cursor: not-allowed;
+}
+</style>
+<script src="https://embedded-component-sandbox.payabli.com/component.js" data-test></script>
+<script>
+
+// Debug: Log the token values
+console.log("Debug - Public Token:", "' . $publicToken . '");
+console.log("Debug - Entry Point:", "' . $entryPoint . '");
+
+const cardConfig = {
+    type: "methodEmbedded",
+    rootContainer: "pay-component-1",
+    token: "' . $publicToken . '",
+    entryPoint: "' . $entryPoint . '",
+    defaultOpen: "card",
+    customCssUrl: "http://localhost:8004/static/pico-important.css",
+    temporaryToken: true,
+    card: {
+    enabled: true,
+    amex: true,
+    discover: true,
+    visa: true,
+    mastercard: true,
+    jcb: true,
+    diners: true,
+    inputs: {
+        cardHolderName: { 
+        label: "Cardholder Name", 
+        size: 12, 
+        row: 0, 
+        order: 0,
+        floating: false
+        },
+        cardNumber: { 
+        label: "Card Number", 
+        size: 6, 
+        row: 1, 
+        order: 0,
+        floating: false
+        },
+        cardExpirationDate: { 
+        label: "Expiration Date", 
+        size: 6, 
+        row: 1, 
+        order: 1,
+        floating: false
+        },
+        cardCvv: {
+        label: "CVV",
+        size: 6,
+        row: 2,
+        order: 0,
+        floating: false
+        },
+        cardZipcode: {
+        label: "Zip Code",
+        size: 6,
+        row: 2,
+        order: 1,
+        floating: false
+        }
+    }
+    },
+    functionCallBackSuccess: function (response) {
+    // This callback covers both 2XX and 4XX responses
+    console.log(response);
+    switch (response.responseText) {
+        case "Success":
+        // Tokenization was successful
+        console.log("Transaction ID:", response.responseData.referenceId);
+        
+        // Call the backend API to process the transaction with the stored method
+        fetch(`/api/transaction/${response.responseData.referenceId}`, {
+            method: \'POST\',
+            headers: {
+                \'Content-Type\': \'application/json\'
+            },
+        })
+        .then(response => response.text())
+        .then(html => {
+            // Display the result from the backend
+            document.getElementById(\'transaction-result\').innerHTML = html;
+        })
+        .catch(error => {
+            console.error(\'Error:\', error);
+            document.getElementById(\'transaction-result\').innerHTML = 
+                \'<input type="text" name="invalid" value="Error processing transaction" aria-invalid="true" readonly>\';
+        });
+        break;
+        case "Declined":
+        // Tokenization failed due to processor decline or validation errors
+        // Recommend reinitialization of the component so that the user can try again
+        // with different card data
+        document.getElementById(\'transaction-result\').innerHTML = 
+            `<input type="text" name="invalid" value="Declined: ${response.responseData.resultText}" aria-invalid="true" readonly>`;
+        payComponent.payabliExec("reinit");
+        break;
+        default:
+        // Other response text. These are normally errors with Payabli internal validations
+        // before processor engagement
+        // We recommend reinitializing the component.
+        // If the problem persists, contact Payabli to help debug
+        document.getElementById(\'transaction-result\').innerHTML = 
+            `<input type="text" name="invalid" value="Error: ${response.responseText}" aria-invalid="true" readonly>`;
+        payComponent.payabliExec("reinit");
+        break;
+    }
+    },
+    functionCallBackError: function(errors) {
+    console.log("Payment error:", errors);
+    document.getElementById(\'transaction-result\').innerHTML = 
+        \'<input type="text" name="invalid" value="Payment processing error occurred" aria-invalid="true" readonly>\';
+    payComponent.payabliExec("reinit");
+    },
+    functionCallBackReady: function(data) {
+    const btn = document.getElementById("submit-btn");
+    if (data[1] === true) {
+        btn.classList.remove("hidden");
+    } else {
+        btn.classList.add("hidden");
+    }
+    }
+};
+
+const achConfig = {
+    type: "methodEmbedded",
+    rootContainer: "pay-component-1",
+    token: "' . $publicToken . '",
+    entryPoint: "' . $entryPoint . '",
+    defaultOpen: "ach",
+    customCssUrl: "http://localhost:8004/static/pico-important.css",
+    temporaryToken: true,
+    ach: {
+    enabled: true,
+    checking: true,
+    savings: true,
+    inputs: {
+        achAccountHolderName: {
+        label: "Account Holder Name",
+        placeholder: "Account Holder Name",
+        floating: false,
+        size: 6,
+        row: 0,
+        order: 0
+        },
+        achRouting: {
+        label: "Routing Number",
+        placeholder: "123456789",
+        floating: false,
+        size: 6,
+        row: 1,
+        order: 0
+        },
+        achAccount: {
+        label: "Account Number",
+        placeholder: "Account Number",
+        floating: false,
+        size: 6,
+        row: 1,
+        order: 1
+        },
+        achAccountType: {
+        label: "Account Type",
+        floating: false,
+        size: 6,
+        row: 0,
+        order: 1
+        }
+    }
+    },
+    functionCallBackSuccess: function (response) {
+    // This callback covers both 2XX and 4XX responses
+    console.log(response);
+    switch (response.responseText) {
+        case "Success":
+        // Tokenization was successful
+        console.log("Transaction ID:", response.responseData.referenceId);
+        
+        // Call the backend API to process the transaction with the stored method
+        fetch(`/api/transaction/${response.responseData.referenceId}`, {
+            method: \'POST\',
+            headers: {
+                \'Content-Type\': \'application/json\'
+            },
+        })
+        .then(response => response.text())
+        .then(html => {
+            // Display the result from the backend
+            document.getElementById(\'transaction-result\').innerHTML = html;
+        })
+        .catch(error => {
+            console.error(\'Error:\', error);
+            document.getElementById(\'transaction-result\').innerHTML = 
+                \'<input type="text" name="invalid" value="Error processing transaction" aria-invalid="true" readonly>\';
+        });
+        break;
+        case "Declined":
+        // Tokenization failed due to processor decline or validation errors
+        // Recommend reinitialization of the component so that the user can try again
+        // with different card data
+        document.getElementById(\'transaction-result\').innerHTML = 
+            `<input type="text" name="invalid" value="Declined: ${response.responseData.resultText}" aria-invalid="true" readonly>`;
+        payComponent.payabliExec("reinit");
+        break;
+        default:
+        // Other response text. These are normally errors with Payabli internal validations
+        // before processor engagement
+        // We recommend reinitializing the component.
+        // If the problem persists, contact Payabli to help debug
+        document.getElementById(\'transaction-result\').innerHTML = 
+            `<input type="text" name="invalid" value="Error: ${response.responseText}" aria-invalid="true" readonly>`;
+        payComponent.payabliExec("reinit");
+        break;
+    }
+    },
+    functionCallBackError: function(errors) {
+    console.log("Payment error:", errors);
+    document.getElementById(\'transaction-result\').innerHTML = 
+        \'<input type="text" name="invalid" value="Payment processing error occurred" aria-invalid="true" readonly>\';
+    payComponent.payabliExec("reinit");
+    },
+    functionCallBackReady: function(data) {
+    const btn = document.getElementById("submit-btn");
+    if (data[1] === true) {
+        btn.classList.remove("hidden");
+    } else {
+        btn.classList.add("hidden");
+    }
+    }
+};
+
+// Tab switching
+document.querySelectorAll(\'.tab\').forEach(tab => {
+    tab.addEventListener(\'click\', function() {
+    const method = this.dataset.method;
+    
+    // Update active tab
+    document.querySelectorAll(\'.tab\').forEach(t => t.classList.remove(\'active\'));
+    this.classList.add(\'active\');
+    
+    // Create new component with appropriate config
+    if (method === \'card\') {
+        payComponent = new PayabliComponent(cardConfig);
+    } else {
+        payComponent = new PayabliComponent(achConfig);
+    }
+    });
+});
+
+// Initialize the Payabli component
+payComponent = new PayabliComponent(cardConfig);
+
+// Handle payment execution
+document.getElementById("submit-btn").addEventListener("click", function() {
+    payComponent.payabliExec(\'method\', {
+        paymentDetails: {
+            totalAmount: 100.00,
+            serviceFee: 0,
+            categories: [{
+            label: "payment",
+            amount: 100.00,
+            qty: 1
+            }]
+        },
+        customerData: {
+            customerId: 4440
+        }
+    });
+});
+</script>
+';
+    
+    renderLayout('Process Transaction', $content);
+}
+
 function handleCreateCustomer($payabliClient, $entryPoint) {
     try {
         // Debug: Log all received POST data
@@ -504,5 +869,91 @@ function handleDeleteCustomer($payabliClient, $customerId) {
         http_response_code(500);
         header('Content-Type: text/html');
         echo '<td colspan="9">Error deleting customer: ' . htmlspecialchars($e->getMessage()) . '</td>';
+    }
+}
+
+function handleProcessTransactionWithToken($payabliClient, $entryPoint, $token) {
+    try {
+        error_log("Converting temporary token to permanent: " . $token);
+
+        // Step 1: Use token storage to convert temporary token to permanent
+        $tokenRequest = new AddMethodRequest([
+            'temporary' => false,
+            'body' => new RequestTokenStorage([
+                'customerData' => new PayorDataRequest([
+                    'customerId' => 4440 // This should be dynamic based on your needs
+                ]),
+                'entryPoint' => $entryPoint,
+                'paymentMethod' => new ConvertToken([
+                    'method' => 'card',
+                    'tokenId' => $token // The temporary token from the embedded component
+                ]),
+                'source' => 'web',
+                'methodDescription' => 'Main card'
+            ])
+        ]);
+
+        $tokenResult = $payabliClient->tokenStorage->addMethod($tokenRequest);
+        error_log("Token storage successful: " . ($tokenResult->isSuccess ? 'true' : 'false'));
+        
+        $storedMethodId = $tokenResult->responseData->referenceId ?? null;
+        if (empty($storedMethodId)) {
+            throw new InvalidArgumentException("Failed to get stored method ID from token storage response");
+        }
+        
+        error_log("Token stored successfully with ID: " . $storedMethodId);
+
+        // Step 2: Process payment using the stored method
+        $paymentRequest = new RequestPayment([
+            'body' => new TransRequestBody([
+                'customerData' => new PayorDataRequest([
+                    'customerId' => 4440
+                ]),
+                'entryPoint' => $entryPoint,
+                'ipaddress' => '255.255.255.255', // This should be dynamic based on request
+                'paymentDetails' => new PaymentDetail([
+                    'serviceFee' => 0.0,
+                    'totalAmount' => 100.0 // This should be dynamic based on your needs
+                ]),
+                'paymentMethod' => new PayMethodStoredMethod([
+                    'initiator' => 'payor',
+                    'method' => 'card',
+                    'storedMethodId' => $storedMethodId,
+                    'storedMethodUsageType' => 'unscheduled'
+                ])
+            ])
+        ]);
+
+        $paymentResult = $payabliClient->moneyIn->getpaid($paymentRequest);
+        error_log("Payment processed successfully: " . json_encode($paymentResult));
+        
+        // Extract reference ID from the response
+        $referenceId = $paymentResult->responseData->referenceId ?? 'Unknown';
+
+        http_response_code(200);
+        header('Content-Type: text/html');
+        echo '<input type="text" name="valid" value="✅ Payment processed! Reference ID: ' . htmlspecialchars($referenceId) . '" aria-invalid="false" readonly>';
+        
+    } catch (\Payabli\Exceptions\PayabliApiException $e) {
+        error_log("Payabli API Exception: " . $e->getMessage());
+        error_log("Response Body: " . $e->getBody());
+        
+        http_response_code(200);
+        header('Content-Type: text/html');
+        echo '<input type="text" name="invalid" value="❌ API Error: ' . htmlspecialchars($e->getMessage()) . '" aria-invalid="true" readonly>';
+        
+    } catch (\Payabli\Exceptions\PayabliException $e) {
+        error_log("Payabli Exception: " . $e->getMessage());
+        
+        http_response_code(200);
+        header('Content-Type: text/html');
+        echo '<input type="text" name="invalid" value="❌ SDK Error: ' . htmlspecialchars($e->getMessage()) . '" aria-invalid="true" readonly>';
+        
+    } catch (Exception $e) {
+        error_log("General Exception: " . $e->getMessage());
+        
+        http_response_code(200);
+        header('Content-Type: text/html');
+        echo '<input type="text" name="invalid" value="❌ Error: ' . htmlspecialchars($e->getMessage()) . '" aria-invalid="true" readonly>';
     }
 }

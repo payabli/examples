@@ -9,7 +9,7 @@
     "astro": "astro"
   },
   "dependencies": {
-    "@payabli/sdk-node": "^0.0.58-11",
+    "@payabli/sdk-node": "^0.0.114",
     "astro": "^5.7.13"
   }
 }

@@ -4,7 +4,7 @@ from fastapi import FastAPI, Request, Form, HTTPException
 from fastapi.responses import HTMLResponse
 from fastapi.staticfiles import StaticFiles
 from fastapi.templating import Jinja2Templates
-from payabli import payabli
+from payabli import payabli, PaymentDetail, PayMethodStoredMethod, PayorDataRequest, ConvertToken
 from payabli.core.api_error import ApiError
 from dotenv import load_dotenv
 
@@ -16,12 +16,16 @@ app = FastAPI(title="Payabli SDK Example", description="A basic example using th
 # Set up templates
 templates = Jinja2Templates(directory="templates")
 
+# Mount static files
+app.mount("/static", StaticFiles(directory="static"), name="static")
+
 # Initialize Payabli client
 api_key = os.getenv("PAYABLI_KEY")
 entry_point = os.getenv("PAYABLI_ENTRY")
+public_token = os.getenv("PAYABLI_PUBLIC_TOKEN")
 
-if not api_key or not entry_point:
-    raise ValueError("PAYABLI_KEY and PAYABLI_ENTRY must be set in environment variables")
+if not api_key or not entry_point or not public_token:
+    raise ValueError("PAYABLI_KEY, PAYABLI_ENTRY, and PAYABLI_PUBLIC_TOKEN must be set in environment variables")
 
 payabli_client = payabli(api_key=api_key)
 
@@ -34,6 +38,15 @@ async def create_customer_page(request: Request):
 async def list_customers_page(request: Request):
     """Render the list customers page."""
     return templates.TemplateResponse("list.html", {"request": request})
+
+@app.get("/transaction", response_class=HTMLResponse)
+async def make_transaction_page(request: Request):
+    """Render the make transaction page."""
+    return templates.TemplateResponse("transaction.html", {
+        "request": request,
+        "public_token": public_token,
+        "entry_point": entry_point
+    })
 
 @app.post("/api/create")
 async def create_customer(
@@ -203,6 +216,70 @@ async def delete_customer(customer_id: str):
             status_code=500
         )
 
+@app.post("/api/transaction/{token}")
+async def process_transaction(token: str):
+    """Convert a temporary token to a permanent token and process payment."""
+    try:
+        print(f"Converting temporary token to permanent: {token}")
+
+        # Step 1: Use token storage to convert temporary token to permanent
+        token_result = payabli_client.token_storage.add_method(
+            create_anonymous=True,
+            temporary=False,
+            customer_data=PayorDataRequest(
+                customer_id=4440,  # This should be dynamic based on your needs
+            ),
+            entry_point=entry_point,
+            payment_method=ConvertToken(
+                method="card",
+                token_id=token,  # The temporary token from the embedded component
+            ),
+            source="web",
+            method_description="Main card"
+        )
+        
+        stored_method_id = token_result.response_data.referenceId
+        print(f"Token stored successfully with ID: {stored_method_id}")
+        
+        # Step 2: Process payment using the stored method
+        payment_result = payabli_client.money_in.getpaid(
+            customer_data=PayorDataRequest(
+                customer_id=4440,
+            ),
+            entry_point=entry_point,
+            ipaddress="255.255.255.255",  # This should be dynamic based on request
+            payment_details=PaymentDetail(
+                service_fee=0.0,
+                total_amount=100.0,  # This should be dynamic based on your needs
+            ),
+            payment_method=PayMethodStoredMethod(
+                initiator="payor",
+                method="card",
+                stored_method_id=stored_method_id,
+                stored_method_usage_type="unscheduled",
+            ),
+        )
+        
+        print(f"Payment processed successfully: {payment_result}")
+        
+        return HTMLResponse(
+            content='<input type="text" name="valid" value="Payment processed successfully!" aria-invalid="false" readonly>',
+            status_code=200
+        )
+        
+    except ApiError as e:
+        print(f"API Error: {e}")
+        return HTMLResponse(
+            content=f'<input type="text" name="invalid" value="Payment failed: {str(e)}" aria-invalid="true" readonly>',
+            status_code=200
+        )
+    except Exception as e:
+        print(f"Unexpected error: {e}")
+        return HTMLResponse(
+            content='<input type="text" name="invalid" value="Error processing payment" aria-invalid="true" readonly>',
+            status_code=200
+        )
+
 if __name__ == "__main__":
     import uvicorn
-    uvicorn.run(app, host="0.0.0.0", port=8000, reload=True)
+    uvicorn.run("main:app", host="0.0.0.0", port=8000, reload=True)
