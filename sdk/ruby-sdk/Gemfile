@@ -1,0 +1,16 @@
+# frozen_string_literal: true
+
+source 'https://rubygems.org'
+
+# Use the local SDK
+gem 'payabli', path: '../../../fern-ruby-sdk'
+
+gem 'sinatra'
+gem 'thin'
+gem 'dotenv'
+
+group :development do
+  gem 'rerun'
+end
+gem "rackup", "~> 2.2"
+gem "puma", "~> 7.1"
