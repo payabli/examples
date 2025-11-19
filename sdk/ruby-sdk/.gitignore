@@ -1,0 +1,9 @@
+.env
+.bundle/
+vendor/
+log/
+*.pid
+*.gem
+tmp/
+.DS_Store
+Gemfile.lock
