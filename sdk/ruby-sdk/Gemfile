@@ -2,10 +2,8 @@
 
 source 'https://rubygems.org'
 
-# Use the local SDK
-gem 'payabli', path: '../../../fern-ruby-sdk'
-
 gem 'sinatra'
+gem 'payabli'
 gem 'thin'
 gem 'dotenv'
 
