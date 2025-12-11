@@ -1,4 +1,28 @@
 # frozen_string_literal: true
+require 'openssl'
+
+# Completely disable SSL verification for development
+OpenSSL::SSL::VERIFY_PEER = OpenSSL::SSL::VERIFY_NONE
+
+# Also set environment variables
+ENV['SSL_CERT_FILE'] = ''
+ENV['SSL_CERT_DIR'] = ''
+
+require 'net/http'
+
+# Monkey patch Net::HTTP to ignore SSL verification
+module Net
+  class HTTP
+    alias_method :original_request, :request
+    
+    def request(req, body = nil, &block)
+      if use_ssl?
+        self.verify_mode = OpenSSL::SSL::VERIFY_NONE
+      end
+      original_request(req, body, &block)
+    end
+  end
+end
 
 require 'sinatra'
 require 'json'
