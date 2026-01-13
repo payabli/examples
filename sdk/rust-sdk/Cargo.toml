@@ -1,0 +1,18 @@
+[package]
+name = "rust-sdk-example"
+version = "0.1.0"
+edition = "2021"
+
+[dependencies]
+payabli_api = { path = "../sdk-rust" }
+axum = "0.7"
+tokio = { version = "1", features = ["full"] }
+tower = "0.5"
+tower-http = { version = "0.6", features = ["fs", "trace"] }
+serde = { version = "1.0", features = ["derive"] }
+serde_json = "1.0"
+askama = "0.12"
+askama_axum = "0.4"
+dotenvy = "0.15"
+tracing = "0.1"
+tracing-subscriber = { version = "0.3", features = ["env-filter"] }
