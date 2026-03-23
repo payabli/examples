@@ -4,7 +4,7 @@ version = "0.1.0"
 edition = "2021"
 
 [dependencies]
-payabli_api = { path = "../sdk-rust" }
+payabli_api = "1.0.6"
 axum = "0.7"
 tokio = { version = "1", features = ["full"] }
 tower = "0.5"
