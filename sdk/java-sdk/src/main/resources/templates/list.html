@@ -27,12 +27,15 @@
     </main>
     
     <main class="container">
-        <article>
-            <header>
+        <div style="overflow-x: auto; width: 100%;">
+            <article style="display: inline-block; min-width: 100%; margin: 0; vertical-align: top;">
+            <header style="padding: 10px;">
                 <em><b>Customer List</b></em>
             </header>
-            <table hx-get="/api/list" hx-swap="outerHTML" hx-trigger="load" hx-indicator="#spinner"></table>
-        </article>
+            <table hx-get="/api/list" hx-swap="outerHTML" hx-trigger="load" hx-indicator="#spinner">
+                </table>
+            </article>
+        </div>
     </main>
     
     <div id="spinner" style="position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); width: 300px; height: 300px; display: flex; justify-content: center; align-items: center;" class="htmx-indicator">

@@ -33,7 +33,7 @@ export async function GET() {
   `).join('');
 
   const table = `
-    <table class="striped">
+    <table class="striped" style="overflow: hidden !important;">
       <thead>
         <tr>
           <th>First Name</th>
