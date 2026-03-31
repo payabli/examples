@@ -2,5 +2,7 @@
 **/.env
 **/.astro/
 **/node_modules/
+**/package-lock.json
+**/bun.lockb
 **/.git.bk/
 **/sdk-*/
