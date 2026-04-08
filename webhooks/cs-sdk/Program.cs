@@ -77,11 +77,6 @@ Console.ReadLine();
 
 await TriggerTransaction(client, entrypoint);
 
-// After the transaction fires, poll Payabli's notification delivery logs every
-// 15 seconds. This shows whether Payabli is attempting delivery (and the result)
-// or never attempting at all.
-_ = Task.Run(() => PollNotificationLogsAsync(client, ownerId));
-
 Console.WriteLine("\nWaiting for webhook event. Check your terminal for output when received.");
 
 // Block until the process is shut down (Ctrl+C).
@@ -207,50 +202,3 @@ static async Task TriggerTransaction(PayabliApiClient client, string entrypoint)
     }
 }
 
-// PollNotificationLogsAsync queries Payabli's notification delivery log every
-// 15 seconds after the transaction fires. This shows whether Payabli is
-// attempting webhook delivery, the target URL it is posting to, and whether
-// it succeeded or failed.
-static async Task PollNotificationLogsAsync(PayabliApiClient client, int ownerId)
-{
-    Console.WriteLine("\nPolling notification delivery logs every 15s (first check in 10s)...");
-    await Task.Delay(TimeSpan.FromSeconds(10));
-
-    using var timer = new PeriodicTimer(TimeSpan.FromSeconds(15));
-    do
-    {
-        var now = DateTime.UtcNow;
-        var start = now.AddMinutes(-10);
-
-        var request = new SearchNotificationLogsRequest
-        {
-            PageSize = 10,
-            Body = new NotificationLogSearchRequest
-            {
-                StartDate = start,
-                EndDate = now,
-                OrgId = (long)ownerId,
-                NotificationEvent = "ApprovedPayment"
-            }
-        };
-
-        try
-        {
-            var logs = (await client.Notificationlogs.SearchNotificationLogsAsync(request)).ToList();
-            if (logs.Count == 0)
-                Console.WriteLine("[Notification logs] No ApprovedPayment delivery attempts found in the last 10 minutes.");
-            else
-                foreach (var entry in logs)
-                    Console.WriteLine(
-                        $"[Notification logs] Delivery attempt: " +
-                        $"Id={entry.Id}, Target={entry.Target}, " +
-                        $"Event={entry.NotificationEvent}, Success={entry.Success}, " +
-                        $"ResponseStatus={entry.ResponseStatus}, " +
-                        $"CreatedDate={entry.CreatedDate:O}");
-        }
-        catch (Exception ex)
-        {
-            Console.WriteLine($"[Notification logs] Query error: {ex.Message}");
-        }
-    } while (await timer.WaitForNextTickAsync());
-}
