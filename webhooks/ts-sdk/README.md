@@ -5,7 +5,7 @@ End-to-end demonstration of receiving a Payabli `ApprovedPayment` webhook using 
 ## Prerequisites
 
 - Node.js ≥ 18 (native `fetch` required; tested on Node 22)
-- [ngrok](https://ngrok.com/) (or any tunnel that exposes a local port publicly)
+- A tunnel tool such as [`ngrok`](https://ngrok.com/), [`localhost.run`](https://localhost.run/), or another local environment forwarder
 - A Payabli sandbox API key, entrypoint token, and owner ID
 
 ## Setup
@@ -38,13 +38,12 @@ npm start
 The program will:
 
 1. Start a webhook server on `http://localhost:PORT/webhook`
-2. Ask you to paste your ngrok URL (`ngrok http PORT` in another terminal)
+2. Ask you to expose it publicly (via `ngrok`, `localhost.run`, or another local environment forwarder) and paste the URL
 3. Test that the tunnel is reachable
-4. Register an `ApprovedPayment` notification with Payabli pointing at your ngrok endpoint
+4. Register an `ApprovedPayment` notification with Payabli pointing at your tunnel endpoint
 5. Wait for you to press **ENTER**, then fire a `$1.00` test credit-card transaction
 6. Wait up to 30 seconds for Payabli to deliver the webhook and print the payload
 
 ## Notes
 
 - The notification is registered via a direct `fetch` call rather than the SDK's `addNotification` method. This is necessary because the SDK types `ownerId` as `string`, which would serialise to `"236"` in JSON. The Payabli API requires an integer (`236`), so we build the request body manually.
-- The credit card `4111111111111111` is a standard sandbox test card; no real charge is made.
