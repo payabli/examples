@@ -102,17 +102,17 @@ public class WebhookExample {
         server.start();
         System.out.printf("%nWebhook server listening on http://localhost:%d/webhook%n", port);
 
-        // ── Prompt for the ngrok URL ────────────────────────────────────────
-        System.out.printf("%nNow open a new terminal and run: ngrok http %d%n", port);
-        System.out.print("Paste your public Ngrok URL (e.g. https://xxxx.ngrok.io): ");
+        // ── Prompt for the tunnel URL ───────────────────────────────────────
+        System.out.printf("%nExpose your local server publicly (e.g. ngrok http %d, localhost.run, etc.)%n", port);
+        System.out.print("Paste your public tunnel URL (e.g. https://xxxx.ngrok-free.app): ");
         BufferedReader stdin = new BufferedReader(new InputStreamReader(System.in));
-        String ngrokUrl = stdin.readLine().trim();
+        String tunnelUrl = stdin.readLine().trim();
 
         // ── Verify the tunnel is reachable ─────────────────────────────────
-        testNgrokTunnel(ngrokUrl);
+        testTunnel(tunnelUrl);
 
         // ── Register the ApprovedPayment webhook with Payabli ───────────────
-        createWebhookNotification(apiKey, ngrokUrl, ownerId);
+        createWebhookNotification(apiKey, tunnelUrl, ownerId);
 
         // ── Wait for confirmation before sending a live transaction ─────────
         System.out.print("\nPress ENTER to trigger a test transaction and generate a webhook (or Ctrl+C to exit)...");
@@ -147,7 +147,7 @@ public class WebhookExample {
         webhookQueue.poll(3, TimeUnit.SECONDS);
 
         System.out.println("\nWaiting up to 30 seconds for Payabli webhook delivery...");
-        System.out.println("(Watch for '\u2192 POST /webhook' above — if it never appears, Payabli is not delivering to your ngrok URL)");
+        System.out.println("(Watch for '\u2192 POST /webhook' above \u2014 if it never appears, Payabli is not delivering to your tunnel URL)");
 
         // ── Print webhook payloads as they arrive ─────────────────────────
         String payload = webhookQueue.poll(30, TimeUnit.SECONDS);
@@ -155,9 +155,9 @@ public class WebhookExample {
             System.out.println("\nNo webhook received within 30 seconds.");
             System.out.println("Possible causes:");
             System.out.println("  1. The notification was not registered successfully — check 'Notification raw response' above.");
-            System.out.println("  2. The ngrok URL you pasted already included '/webhook' — target would be '.../webhook/webhook'.");
+            System.out.println("  2. The URL you pasted already included '/webhook' \u2014 target would be '.../webhook/webhook'.");
             System.out.println("  3. Payabli is delivering to a previously-registered notification's dead URL.");
-            System.out.println("  4. The ngrok tunnel expired before Payabli made the delivery.");
+            System.out.println("  4. The tunnel expired before Payabli made the delivery.");
         } else {
             System.out.printf("%nReceived webhook payload:%n%s%n",
                     payload.isEmpty() ? "(empty body)" : payload);
@@ -176,30 +176,28 @@ public class WebhookExample {
     // ── Helpers ────────────────────────────────────────────────────────────────
 
     /** POST a small test payload to the tunnel to confirm it is live. */
-    private static void testNgrokTunnel(String ngrokUrl) {
-        String base = ngrokUrl.replaceAll("/$", "");
+    private static void testTunnel(String tunnelUrl) {
+        String base = tunnelUrl.replaceAll("/$", "");
         if (base.endsWith("/webhook")) base = base.substring(0, base.length() - 8);
         String webhookUrl = base + "/webhook";
-        System.out.printf("%nTesting ngrok tunnel by POSTing to %s...%n", webhookUrl);
+        System.out.printf("%nTesting tunnel by POSTing to %s...%n", webhookUrl);
         try {
             HttpClient http = HttpClient.newHttpClient();
             HttpRequest req = HttpRequest.newBuilder()
                     .uri(URI.create(webhookUrl))
                     .header("Content-Type", "application/json")
-                    .header("ngrok-skip-browser-warning", "1")
                     .POST(HttpRequest.BodyPublishers.ofString("{\"test\":\"ping\"}"))
                     .build();
             HttpResponse<String> resp = http.send(req, HttpResponse.BodyHandlers.ofString());
             System.out.printf("Tunnel test response: HTTP %d%n", resp.statusCode());
         } catch (Exception e) {
-            System.err.printf("Tunnel test FAILED - ngrok may not be running or URL is wrong: %s%n",
+            System.err.printf("Tunnel test FAILED - tunnel may not be running or URL is wrong: %s%n",
                     e.getMessage());
         }
     }
 
     /**
-     * Register an ApprovedPayment webhook notification with Payabli targeting
-     * the ngrok-exposed /webhook endpoint.
+     * Register an ApprovedPayment webhook notification with Payabli.
      *
      * We build the JSON body manually via Jackson rather than using the SDK's
      * AddNotificationRequest builder, because the Java SDK types ownerId as
@@ -207,10 +205,9 @@ public class WebhookExample {
      * the integer (236) that the Payabli API requires.
      */
     private static void createWebhookNotification(String apiKey,
-                                                   String ngrokUrl,
+                                                   String tunnelUrl,
                                                    int ownerId) {
-        String webhookUrl = ngrokUrl.replaceAll("/$", "");
-        // Strip a trailing /webhook path if the user pasted the full endpoint URL.
+        String webhookUrl = tunnelUrl.replaceAll("/$", "");
         if (webhookUrl.endsWith("/webhook")) {
             webhookUrl = webhookUrl.substring(0, webhookUrl.length() - 8);
         }
@@ -220,12 +217,11 @@ public class WebhookExample {
         try {
             ObjectMapper mapper = new ObjectMapper();
 
-            // Build the request body, keeping ownerId as an integer.
             ObjectNode body = mapper.createObjectNode();
             body.putObject("content").put("eventType", "ApprovedPayment");
             body.put("frequency", "untilcancelled");
             body.put("method", "web");
-            body.put("ownerId", ownerId);        // integer — matches other SDKs
+            body.put("ownerId", ownerId);
             body.put("ownerType", 0);
             body.put("status", 1);
             body.put("target", webhookUrl);

@@ -24,9 +24,7 @@ WEBHOOK_QUEUE = Queue.new
 # ─── Sinatra webhook server ────────────────────────────────────────────────────
 
 class WebhookApp < Sinatra::Base
-  set :logging, false  # silence default request log; we print our own
-  # Disable Sinatra 4's host authorization so ngrok and other external
-  # hostnames are accepted.
+  set :logging, false
   set :host_authorization, { permitted_hosts: [] }
 
   before do
@@ -51,9 +49,9 @@ end
 # ─── Helper functions ─────────────────────────────────────────────────────────
 
 # POST a small test payload to the webhook URL to confirm the tunnel is live.
-def test_ngrok_tunnel(ngrok_url)
-  webhook_url = ngrok_url.chomp('/') + '/webhook'
-  puts "\nTesting ngrok tunnel by POSTing to #{webhook_url}..."
+def test_tunnel(tunnel_url)
+  webhook_url = tunnel_url.chomp('/') + '/webhook'
+  puts "\nTesting tunnel by POSTing to #{webhook_url}..."
 
   uri = URI(webhook_url)
   http = Net::HTTP.new(uri.host, uri.port)
@@ -63,34 +61,28 @@ def test_ngrok_tunnel(ngrok_url)
 
   req = Net::HTTP::Post.new(uri.path.empty? ? '/' : uri.path)
   req['Content-Type'] = 'application/json'
-  req['ngrok-skip-browser-warning'] = '1'
   req.body = '{"test":"ping"}'
 
   resp = http.request(req)
   puts "Tunnel test response: HTTP #{resp.code}"
 rescue => e
-  puts "Tunnel test FAILED - ngrok may not be running or URL is wrong: #{e.message}"
+  puts "Tunnel test FAILED - tunnel may not be running or URL is wrong: #{e.message}"
 end
 
 # Register an ApprovedPayment webhook notification with Payabli.
-def create_webhook_notification(api_key, ngrok_url, owner_id)
-  webhook_url = ngrok_url.chomp('/') + '/webhook'
+def create_webhook_notification(api_key, tunnel_url, owner_id)
+  webhook_url = tunnel_url.chomp('/') + '/webhook'
   puts "\nRegistering webhook notification with Payabli..."
   puts "Notification request: Target=#{webhook_url}, OwnerId=#{owner_id}"
 
   body = Payabli::Types::NotificationStandardRequest.new(
     content: Payabli::Types::NotificationStandardRequestContent.new(
-      # Fire this notification for every ApprovedPayment event.
       event_type: 'ApprovedPayment'
     ),
-    # Keep sending until manually cancelled.
     frequency: Payabli::Types::NotificationStandardRequestFrequency::UNTILCANCELLED,
-    # Deliver via HTTP POST.
     method_: Payabli::Types::NotificationStandardRequestMethod::WEB,
-    # 0 = Org owner type.
     owner_id: owner_id,
     owner_type: 0,
-    # 1 = Active.
     status: 1,
     target: webhook_url
   ).to_h
@@ -154,13 +146,11 @@ end
 sleep 0.5
 puts "\nWebhook server listening on http://localhost:#{PORT}/webhook"
 
-# Prompt the user to expose the local server through ngrok.
-puts "\nNow open a new terminal and run: ngrok http #{PORT}"
-print 'Paste your public Ngrok URL (e.g. https://xxxx.ngrok.io): '
-ngrok_url = $stdin.gets.to_s.strip
+puts "\nExpose your local server publicly (e.g. ngrok http #{PORT}, localhost.run, etc.)"
+print 'Paste your public tunnel URL (e.g. https://xxxx.ngrok-free.app): '
+tunnel_url = $stdin.gets.to_s.strip
 
-# Self-test the tunnel before registering with Payabli.
-test_ngrok_tunnel(ngrok_url)
+test_tunnel(tunnel_url)
 
 # Build the Payabli SDK client.
 client = Payabli::Client.new(
@@ -169,7 +159,7 @@ client = Payabli::Client.new(
 )
 
 # Register the ApprovedPayment notification so Payabli knows where to POST.
-create_webhook_notification(API_KEY, ngrok_url, OWNER_ID)
+create_webhook_notification(API_KEY, tunnel_url, OWNER_ID)
 
 # Wait for the user to confirm before firing a live transaction.
 print "\nPress ENTER to trigger a test transaction and generate a webhook (or Ctrl+C to exit)..."

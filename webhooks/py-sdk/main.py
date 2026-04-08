@@ -41,8 +41,6 @@ log.setLevel(logging.ERROR)
 
 @app.before_request
 def log_request():
-    """Log every incoming HTTP request so it is easy to see if Payabli delivers
-    to a path other than /webhook."""
     print(
         f"→ {request.method} {request.path} "
         f"(Content-Type: {request.content_type}, "
@@ -58,7 +56,6 @@ def index():
 
 @app.post("/webhook")
 def webhook():
-    """Receive a Payabli notification, print the raw body, and return 200 OK."""
     body = request.data.decode("utf-8", errors="replace")
     print(f"\nReceived webhook payload:\n{body if body else '(empty body)'}\n", flush=True)
     return "", 200
@@ -66,10 +63,9 @@ def webhook():
 
 # ----- Helper functions -----
 
-def test_ngrok_tunnel(ngrok_url: str) -> None:
-    """POST a small test payload to the webhook URL to confirm the tunnel is live."""
-    webhook_url = ngrok_url.rstrip("/") + "/webhook"
-    print(f"\nTesting ngrok tunnel by POSTing to {webhook_url}...")
+def test_tunnel(tunnel_url: str) -> None:
+    webhook_url = tunnel_url.rstrip("/") + "/webhook"
+    print(f"\nTesting tunnel by POSTing to {webhook_url}...")
     try:
         resp = requests.post(
             webhook_url,
@@ -78,12 +74,11 @@ def test_ngrok_tunnel(ngrok_url: str) -> None:
         )
         print(f"Tunnel test response: HTTP {resp.status_code}")
     except Exception as e:
-        print(f"Tunnel test FAILED - ngrok may not be running or URL is wrong: {e}")
+        print(f"Tunnel test FAILED - tunnel may not be running or URL is wrong: {e}")
 
 
-def create_webhook_notification(client: payabli.payabli, ngrok_url: str, owner_id: int) -> None:
-    """Register an ApprovedPayment webhook notification with Payabli."""
-    webhook_url = ngrok_url.rstrip("/") + "/webhook"
+def create_webhook_notification(client: payabli.payabli, tunnel_url: str, owner_id: int) -> None:
+    webhook_url = tunnel_url.rstrip("/") + "/webhook"
     print("\nRegistering webhook notification with Payabli...")
     print(f"Notification request: Target={webhook_url}, OwnerId={owner_id}")
 
@@ -91,22 +86,16 @@ def create_webhook_notification(client: payabli.payabli, ngrok_url: str, owner_i
         response = client.notification.add_notification(
             request=NotificationStandardRequest(
                 content=NotificationStandardRequestContent(
-                    # Fire this notification for every ApprovedPayment event.
                     event_type="ApprovedPayment",
                 ),
-                # Keep sending until manually cancelled.
                 frequency="untilcancelled",
-                # Deliver via HTTP POST.
                 method="web",
-                # 0 = Org owner type.
                 owner_id=owner_id,
                 owner_type=0,
-                # 1 = Active.
                 status=1,
                 target=webhook_url,
             )
         )
-        # ResponseData holds the new notification ID (an int).
         print(
             f"Webhook registered: IsSuccess={response.is_success}, "
             f"ResponseCode={response.response_code}, "
@@ -117,7 +106,6 @@ def create_webhook_notification(client: payabli.payabli, ngrok_url: str, owner_i
 
 
 def trigger_transaction(client: payabli.payabli, entrypoint: str) -> None:
-    """Send a test $1.00 credit card transaction to generate an ApprovedPayment event."""
     print("\nTriggering a test transaction to generate webhook...")
     print(f"Transaction request: EntryPoint={entrypoint}, Amount=1.00")
 
@@ -158,16 +146,14 @@ def main() -> None:
     time.sleep(0.5)
     print(f"\nWebhook server listening on http://localhost:{PORT}/webhook")
 
-    # Prompt the user to expose the local server through ngrok.
-    print(f"\nNow open a new terminal and run: ngrok http {PORT}")
-    ngrok_url = input("Paste your public Ngrok URL (e.g. https://xxxx.ngrok.io): ").strip()
+    print(f"\nExpose your local server publicly (e.g. ngrok http {PORT}, localhost.run, etc.)")
+    tunnel_url = input("Paste your public tunnel URL (e.g. https://xxxx.ngrok-free.app): ").strip()
 
-    test_ngrok_tunnel(ngrok_url)
+    test_tunnel(tunnel_url)
 
-    # Build the Payabli SDK client.
     client = payabli.payabli(api_key=API_KEY)
 
-    create_webhook_notification(client, ngrok_url, OWNER_ID)
+    create_webhook_notification(client, tunnel_url, OWNER_ID)
 
     input("\nPress ENTER to trigger a test transaction and generate a webhook (or Ctrl+C to exit)...")
     trigger_transaction(client, ENTRYPOINT)

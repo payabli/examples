@@ -1,15 +1,3 @@
-/**
- * Payabli Webhook Example – Rust / payabli_api
- *
- * Flow:
- *  1. Start a local HTTP server on PORT (default 3000).
- *  2. Prompt for a public ngrok URL and verify the tunnel is live.
- *  3. Register an ApprovedPayment webhook notification via the SDK.
- *     (The Rust SDK serialises Ownerid(i64) as a JSON integer, so no bypass needed.)
- *  4. Wait for confirmation, then fire a $1.00 test transaction via the SDK.
- *  5. Self-test the server/channel to confirm the local plumbing works.
- *  6. Wait up to 30 s for Payabli to deliver the webhook and print the payload.
- */
 use axum::{Router, extract::State, routing::{get, post}};
 use axum::body::Bytes;
 use dotenv::dotenv;
@@ -48,23 +36,22 @@ fn prompt(message: &str) -> String {
 }
 
 /// POST a small test payload to the tunnel to confirm it is live.
-async fn test_ngrok_tunnel(webhook_url: &str) {
-    println!("\nTesting ngrok tunnel by POSTing to {}...", webhook_url);
+async fn test_tunnel(webhook_url: &str) {
+    println!("\nTesting tunnel by POSTing to {}...", webhook_url);
     let client = HttpClient::new();
     match client
         .post(webhook_url)
         .header("Content-Type", "application/json")
-        .header("ngrok-skip-browser-warning", "1")
         .body(r#"{"test":"ping"}"#)
         .send()
         .await
     {
         Ok(resp) => println!("Tunnel test response: HTTP {}", resp.status()),
-        Err(e) => eprintln!("Tunnel test FAILED – ngrok may not be running or URL is wrong: {e}"),
+        Err(e) => eprintln!("Tunnel test FAILED – tunnel may not be running or URL is wrong: {e}"),
     }
 }
 
-/// Register an ApprovedPayment notification pointing at the ngrok endpoint.
+/// Register an ApprovedPayment notification pointing at the exposed /webhook endpoint.
 async fn create_webhook_notification(
     client: &ApiClient,
     base_url: &str,
@@ -89,7 +76,7 @@ async fn create_webhook_notification(
             }),
             frequency: NotificationStandardRequestFrequency::Untilcancelled,
             method: NotificationStandardRequestMethod::Web,
-            owner_id: Some(Ownerid(owner_id)), // i64 → serialises as integer in JSON
+            owner_id: Some(Ownerid(owner_id)),
             owner_type: Ownertype(0),
             status: Some(Statusnotification(1)),
             target: webhook_url.clone(),
@@ -230,9 +217,9 @@ async fn main() {
             .expect("Server error");
     });
 
-    // ── Prompt for ngrok URL ───────────────────────────────────────────────
-    println!("\nNow open a new terminal and run: ngrok http {}", port);
-    let raw_url = prompt("Paste your public Ngrok URL (e.g. https://xxxx.ngrok.io): ");
+    // ── Prompt for tunnel URL ──────────────────────────────────────────────
+    println!("\nExpose your local server publicly (e.g. ngrok http {}, localhost.run, etc.)", port);
+    let raw_url = prompt("Paste your public tunnel URL (e.g. https://xxxx.ngrok-free.app): ");
     let mut base_url = raw_url.trim_end_matches('/').to_string();
     if base_url.ends_with("/webhook") {
         base_url.truncate(base_url.len() - 8);
@@ -246,7 +233,7 @@ async fn main() {
     let client = ApiClient::new(config).expect("Failed to build Payabli client");
 
     // ── Verify the tunnel is reachable ─────────────────────────────────────
-    test_ngrok_tunnel(&format!("{}/webhook", base_url)).await;
+    test_tunnel(&format!("{}/webhook", base_url)).await;
 
     // ── Register the ApprovedPayment webhook ───────────────────────────────
     create_webhook_notification(&client, &base_url, owner_id).await;
@@ -285,7 +272,7 @@ async fn main() {
     }
 
     println!("\nWaiting up to 30 seconds for Payabli webhook delivery...");
-    println!("(Watch for '-> POST /webhook' in the server logs above - if it never appears, Payabli is not delivering to your ngrok URL)");
+    println!("(Watch for '-> POST /webhook' in the server logs above - if it never appears, Payabli is not delivering to your tunnel URL)");
 
     // ── Wait for the real webhook ──────────────────────────────────────────
     match timeout(Duration::from_secs(30), rx.recv()).await {
@@ -311,9 +298,9 @@ async fn main() {
             println!("\nNo webhook received within 30 seconds.");
             println!("Possible causes:");
             println!("  1. The notification was not registered successfully - check the output above.");
-            println!("  2. The ngrok URL you pasted already included '/webhook' - target would be '.../webhook/webhook'.");
+            println!("  2. The URL you pasted already included '/webhook' - target would be '.../webhook/webhook'.");
             println!("  3. Payabli is delivering to a previously-registered notification's dead URL.");
-            println!("  4. The ngrok tunnel expired before Payabli made the delivery.");
+            println!("  4. The tunnel expired before Payabli made the delivery.");
         }
     }
 }

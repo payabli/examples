@@ -27,8 +27,7 @@ builder.Logging.ClearProviders();
 
 var app = builder.Build();
 
-// Request logger middleware — logs every incoming HTTP request so it is easy
-// to see if Payabli delivers to a path other than /webhook.
+// Request logger middleware — logs every incoming HTTP request.
 app.Use(async (ctx, next) =>
 {
     Console.WriteLine(
@@ -42,7 +41,7 @@ app.Use(async (ctx, next) =>
 app.MapGet("/", () => "Payabli Webhook Test");
 
 // POST /webhook — receives the Payabli notification, prints the raw body,
-// and returns HTTP 200 OK so Payabli knows the delivery succeeded.
+// and returns HTTP 200 OK.
 app.MapPost("/webhook", async (HttpContext ctx) =>
 {
     using var reader = new StreamReader(ctx.Request.Body);
@@ -58,18 +57,18 @@ Console.WriteLine($"\nWebhook server listening on http://localhost:{port}/webhoo
 
 // --- Interactive setup ---
 
-Console.WriteLine($"\nNow open a new terminal and run: ngrok http {port}");
-Console.Write("Paste your public Ngrok URL (e.g. https://xxxx.ngrok.io): ");
-var ngrokUrl = (Console.ReadLine() ?? "").Trim();
+Console.WriteLine($"\nExpose your local server publicly (e.g. ngrok http {port}, localhost.run, etc.)");
+Console.Write("Paste your public tunnel URL (e.g. https://xxxx.ngrok-free.app): ");
+var tunnelUrl = (Console.ReadLine() ?? "").Trim();
 
 // Self-test the tunnel before registering with Payabli.
-await TestNgrokTunnel(ngrokUrl);
+await TestTunnel(tunnelUrl);
 
 // Build the Payabli SDK client using the API key from .env.
 var client = new PayabliApiClient(apiKey);
 
 // Register the ApprovedPayment notification so Payabli knows where to POST.
-await CreateWebhookNotification(client, ngrokUrl, ownerId);
+await CreateWebhookNotification(client, tunnelUrl, ownerId);
 
 // Wait for the user to confirm before firing a live transaction.
 Console.Write("\nPress ENTER to trigger a test transaction and generate a webhook (or Ctrl+C to exit)...");
@@ -85,12 +84,12 @@ await app.WaitForShutdownAsync();
 
 // ---- Helper methods ----
 
-// TestNgrokTunnel POSTs a small test payload to the webhook URL to confirm
-// the ngrok tunnel is reachable before registering with Payabli.
-static async Task TestNgrokTunnel(string ngrokUrl)
+// TestTunnel POSTs a small test payload to the webhook URL to confirm
+// the tunnel is reachable before registering with Payabli.
+static async Task TestTunnel(string tunnelUrl)
 {
-    var webhookUrl = ngrokUrl.TrimEnd('/') + "/webhook";
-    Console.WriteLine($"\nTesting ngrok tunnel by POSTing to {webhookUrl}...");
+    var webhookUrl = tunnelUrl.TrimEnd('/') + "/webhook";
+    Console.WriteLine($"\nTesting tunnel by POSTing to {webhookUrl}...");
 
     using var http = new HttpClient();
     try
@@ -102,32 +101,27 @@ static async Task TestNgrokTunnel(string ngrokUrl)
     }
     catch (Exception ex)
     {
-        Console.WriteLine($"Tunnel test FAILED - ngrok may not be running or URL is wrong: {ex.Message}");
+        Console.WriteLine($"Tunnel test FAILED - tunnel may not be running or URL is wrong: {ex.Message}");
     }
 }
 
 // CreateWebhookNotification registers an ApprovedPayment webhook notification
-// with Payabli, pointing at the ngrok-exposed /webhook endpoint.
-static async Task CreateWebhookNotification(PayabliApiClient client, string ngrokUrl, int ownerId)
+// with Payabli, pointing at the exposed /webhook endpoint.
+static async Task CreateWebhookNotification(PayabliApiClient client, string tunnelUrl, int ownerId)
 {
-    var webhookUrl = ngrokUrl.TrimEnd('/') + "/webhook";
+    var webhookUrl = tunnelUrl.TrimEnd('/') + "/webhook";
     Console.WriteLine("\nRegistering webhook notification with Payabli...");
 
     var request = new NotificationStandardRequest
     {
         Content = new NotificationStandardRequestContent
         {
-            // Fire this notification for every ApprovedPayment event.
             EventType = NotificationStandardRequestContentEventType.ApprovedPayment
         },
-        // Keep sending until manually cancelled.
         Frequency = NotificationStandardRequestFrequency.Untilcancelled,
-        // Deliver via HTTP POST.
         Method = NotificationStandardRequestMethod.Web,
-        // 0 = Org owner type.
         OwnerId = ownerId,
         OwnerType = 0,
-        // 1 = Active.
         Status = 1,
         Target = webhookUrl
     };

@@ -70,10 +70,10 @@ function prompt(string $message): string
 // ─── Payabli API helpers ──────────────────────────────────────────────────────
 
 /** POST a small test payload to the webhook URL to confirm the tunnel is live. */
-function testNgrokTunnel(string $ngrokUrl): void
+function testTunnel(string $tunnelUrl): void
 {
-    $webhookUrl = rtrim($ngrokUrl, '/') . '/webhook';
-    echo "\nTesting ngrok tunnel by POSTing to {$webhookUrl}...\n";
+    $webhookUrl = rtrim($tunnelUrl, '/') . '/webhook';
+    echo "\nTesting tunnel by POSTing to {$webhookUrl}...\n";
 
     $ch = curl_init($webhookUrl);
     curl_setopt_array($ch, [
@@ -88,7 +88,7 @@ function testNgrokTunnel(string $ngrokUrl): void
     if ($result === false) {
         $err = curl_error($ch);
         curl_close($ch);
-        echo "Tunnel test FAILED - ngrok may not be running or URL is wrong: {$err}\n";
+        echo "Tunnel test FAILED - tunnel may not be running or URL is wrong: {$err}\n";
         return;
     }
     $httpCode = (int)curl_getinfo($ch, CURLINFO_HTTP_CODE);
@@ -98,11 +98,11 @@ function testNgrokTunnel(string $ngrokUrl): void
 
 /**
  * Register an ApprovedPayment webhook notification with Payabli, pointing at
- * the ngrok-exposed /webhook endpoint.
+ * the exposed /webhook endpoint.
  */
-function createWebhookNotification(PayabliClient $client, string $ngrokUrl, int $ownerId): void
+function createWebhookNotification(PayabliClient $client, string $tunnelUrl, int $ownerId): void
 {
-    $webhookUrl = rtrim($ngrokUrl, '/') . '/webhook';
+    $webhookUrl = rtrim($tunnelUrl, '/') . '/webhook';
     echo "\nRegistering webhook notification with Payabli...\n";
     echo "Notification request: Target={$webhookUrl}, OwnerId={$ownerId}\n";
 
@@ -110,17 +110,12 @@ function createWebhookNotification(PayabliClient $client, string $ngrokUrl, int 
         $response = $client->notification->addNotification(
             new NotificationStandardRequest([
                 'content'   => new NotificationStandardRequestContent([
-                    // Fire this notification for every ApprovedPayment event.
                     'eventType' => 'ApprovedPayment',
                 ]),
-                // Keep sending until manually cancelled.
                 'frequency' => 'untilcancelled',
-                // Deliver via HTTP POST.
                 'method'    => 'web',
-                // 0 = Org owner type.
                 'ownerId'   => (string)$ownerId,
                 'ownerType' => 0,
-                // 1 = Active.
                 'status'    => 1,
                 'target'    => $webhookUrl,
             ])
@@ -225,18 +220,17 @@ usleep(500_000);
 
 echo "\nWebhook server listening on http://localhost:{$port}/webhook\n";
 
-// Prompt the user to expose the local server through ngrok.
-echo "\nNow open a new terminal and run: ngrok http {$port}\n";
-$ngrokUrl = prompt("Paste your public Ngrok URL (e.g. https://xxxx.ngrok.io): ");
+echo "\nExpose your local server publicly (e.g. ngrok http {$port}, localhost.run, etc.)\n";
+$tunnelUrl = prompt("Paste your public tunnel URL (e.g. https://xxxx.ngrok-free.app): ");
 
 // Self-test the tunnel to confirm end-to-end connectivity before registering.
-testNgrokTunnel($ngrokUrl);
+testTunnel($tunnelUrl);
 
 // Build the Payabli SDK client using the API key from .env.
 $client = new PayabliClient($apiKey);
 
 // Register the ApprovedPayment notification so Payabli knows where to POST.
-createWebhookNotification($client, $ngrokUrl, $ownerId);
+createWebhookNotification($client, $tunnelUrl, $ownerId);
 
 // Wait for the user to confirm before firing a real test transaction.
 prompt("\nPress ENTER to trigger a test transaction and generate a webhook (or Ctrl+C to exit)...");

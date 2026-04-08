@@ -1,10 +1,10 @@
-# Payabli Webhook Example — Ruby SDK
+# Payabli Webhook Example — Rust SDK
 
-Demonstrates the full Payabli webhook quickstart flow using the [Payabli Ruby SDK](https://rubygems.org/gems/payabli).
+Demonstrates the full Payabli webhook quickstart flow using the [Payabli Rust SDK](https://crates.io/crates/payabli_api).
 
 ## What it does
 
-1. Starts a local Sinatra server to receive webhook POSTs at `/webhook`
+1. Starts a local HTTP server to receive webhook POSTs at `/webhook`
 2. Prompts you to expose it publicly via `ngrok`, `localhost.run`, or another local environment forwarder
 3. POSTs a test ping to verify the tunnel is live
 4. Registers an `ApprovedPayment` webhook notification with Payabli, targeting your tunnel URL
@@ -13,16 +13,13 @@ Demonstrates the full Payabli webhook quickstart flow using the [Payabli Ruby SD
 
 ## Prerequisites
 
-- Ruby 3.1+
-- [Bundler](https://bundler.io)
+- Rust 1.75+ (with Cargo)
 - A [Payabli API key](https://docs.payabli.com)
 - A tunnel tool such as [`ngrok`](https://ngrok.com/), [`localhost.run`](https://localhost.run/), or another local environment forwarder
 
 ## Setup
 
 ```bash
-bundle install
-
 cp .env.example .env
 # Fill in PAYABLI_KEY, PAYABLI_ENTRY, and OWNER_ID in .env
 ```
@@ -30,7 +27,7 @@ cp .env.example .env
 ## Run
 
 ```bash
-ruby main.rb
+cargo run
 ```
 
 When prompted, paste the public HTTPS URL from your tunnel tool.
