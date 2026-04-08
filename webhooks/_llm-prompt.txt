@@ -1,0 +1,49 @@
+Create a super basic default CLI application in the following languages:
+- Python
+- PHP
+- TypeScript (Node.js)
+- Rust
+- Ruby
+- Go
+- Java
+- C#
+
+Go one at a time and don't proceed until the next until you hear from me.
+Here's the idea. We need to create example applications in the following languages
+that showcase how to use the Payabli SDKs with Payabli webhooks.
+
+Check out the SDK references for each Payabli SDK at the link pattern here:
+`github.com/payabli/sdk-{language}/tree/main/reference.md`
+(also check their READMEs for installation instructions)
+Additionally, check their overview pages on Payabli's docs:
+https://docs.payabli.com/developers/platform-sdk-typescript-guide.md
+(Swap the language in the URL for the appropriate one)
+
+Basically, it will be based around Ngrok using the webhook quickstart doc here:
+https://docs.payabli.com/guides/pay-ops-developer-webhooks-quickstart
+
+The SDK references contain up-to-date types and methods for how to use all methods.
+You can basically mirror the structure of the webhook quickstart.
+Caveat: the webhook PAYLOADS themselves are NOT typed in the SDKs.
+You will need to reference the quickstart and/or the webhook payloads doc here:
+https://docs.payabli.com/guides/pay-ops-webhooks-payloads#approvedpayment
+(this is for the one webhook we want to test around, ApprovedPayment)
+
+The idea is that the example app should be able to do the webhook quickstart's flow in each language/SDK.
+It should be done for you. 
+All code should be well-documented, clear, and easy to understand for developers.
+It should be commented to explain what's going on and follow good SWE best practices.
+Use clear names and symbols and keywords to make it easy to understand. 
+Please use language-idiomatic patterns (error-handling, etc).
+
+Now begin.
+
+
+Structure:
+1. run CLI 
+2. serve on localhost
+3. Prompt for ngrok exposure's URL
+4. Input, it runs a quick ping test
+5. creates a `ApprovedPayment` notification using that ngrok URL
+6. waits for enter key to run a transaction to test that the webhook comes through
+7. outputs webhook response and returns 200 OK to webhook to log as received in API
