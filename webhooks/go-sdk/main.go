@@ -154,45 +154,6 @@ func triggerTransaction(c *payabliclient.Client, entrypoint string) {
 	fmt.Printf("Transaction sent: %+v\n", resp)
 }
 
-// pollNotificationLogs queries Payabli's notification delivery log every 15 seconds
-// after a transaction is triggered. This shows whether Payabli is attempting webhook
-// delivery, the target URL it's posting to, and whether it succeeded or failed.
-func pollNotificationLogs(c *payabliclient.Client, ownerID int) {
-	fmt.Println("\nPolling notification delivery logs every 15s (first check in 10s)...")
-	time.Sleep(10 * time.Second)
-
-	ticker := time.NewTicker(15 * time.Second)
-	defer ticker.Stop()
-
-	for {
-		now := time.Now().UTC()
-		start := now.Add(-10 * time.Minute)
-
-		req := &payabli.SearchNotificationLogsRequest{
-			PageSize: payabli.Int(10),
-			Body: &payabli.NotificationLogSearchRequest{
-				StartDate:         payabli.MustParseDateTime(start.Format(time.RFC3339)),
-				EndDate:           payabli.MustParseDateTime(now.Format(time.RFC3339)),
-				OrgId:             payabli.Int64(int64(ownerID)),
-				NotificationEvent: payabli.String("ApprovedPayment"),
-			},
-		}
-
-		logs, err := c.Notificationlogs.SearchNotificationLogs(context.Background(), req)
-		if err != nil {
-			log.Printf("Notification log query error: %v", err)
-		} else if len(logs) == 0 {
-			log.Printf("No ApprovedPayment delivery attempts found in the last 10 minutes.")
-		} else {
-			for _, entry := range logs {
-				log.Printf("Notification delivery attempt: %+v", entry)
-			}
-		}
-
-		<-ticker.C
-	}
-}
-
 func main() {
 	// Load environment variables from the .env file.
 	if err := godotenv.Load(); err != nil {
@@ -262,11 +223,6 @@ func main() {
 	// Wait for the user to confirm before firing a real test transaction.
 	prompt("\nPress ENTER to trigger a test transaction and generate a webhook (or Ctrl+C to exit)...")
 	triggerTransaction(c, entrypoint)
-
-	// After the transaction fires, poll Payabli's notification delivery logs every
-	// 15 seconds. This tells us immediately whether Payabli is attempting delivery
-	// (and the result) or never trying at all.
-	go pollNotificationLogs(c, ownerID)
 
 	fmt.Println("\nWaiting for webhook event. Check your terminal for output when received.")
 
