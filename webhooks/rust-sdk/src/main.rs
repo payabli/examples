@@ -1,24 +1,44 @@
-use axum::{routing::{get, post}, Router};
-use std::env;
+/**
+ * Payabli Webhook Example – Rust / payabli_api
+ *
+ * Flow:
+ *  1. Start a local HTTP server on PORT (default 3000).
+ *  2. Prompt for a public ngrok URL and verify the tunnel is live.
+ *  3. Register an ApprovedPayment webhook notification via the SDK.
+ *     (The Rust SDK serialises Ownerid(i64) as a JSON integer, so no bypass needed.)
+ *  4. Wait for confirmation, then fire a $1.00 test transaction via the SDK.
+ *  5. Self-test the server/channel to confirm the local plumbing works.
+ *  6. Wait up to 30 s for Payabli to deliver the webhook and print the payload.
+ */
+use axum::{Router, extract::State, routing::{get, post}};
+use axum::body::Bytes;
 use dotenv::dotenv;
-use std::io::{self, Write};
 use payabli_api::prelude::*;
 use reqwest::Client as HttpClient;
+use std::env;
+use std::io::{self, Write};
+use tokio::sync::mpsc;
+use tokio::time::{Duration, timeout};
 
+// ── Shared state passed into the axum handler ──────────────────────────────
+#[derive(Clone)]
+struct AppState {
+    tx: mpsc::UnboundedSender<String>,
+}
 
-
-/// Handles GET requests to / and returns a simple status message.
 async fn index_handler() -> &'static str {
     "Payabli Webhook Test"
 }
 
-/// Handles incoming POST requests to /webhook.
-async fn webhook_handler(body: axum::body::Bytes) {
-    println!("\nReceived webhook payload:");
-    println!("{}", String::from_utf8_lossy(&body));
+async fn webhook_handler(State(state): State<AppState>, body: Bytes) {
+    let payload = String::from_utf8_lossy(&body).to_string();
+    println!(
+        "[webhook handler] received {} bytes, pushing to queue",
+        payload.len()
+    );
+    let _ = state.tx.send(payload);
 }
 
-/// Prompt the user for input with a message and return the input string.
 fn prompt(message: &str) -> String {
     print!("{}", message);
     io::stdout().flush().unwrap();
@@ -27,56 +47,85 @@ fn prompt(message: &str) -> String {
     input.trim().to_string()
 }
 
-/// Verify the ngrok tunnel is working by POSTing a test payload to the webhook URL.
-async fn test_ngrok_tunnel(ngrok_url: &str) {
-    let webhook_url = format!("{}/webhook", ngrok_url.trim_end_matches('/'));
+/// POST a small test payload to the tunnel to confirm it is live.
+async fn test_ngrok_tunnel(webhook_url: &str) {
     println!("\nTesting ngrok tunnel by POSTing to {}...", webhook_url);
     let client = HttpClient::new();
     match client
-        .post(&webhook_url)
+        .post(webhook_url)
         .header("Content-Type", "application/json")
-        .body(r#"{"test":"ping"}"}"#)
+        .header("ngrok-skip-browser-warning", "1")
+        .body(r#"{"test":"ping"}"#)
         .send()
         .await
     {
         Ok(resp) => println!("Tunnel test response: HTTP {}", resp.status()),
-        Err(e) => eprintln!("Tunnel test FAILED - ngrok may not be running or URL is wrong: {e}"),
+        Err(e) => eprintln!("Tunnel test FAILED – ngrok may not be running or URL is wrong: {e}"),
     }
 }
 
-/// Register a webhook notification with Payabli for ApprovedPayment events.
-async fn create_webhook_notification(client: &ApiClient, ngrok_url: &str, entrypoint: &str, owner_id: i64) {
-    let _ = entrypoint; // silence unused variable warning
+/// Register an ApprovedPayment notification pointing at the ngrok endpoint.
+async fn create_webhook_notification(
+    client: &ApiClient,
+    base_url: &str,
+    owner_id: i64,
+) {
+    let webhook_url = format!("{}/webhook", base_url);
     println!("\nRegistering webhook notification with Payabli...");
-    let webhook_url = format!("{}/webhook", ngrok_url.trim_end_matches('/'));
-        let request = AddNotificationRequest::NotificationStandardRequest(NotificationStandardRequest {
+    println!(
+        "Notification request: Target={}, OwnerId={}",
+        webhook_url, owner_id
+    );
+
+    let request =
+        AddNotificationRequest::NotificationStandardRequest(NotificationStandardRequest {
             content: Some(NotificationStandardRequestContent {
-                event_type: Some(NotificationStandardRequestContentEventType::ApprovedPayment),
+                event_type: Some(
+                    NotificationStandardRequestContentEventType::ApprovedPayment,
+                ),
                 internal_data: None,
                 transaction_id: None,
                 web_header_parameters: None,
             }),
             frequency: NotificationStandardRequestFrequency::Untilcancelled,
             method: NotificationStandardRequestMethod::Web,
-            owner_id: Some(Ownerid(owner_id)), // Use owner_id from parameter
-            owner_type: Ownertype(0), // 0 = Org, 2 = Paypoint (default: Paypoint)
-            status: Some(Statusnotification(1)), // 1 = Active
+            owner_id: Some(Ownerid(owner_id)), // i64 → serialises as integer in JSON
+            owner_type: Ownertype(0),
+            status: Some(Statusnotification(1)),
             target: webhook_url.clone(),
         });
-    println!("Notification request body: {:#?}", request);
+
+    if let Ok(json) = serde_json::to_string(&request) {
+        println!("Notification request body: {}", json);
+    }
+
     match client.notification.add_notification(&request, None).await {
-        Ok(resp) => println!("Webhook registered: {:#?}", resp),
-        Err(e) => {
-            eprintln!("Failed to register webhook: {e:?}");
-            // Print debug info for troubleshooting
-            eprintln!("Request sent: {:#?}", request);
+        Ok(resp) => {
+            println!(
+                "Webhook registered: IsSuccess={:?}, ResponseCode={:?}, NotificationId={:?}",
+                resp.is_success, resp.response_code, resp.response_data
+            );
+            if !resp.is_success.map(|s| s.0).unwrap_or(false) {
+                eprintln!(
+                    "WARNING: Notification registration failed – ResponseText: {:?}",
+                    resp.response_text
+                );
+                eprintln!(
+                    "No webhook will be delivered. Check your PAYABLI_KEY, OWNER_ID, and PAYABLI_ENTRY."
+                );
+            }
         }
+        Err(e) => eprintln!("Failed to register webhook: {e:?}"),
     }
 }
 
-/// Trigger a test transaction to generate an ApprovedPayment webhook.
+/// Send a test $1.00 credit-card transaction against the configured entrypoint.
 async fn trigger_transaction(client: &ApiClient, entrypoint: &str) {
     println!("\nTriggering a test transaction to generate webhook...");
+    println!(
+        "Transaction request: EntryPoint={}, Amount=1.00",
+        entrypoint
+    );
     let req = GetpaidRequest {
         body: TransRequestBody {
             account_id: None,
@@ -136,64 +185,135 @@ async fn trigger_transaction(client: &ApiClient, entrypoint: &str) {
         force_customer_creation: None,
         include_details: None,
     };
-    println!("Transaction request body: {:#?}", req);
     match client.money_in.getpaid(&req, None).await {
-        Ok(resp) => println!("Transaction sent: {:#?}", resp),
+        Ok(resp) => println!("Transaction response: {:#?}", resp),
         Err(e) => eprintln!("Failed to trigger transaction: {e:?}"),
     }
 }
 
+// ── Main ───────────────────────────────────────────────────────────────────
+
 #[tokio::main]
 async fn main() {
     dotenv().ok();
-    let port = env::var("PORT").unwrap_or_else(|_| "3000".to_string());
+
     let api_key = env::var("PAYABLI_KEY").expect("PAYABLI_KEY missing in .env");
     let entrypoint = env::var("PAYABLI_ENTRY").expect("PAYABLI_ENTRY missing in .env");
-        // Load OWNER_ID from .env
-        let owner_id: u64 = env::var("OWNER_ID")
-            .expect("OWNER_ID missing in .env")
-            .parse()
-            .expect("OWNER_ID must be a valid integer");
+    let owner_id: i64 = env::var("OWNER_ID")
+        .expect("OWNER_ID missing in .env")
+        .parse()
+        .expect("OWNER_ID must be a valid integer");
+    let port: u16 = env::var("PORT")
+        .unwrap_or_else(|_| "3000".to_string())
+        .parse()
+        .expect("PORT must be a valid number");
 
-    // Start webhook server in background FIRST
-    let server_port = port.clone();
-    let server = tokio::spawn(async move {
-        let app = Router::new().route("/", get(index_handler)).route("/webhook", post(webhook_handler));
-        let addr: std::net::SocketAddr = format!("0.0.0.0:{}", server_port).parse().unwrap();
-        let listener = tokio::net::TcpListener::bind(addr).await.expect("Failed to bind TcpListener");
-        println!("\nWebhook server listening on http://localhost:{}/webhook", server_port);
+    // ── Channel: handler → main ────────────────────────────────────────────
+    let (tx, mut rx) = mpsc::unbounded_channel::<String>();
+    let state = AppState { tx };
+
+    // ── Start the HTTP server ──────────────────────────────────────────────
+    let app = Router::new()
+        .route("/", get(index_handler))
+        .route("/webhook", post(webhook_handler))
+        .with_state(state);
+
+    let addr: std::net::SocketAddr = format!("0.0.0.0:{}", port).parse().unwrap();
+    let listener = tokio::net::TcpListener::bind(addr)
+        .await
+        .expect("Failed to bind TcpListener");
+    println!("\nWebhook server listening on http://localhost:{}/webhook", port);
+
+    tokio::spawn(async move {
         axum::serve(listener, app.into_make_service())
             .await
-            .expect("Failed to start server");
+            .expect("Server error");
     });
 
-    // Prompt user to open Ngrok and paste URL
+    // ── Prompt for ngrok URL ───────────────────────────────────────────────
     println!("\nNow open a new terminal and run: ngrok http {}", port);
-    let ngrok_url = prompt("Paste your public Ngrok URL (e.g. https://xxxx.ngrok.io): ");
+    let raw_url = prompt("Paste your public Ngrok URL (e.g. https://xxxx.ngrok.io): ");
+    let mut base_url = raw_url.trim_end_matches('/').to_string();
+    if base_url.ends_with("/webhook") {
+        base_url.truncate(base_url.len() - 8);
+    }
 
-    // Set up Payabli client
+    // ── Build Payabli client ───────────────────────────────────────────────
     let config = ClientConfig {
         api_key: Some(api_key.clone()),
         ..Default::default()
     };
     let client = ApiClient::new(config).expect("Failed to build Payabli client");
 
+    // ── Verify the tunnel is reachable ─────────────────────────────────────
+    test_ngrok_tunnel(&format!("{}/webhook", base_url)).await;
 
-    // Test the ngrok tunnel first before registering with Payabli
-    test_ngrok_tunnel(&ngrok_url).await;
-    tokio::time::sleep(std::time::Duration::from_millis(500)).await;
+    // ── Register the ApprovedPayment webhook ───────────────────────────────
+    create_webhook_notification(&client, &base_url, owner_id).await;
 
-    // Register webhook notification with owner_id
-    create_webhook_notification(&client, &ngrok_url, &entrypoint, owner_id as i64).await;
+    // ── Wait for confirmation before sending a live transaction ───────────
+    prompt("\nPress ENTER to trigger a test transaction and generate a webhook (or Ctrl+C to exit)...");
 
-    // Prompt to trigger transaction
-    let do_tx = prompt("\nPress ENTER to trigger a test transaction and generate a webhook (or Ctrl+C to exit)...");
-    let _ = do_tx; // just to pause
+    // Drain any payloads that arrived before the transaction (e.g. tunnel test ping).
+    while rx.try_recv().is_ok() {}
+
+    // ── Fire a $1.00 test transaction ──────────────────────────────────────
     trigger_transaction(&client, &entrypoint).await;
 
-    println!("\nWaiting for webhook event. Check your terminal for output when received.");
+    // ── Self-test: POST directly to localhost /webhook ─────────────────────
+    // Confirms the server+channel chain works independently.
+    // If this appears in output but Payabli's delivery does not, the issue
+    // is 100% on the notification registration side.
+    println!("\n[self-test] POSTing directly to localhost to verify queue...");
+    let self_test_url = format!("http://localhost:{}/webhook", port);
+    let http = HttpClient::new();
+    match http
+        .post(&self_test_url)
+        .header("Content-Type", "application/json")
+        .body(r#"{"self-test":true}"#)
+        .send()
+        .await
+    {
+        Ok(resp) => println!("[self-test] POST to localhost /webhook: HTTP {}", resp.status()),
+        Err(e) => eprintln!("[self-test] FAILED: {e}"),
+    }
 
-    // Wait for the server task to finish (it won't, unless killed)
-    let _ = server.await;
+    // Drain the self-test ping before waiting for Payabli.
+    match timeout(Duration::from_secs(3), rx.recv()).await {
+        Ok(Some(_)) => println!("[self-test] self-test ping drained from queue."),
+        _ => {}
+    }
 
+    println!("\nWaiting up to 30 seconds for Payabli webhook delivery...");
+    println!("(Watch for '-> POST /webhook' in the server logs above - if it never appears, Payabli is not delivering to your ngrok URL)");
+
+    // ── Wait for the real webhook ──────────────────────────────────────────
+    match timeout(Duration::from_secs(30), rx.recv()).await {
+        Ok(Some(payload)) => {
+            println!(
+                "\nReceived webhook payload:\n{}",
+                if payload.is_empty() {
+                    "(empty body)".to_string()
+                } else {
+                    payload
+                }
+            );
+
+            // Keep printing any further deliveries for up to 60 s each.
+            loop {
+                match timeout(Duration::from_secs(60), rx.recv()).await {
+                    Ok(Some(p)) => println!("\nReceived webhook payload:\n{}", p),
+                    _ => break,
+                }
+            }
+        }
+        _ => {
+            println!("\nNo webhook received within 30 seconds.");
+            println!("Possible causes:");
+            println!("  1. The notification was not registered successfully - check the output above.");
+            println!("  2. The ngrok URL you pasted already included '/webhook' - target would be '.../webhook/webhook'.");
+            println!("  3. Payabli is delivering to a previously-registered notification's dead URL.");
+            println!("  4. The ngrok tunnel expired before Payabli made the delivery.");
+        }
+    }
 }
