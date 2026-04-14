@@ -1,0 +1,18 @@
+{
+  "name": "payabli-webhook-ts-sdk",
+  "version": "1.0.0",
+  "description": "Payabli webhook example using @payabli/sdk-node",
+  "private": true,
+  "scripts": {
+    "start": "ts-node main.ts"
+  },
+  "dependencies": {
+    "@payabli/sdk-node": "^0.0.138",
+    "dotenv": "^16.0.0"
+  },
+  "devDependencies": {
+    "@types/node": "^22.0.0",
+    "ts-node": "^10.9.0",
+    "typescript": "^5.0.0"
+  }
+}

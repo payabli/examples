@@ -6,4 +6,6 @@
 **/bun.lockb
 **/.git.bk/
 **/sdk-*/
+**/target/
+**/Cargo.lock/
 **/dist/
