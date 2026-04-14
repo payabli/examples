@@ -43,7 +43,3 @@ The program will:
 4. Register an `ApprovedPayment` notification with Payabli pointing at your tunnel endpoint
 5. Wait for you to press **ENTER**, then fire a `$1.00` test credit-card transaction
 6. Wait up to 30 seconds for Payabli to deliver the webhook and print the payload
-
-## Notes
-
-- The notification is registered via a direct `fetch` call rather than the SDK's `addNotification` method. This is necessary because the SDK types `ownerId` as `string`, which would serialise to `"236"` in JSON. The Payabli API requires an integer (`236`), so we build the request body manually.

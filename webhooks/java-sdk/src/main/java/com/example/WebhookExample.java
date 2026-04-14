@@ -1,13 +1,18 @@
 package com.example;
 
-import com.fasterxml.jackson.databind.ObjectMapper;
-import com.fasterxml.jackson.databind.node.ObjectNode;
 import com.sun.net.httpserver.HttpServer;
 import io.github.cdimascio.dotenv.Dotenv;
 import io.github.payabli.api.PayabliApiClient;
 import io.github.payabli.api.PayabliApiClientBuilder;
 import io.github.payabli.api.resources.moneyin.requests.RequestPayment;
 import io.github.payabli.api.resources.moneyin.types.TransRequestBody;
+import io.github.payabli.api.resources.notification.types.AddNotificationRequest;
+import io.github.payabli.api.types.NotificationStandardRequest;
+import io.github.payabli.api.types.NotificationStandardRequestContent;
+import io.github.payabli.api.types.NotificationStandardRequestContentEventType;
+import io.github.payabli.api.types.NotificationStandardRequestFrequency;
+import io.github.payabli.api.types.NotificationStandardRequestMethod;
+import io.github.payabli.api.types.PayabliApiResponseNotifications;
 import io.github.payabli.api.types.PaymentDetail;
 import io.github.payabli.api.types.PaymentMethod;
 import io.github.payabli.api.types.PayMethodCredit;
@@ -24,7 +29,6 @@ import java.net.http.HttpResponse;
 import java.nio.charset.StandardCharsets;
 import java.util.concurrent.Executors;
 import java.util.concurrent.LinkedBlockingQueue;
-import java.util.concurrent.TimeUnit;
 
 public class WebhookExample {
 
@@ -112,7 +116,7 @@ public class WebhookExample {
         testTunnel(tunnelUrl);
 
         // ── Register the ApprovedPayment webhook with Payabli ───────────────
-        createWebhookNotification(apiKey, tunnelUrl, ownerId);
+        createWebhookNotification(client, tunnelUrl, ownerId);
 
         // ── Wait for confirmation before sending a live transaction ─────────
         System.out.print("\nPress ENTER to trigger a test transaction and generate a webhook (or Ctrl+C to exit)...");
@@ -124,52 +128,20 @@ public class WebhookExample {
         // ── Fire a $1.00 test transaction ───────────────────────────────────
         triggerTransaction(client, entrypoint);
 
-        // ── Self-test: verify the server+queue chain works independently ────────
-        // POST directly to our own /webhook to confirm the mechanism works.
-        // If this appears in the output below but Payabli's delivery does not,
-        // the issue is 100% on the notification registration side.
-        System.out.println("\n[self-test] POSTing directly to localhost to verify queue...");
-        try {
-            HttpClient selfHttp = HttpClient.newHttpClient();
-            HttpResponse<String> selfResp = selfHttp.send(
-                    HttpRequest.newBuilder()
-                            .uri(URI.create("http://localhost:" + port + "/webhook"))
-                            .header("Content-Type", "application/json")
-                            .POST(HttpRequest.BodyPublishers.ofString("{\"self-test\":true}"))
-                            .build(),
-                    HttpResponse.BodyHandlers.ofString());
-            System.out.printf("[self-test] POST to localhost /webhook: HTTP %d%n", selfResp.statusCode());
-        } catch (Exception e) {
-            System.err.printf("[self-test] FAILED: %s%n", e.getMessage());
-        }
-
-        // Drain the self-test ping from the queue before waiting for Payabli.
-        webhookQueue.poll(3, TimeUnit.SECONDS);
-
-        System.out.println("\nWaiting up to 30 seconds for Payabli webhook delivery...");
+        System.out.println("\nWaiting for webhook event. Check your terminal for output when received.");
         System.out.println("(Watch for '\u2192 POST /webhook' above \u2014 if it never appears, Payabli is not delivering to your tunnel URL)");
+        System.out.println("Press Ctrl+C to exit.");
 
-        // ── Print webhook payloads as they arrive ─────────────────────────
-        String payload = webhookQueue.poll(30, TimeUnit.SECONDS);
-        if (payload == null) {
-            System.out.println("\nNo webhook received within 30 seconds.");
-            System.out.println("Possible causes:");
-            System.out.println("  1. The notification was not registered successfully — check 'Notification raw response' above.");
-            System.out.println("  2. The URL you pasted already included '/webhook' \u2014 target would be '.../webhook/webhook'.");
-            System.out.println("  3. Payabli is delivering to a previously-registered notification's dead URL.");
-            System.out.println("  4. The tunnel expired before Payabli made the delivery.");
-        } else {
-            System.out.printf("%nReceived webhook payload:%n%s%n",
-                    payload.isEmpty() ? "(empty body)" : payload);
-            System.out.flush();
-            // Keep printing any further deliveries.
-            //noinspection InfiniteLoopStatement
+        // ── Block indefinitely, printing each webhook payload as it arrives ──
+        try {
             while (true) {
-                payload = webhookQueue.poll(60, TimeUnit.SECONDS);
-                if (payload == null) break;
-                System.out.printf("%nReceived webhook payload:%n%s%n", payload);
+                String payload = webhookQueue.take();
+                System.out.printf("%nReceived webhook payload:%n%s%n",
+                        payload.isEmpty() ? "(empty body)" : payload);
                 System.out.flush();
             }
+        } catch (InterruptedException e) {
+            Thread.currentThread().interrupt();
         }
     }
 
@@ -196,15 +168,8 @@ public class WebhookExample {
         }
     }
 
-    /**
-     * Register an ApprovedPayment webhook notification with Payabli.
-     *
-     * We build the JSON body manually via Jackson rather than using the SDK's
-     * AddNotificationRequest builder, because the Java SDK types ownerId as
-     * Optional&lt;String&gt; which serializes to a JSON string ("236") instead of
-     * the integer (236) that the Payabli API requires.
-     */
-    private static void createWebhookNotification(String apiKey,
+    /** Register an ApprovedPayment webhook notification with Payabli. */
+    private static void createWebhookNotification(PayabliApiClient client,
                                                    String tunnelUrl,
                                                    int ownerId) {
         String webhookUrl = tunnelUrl.replaceAll("/$", "");
@@ -215,49 +180,34 @@ public class WebhookExample {
         System.out.println("\nRegistering webhook notification with Payabli...");
         System.out.printf("Notification request: Target=%s, OwnerId=%d%n", webhookUrl, ownerId);
         try {
-            ObjectMapper mapper = new ObjectMapper();
-
-            ObjectNode body = mapper.createObjectNode();
-            body.putObject("content").put("eventType", "ApprovedPayment");
-            body.put("frequency", "untilcancelled");
-            body.put("method", "web");
-            body.put("ownerId", ownerId);
-            body.put("ownerType", 0);
-            body.put("status", 1);
-            body.put("target", webhookUrl);
-
-            String jsonBody = mapper.writeValueAsString(body);
-            System.out.printf("Notification request body: %s%n", jsonBody);
-            System.out.flush();
-
-            HttpClient http = HttpClient.newHttpClient();
-            HttpRequest req = HttpRequest.newBuilder()
-                    .uri(URI.create("https://api-sandbox.payabli.com/api/Notification"))
-                    .header("Content-Type", "application/json")
-                    .header("requestToken", apiKey)
-                    .POST(HttpRequest.BodyPublishers.ofString(jsonBody))
-                    .build();
-
-            HttpResponse<String> resp = http.send(req, HttpResponse.BodyHandlers.ofString());
-            System.out.printf("Notification response: HTTP %d%n", resp.statusCode());
-            // Always print the raw body so any error reason is visible.
-            System.out.printf("Notification raw response: %s%n", resp.body());
-            System.out.flush();
-
-            // Parse and print the key response fields for easy diagnosis.
-            try {
-                ObjectNode result = (ObjectNode) mapper.readTree(resp.body());
-                boolean isSuccess = result.path("isSuccess").asBoolean(false);
-                System.out.printf("Webhook registered: IsSuccess=%b, ResponseCode=%s, NotificationId=%s%n",
-                        isSuccess,
-                        result.path("responseCode").asText(""),
-                        result.path("responseData").asText(""));
-                if (!isSuccess) {
-                    System.err.printf("WARNING: Notification registration failed — ResponseText: %s%n",
-                            result.path("responseText").asText("(none)"));
-                    System.err.println("No webhook will be delivered. Check your PAYABLI_KEY, OWNER_ID, and PAYABLI_ENTRY.");
-                }
-            } catch (Exception ignored) {}
+            PayabliApiResponseNotifications res = client.notification().addNotification(
+                AddNotificationRequest.of(
+                    NotificationStandardRequest.builder()
+                        .frequency(NotificationStandardRequestFrequency.UNTILCANCELLED)
+                        .method(NotificationStandardRequestMethod.WEB)
+                        .ownerType(0)
+                        .target(webhookUrl)
+                        .content(java.util.Optional.of(
+                            NotificationStandardRequestContent.builder()
+                                .eventType(java.util.Optional.of(
+                                    NotificationStandardRequestContentEventType.APPROVED_PAYMENT))
+                                .build()
+                        ))
+                        .ownerId(java.util.Optional.of(ownerId))
+                        .status(java.util.Optional.of(1))
+                        .build()
+                )
+            );
+            boolean isSuccess = Boolean.TRUE.equals(res.getIsSuccess().orElse(false));
+            System.out.printf("Webhook registered: IsSuccess=%b, ResponseCode=%s, NotificationId=%s%n",
+                    isSuccess,
+                    res.getResponseCode().map(Object::toString).orElse(""),
+                    res.getResponseData().map(Object::toString).orElse(""));
+            if (!isSuccess) {
+                System.err.printf("WARNING: Notification registration failed \u2014 ResponseText: %s%n",
+                        res.getResponseText());
+                System.err.println("No webhook will be delivered. Check your PAYABLI_KEY, OWNER_ID, and PAYABLI_ENTRY.");
+            }
         } catch (Exception e) {
             System.err.printf("Failed to register webhook: %s%n", e.getMessage());
         }

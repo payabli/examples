@@ -15,6 +15,8 @@ if (!API_KEY) { console.error("PAYABLI_KEY missing from .env"); process.exit(1);
 if (!ENTRY)   { console.error("PAYABLI_ENTRY missing from .env"); process.exit(1); }
 if (!OWNER_ID){ console.error("OWNER_ID missing from .env");  process.exit(1); }
 
+const client = new PayabliClient({ apiKey: API_KEY });
+
 const payloadBuffer: string[] = [];
 let pendingResolve: ((payload: string) => void) | null = null;
 
@@ -98,51 +100,29 @@ async function testTunnel(webhookUrl: string): Promise<void> {
   }
 }
 
-// We POST directly and keep ownerId as a number (the SDK types it as string
-// which would produce "236" in JSON, but the Payabli API requires an integer).
 async function createWebhookNotification(targetBase: string): Promise<void> {
   const webhookUrl = targetBase + "/webhook";
   console.log("\nRegistering webhook notification with Payabli...");
   console.log(`Notification request: Target=${webhookUrl}, OwnerId=${OWNER_ID}`);
 
-  const body = {
-    content: { eventType: "ApprovedPayment" },
-    frequency: "untilcancelled",
-    method: "web",
-    ownerId: OWNER_ID,
-    ownerType: 0,
-    status: 1,
-    target: webhookUrl,
-  };
-
-  console.log(`Notification request body: ${JSON.stringify(body)}`);
-
   try {
-    const res = await fetch("https://api-sandbox.payabli.com/api/Notification", {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        requestToken: API_KEY,
-      },
-      body: JSON.stringify(body),
+    const res = await client.notification.addNotification({
+      content: { eventType: "ApprovedPayment" },
+      frequency: "untilcancelled",
+      method: "web",
+      ownerId: OWNER_ID,
+      ownerType: 0,
+      status: 1,
+      target: webhookUrl,
     });
 
-    const text = await res.text();
-    console.log(`Notification response: HTTP ${res.status}`);
-    console.log(`Notification raw response: ${text}`);
-
-    try {
-      const json = JSON.parse(text) as Record<string, unknown>;
-      const isSuccess = Boolean(json["isSuccess"]);
-      console.log(
-        `Webhook registered: IsSuccess=${isSuccess}, ResponseCode=${json["responseCode"] ?? ""}, NotificationId=${json["responseData"] ?? ""}`
-      );
-      if (!isSuccess) {
-        console.error(`WARNING: Notification registration failed – ResponseText: ${json["responseText"] ?? "(none)"}`);
-        console.error("No webhook will be delivered. Check your PAYABLI_KEY, OWNER_ID, and PAYABLI_ENTRY.");
-      }
-    } catch {
-      // JSON parse failed – raw response already printed above
+    const isSuccess = Boolean(res.isSuccess);
+    console.log(
+      `Webhook registered: IsSuccess=${isSuccess}, ResponseCode=${res.responseCode ?? ""}, NotificationId=${res.responseData ?? ""}`
+    );
+    if (!isSuccess) {
+      console.error(`WARNING: Notification registration failed – ResponseText: ${res.responseText ?? "(none)"}`);
+      console.error("No webhook will be delivered. Check your PAYABLI_KEY, OWNER_ID, and PAYABLI_ENTRY.");
     }
   } catch (err) {
     console.error(`Failed to register webhook: ${err}`);
@@ -152,8 +132,6 @@ async function createWebhookNotification(targetBase: string): Promise<void> {
 async function triggerTransaction(): Promise<void> {
   console.log("\nTriggering a test transaction to generate webhook...");
   console.log(`Transaction request: EntryPoint=${ENTRY}, Amount=1.00`);
-
-  const client = new PayabliClient({ apiKey: API_KEY });
 
   try {
     const res = await client.moneyIn.getpaid({
