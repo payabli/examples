@@ -69,13 +69,13 @@ rescue => e
   puts "Tunnel test FAILED - tunnel may not be running or URL is wrong: #{e.message}"
 end
 
-# Register an ApprovedPayment webhook notification with Payabli.
-def create_webhook_notification(api_key, tunnel_url, owner_id)
+# Register an ApprovedPayment webhook notification with Payabli using the SDK.
+def create_webhook_notification(client, tunnel_url, owner_id)
   webhook_url = tunnel_url.chomp('/') + '/webhook'
   puts "\nRegistering webhook notification with Payabli..."
   puts "Notification request: Target=#{webhook_url}, OwnerId=#{owner_id}"
 
-  body = Payabli::Types::NotificationStandardRequest.new(
+  notification_request = Payabli::Types::NotificationStandardRequest.new(
     content: Payabli::Types::NotificationStandardRequestContent.new(
       event_type: 'ApprovedPayment'
     ),
@@ -85,36 +85,26 @@ def create_webhook_notification(api_key, tunnel_url, owner_id)
     owner_type: 0,
     status: 1,
     target: webhook_url
-  ).to_h
+  )
 
-  uri = URI('https://api-sandbox.payabli.com/api/Notification')
-  http = Net::HTTP.new(uri.host, uri.port)
-  http.use_ssl = true
-
-  req = Net::HTTP::Post.new(uri.path)
-  req['Content-Type'] = 'application/json'
-  req['requestToken'] = api_key
-  req.body = body.to_json
-
-  resp = http.request(req)
-  result = JSON.parse(resp.body)
-  if result['isSuccess']
-    puts "Webhook registered: IsSuccess=#{result['isSuccess']}, " \
-         "ResponseCode=#{result['responseCode']}, " \
-         "NotificationId=#{result['responseData']}"
+  response = client.notification.add_notification(notification_request)
+  if response.is_success
+    puts "Webhook registered: IsSuccess=#{response.is_success}, " \
+         "ResponseCode=#{response.response_code}, " \
+         "NotificationId=#{response.response_data}"
   else
-    puts "Failed to register webhook: #{resp.body}"
+    puts "Failed to register webhook: #{response.to_h}"
   end
 rescue => e
   puts "Failed to register webhook: #{e.message}"
 end
 
-# Send a test $1.00 credit card transaction to generate an ApprovedPayment event.
+# Send a test $1.00 credit card transaction to generate an ApprovedPayment event using the SDK idiomatically.
 def trigger_transaction(client, entrypoint)
   puts "\nTriggering a test transaction to generate webhook..."
   puts "Transaction request: EntryPoint=#{entrypoint}, Amount=1.00"
 
-  response = client.money_in.getpaid(
+  request_params = {
     customer_data: { customer_id: 4440 },
     entry_point: entrypoint,
     ipaddress: '255.255.255.255',
@@ -126,9 +116,11 @@ def trigger_transaction(client, entrypoint)
       cardnumber:  '4111111111111111',
       cardzip:     '12345',
       initiator:   'payor',
-      method_:     'card'
+      method:      'card'
     }
-  )
+  }
+
+  response = client.money_in.getpaid(**request_params)
   puts "Transaction sent: IsSuccess=#{response.is_success}, " \
        "ResponseText=#{response.response_text}"
 rescue => e
@@ -159,7 +151,7 @@ client = Payabli::Client.new(
 )
 
 # Register the ApprovedPayment notification so Payabli knows where to POST.
-create_webhook_notification(API_KEY, tunnel_url, OWNER_ID)
+create_webhook_notification(client, tunnel_url, OWNER_ID)
 
 # Wait for the user to confirm before firing a live transaction.
 print "\nPress ENTER to trigger a test transaction and generate a webhook (or Ctrl+C to exit)..."
