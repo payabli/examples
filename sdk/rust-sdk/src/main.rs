@@ -379,10 +379,7 @@ async fn process_transaction(
                 source: Some(Source("web".to_string())),
                 subdomain: None,
             },
-            ach_validation: None,
-            create_anonymous: CreateAnonymous(Some(false)),
-            force_customer_creation: None,
-            temporary: Temporary(Some(false)),
+            ..Default::default()
         }, None)
         .await;
 
@@ -446,6 +443,7 @@ async fn process_transaction(
                     check_number: None,
                     currency: None,
                     split_funding: None,
+                    ..Default::default()
                 },
                 payment_method: PaymentMethod::PayMethodStoredMethod(PayMethodStoredMethod {
                     initiator: Some(Initiator("payor".to_string())),
