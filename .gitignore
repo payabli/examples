@@ -9,3 +9,5 @@
 **/target/
 **/Cargo.lock/
 **/dist/
+**/bun.lock
+**/.vscode
