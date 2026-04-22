@@ -1,18 +1,199 @@
-
-
-
-
 import React, { useEffect, useState } from 'react';
-import { Button, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
+import {
+  Button,
+  Pressable,
+  ScrollView,
+  StyleSheet,
+  Text,
+  TextInput,
+  View,
+} from 'react-native';
 import { WebView } from 'react-native-webview';
 import {
+  createDefaultPaymentRequest,
   usePayabliWebView,
   type PayabliPaymentMethod,
+  type PayabliPaymentRequest,
 } from '../hooks/usePayabliWebView';
 
-const PayabliCheckout = () => {
+type CheckoutScreen = 'review' | 'payment' | 'result';
+
+type ResultState = {
+  kind: 'success' | 'error';
+  title: string;
+  message: string;
+};
+
+type CheckoutDraft = {
+  totalAmount: string;
+  serviceFee: string;
+  categoryLabel: string;
+  categoryAmount: string;
+  quantity: string;
+  firstName: string;
+  lastName: string;
+  billingEmail: string;
+};
+
+type PayabliCheckoutProps = {
+  onBackToHome: () => void;
+};
+
+const defaultPaymentRequest = createDefaultPaymentRequest();
+
+const createDraftFromPaymentRequest = (
+  paymentRequest: PayabliPaymentRequest,
+): CheckoutDraft => ({
+  totalAmount: String(paymentRequest.paymentDetails.totalAmount),
+  serviceFee: String(paymentRequest.paymentDetails.serviceFee),
+  categoryLabel: paymentRequest.paymentDetails.categories[0]?.label ?? 'Canvas Weekender Tote',
+  categoryAmount: String(
+    paymentRequest.paymentDetails.categories[0]?.amount ?? paymentRequest.paymentDetails.totalAmount,
+  ),
+  quantity: String(paymentRequest.paymentDetails.categories[0]?.qty ?? 1),
+  firstName: paymentRequest.customerData.firstName,
+  lastName: paymentRequest.customerData.lastName,
+  billingEmail: paymentRequest.customerData.billingEmail,
+});
+
+const parseCurrency = (value: string, fallback: number) => {
+  const parsed = Number.parseFloat(value);
+  return Number.isFinite(parsed) ? parsed : fallback;
+};
+
+const parseInteger = (value: string, fallback: number) => {
+  const parsed = Number.parseInt(value, 10);
+  return Number.isFinite(parsed) ? parsed : fallback;
+};
+
+const buildPaymentRequestFromDraft = (draft: CheckoutDraft): PayabliPaymentRequest => ({
+  paymentDetails: {
+    totalAmount: parseCurrency(
+      draft.totalAmount,
+      defaultPaymentRequest.paymentDetails.totalAmount,
+    ),
+    serviceFee: parseCurrency(
+      draft.serviceFee,
+      defaultPaymentRequest.paymentDetails.serviceFee,
+    ),
+    categories: [
+      {
+        label: draft.categoryLabel || 'Canvas Weekender Tote',
+        amount: parseCurrency(
+          draft.categoryAmount,
+          defaultPaymentRequest.paymentDetails.categories[0]?.amount ?? 0,
+        ),
+        qty: parseInteger(
+          draft.quantity,
+          defaultPaymentRequest.paymentDetails.categories[0]?.qty ?? 1,
+        ),
+      },
+    ],
+  },
+  customerData: {
+    firstName: draft.firstName || defaultPaymentRequest.customerData.firstName,
+    lastName: draft.lastName || defaultPaymentRequest.customerData.lastName,
+    billingEmail: draft.billingEmail || defaultPaymentRequest.customerData.billingEmail,
+  },
+});
+
+const formatCurrency = (value: number) => `$${value.toFixed(2)}`;
+
+const StepSection = ({ currentStep }: { currentStep: 1 | 2 | 3 }) => {
+  const steps = [
+    { number: 1, label: 'Review' },
+    { number: 2, label: 'Payment' },
+    { number: 3, label: 'Result' },
+  ] as const;
+
+  return (
+    <View style={styles.stepSection}>
+      {steps.map((step, index) => {
+        const isActive = step.number === currentStep;
+        const isComplete = step.number < currentStep;
+
+        return (
+          <React.Fragment key={step.number}>
+            <View style={styles.stepItem}>
+              <View
+                style={[
+                  styles.stepCircle,
+                  isActive && styles.stepCircleActive,
+                  isComplete && styles.stepCircleComplete,
+                ]}
+              >
+                <Text
+                  style={[
+                    styles.stepCircleText,
+                    (isActive || isComplete) && styles.stepCircleTextActive,
+                  ]}
+                >
+                  {step.number}
+                </Text>
+              </View>
+              <Text style={[styles.stepLabel, isActive && styles.stepLabelActive]}>
+                {step.label}
+              </Text>
+            </View>
+            {index < steps.length - 1 ? <View style={styles.stepDivider} /> : null}
+          </React.Fragment>
+        );
+      })}
+    </View>
+  );
+};
+
+const deriveResultState = (message: { type: string; payload: unknown }): ResultState | null => {
+  if (message.type === 'success') {
+    const payload = (message.payload ?? {}) as {
+      responseText?: string;
+      responseData?: { resultText?: string };
+    };
+    const responseText = payload.responseText ?? 'Success';
+    const resultText = payload.responseData?.resultText ?? 'Your payment was completed.';
+
+    if (responseText === 'Success') {
+      return {
+        kind: 'success',
+        title: 'Thank you!',
+        message: resultText,
+      };
+    }
+
+    return {
+      kind: 'error',
+      title: 'Error!',
+      message: resultText || responseText,
+    };
+  }
+
+  if (message.type === 'error') {
+    const payload = message.payload as { message?: string } | string | undefined;
+    return {
+      kind: 'error',
+      title: 'Error!',
+      message:
+        typeof payload === 'string'
+          ? payload
+          : payload?.message ?? 'There was a problem processing this payment.',
+    };
+  }
+
+  return null;
+};
+
+const PayabliCheckout = ({ onBackToHome }: PayabliCheckoutProps) => {
   const [paymentMethod, setPaymentMethod] = useState<PayabliPaymentMethod>('card');
+  const [screen, setScreen] = useState<CheckoutScreen>('review');
   const [isLogOpen, setIsLogOpen] = useState(false);
+  const [isAwaitingPaymentResult, setIsAwaitingPaymentResult] = useState(false);
+  const [resultState, setResultState] = useState<ResultState | null>(null);
+  const [checkoutDraft, setCheckoutDraft] = useState<CheckoutDraft>(
+    createDraftFromPaymentRequest(defaultPaymentRequest),
+  );
+  const [paymentRequest, setPaymentRequest] = useState<PayabliPaymentRequest>(
+    defaultPaymentRequest,
+  );
   const {
     htmlShell,
     injectedBootstrap,
@@ -20,11 +201,12 @@ const PayabliCheckout = () => {
     isPaymentReady,
     webViewHeight,
     logEntries,
+    latestMessage,
     unreadLogCount,
     handleMessage,
     handleSubmitPress,
     markLogsSeen,
-  } = usePayabliWebView(paymentMethod);
+  } = usePayabliWebView(paymentMethod, paymentRequest);
 
   const toggleLog = () => {
     setIsLogOpen((currentValue) => {
@@ -42,56 +224,263 @@ const PayabliCheckout = () => {
     }
   }, [isLogOpen, unreadLogCount, markLogsSeen]);
 
+  useEffect(() => {
+    if (screen !== 'payment' || !isAwaitingPaymentResult || !latestMessage) {
+      return;
+    }
+
+    const nextResult = deriveResultState(latestMessage);
+    if (!nextResult) {
+      return;
+    }
+
+    setResultState(nextResult);
+    setIsAwaitingPaymentResult(false);
+    setIsLogOpen(false);
+    setScreen('result');
+  }, [isAwaitingPaymentResult, latestMessage, screen]);
+
+  const updateDraftField = (field: keyof CheckoutDraft, value: string) => {
+    setCheckoutDraft((currentDraft) => ({
+      ...currentDraft,
+      [field]: value,
+    }));
+  };
+
+  const handleContinueToPayment = () => {
+    setPaymentRequest(buildPaymentRequestFromDraft(checkoutDraft));
+    setResultState(null);
+    setIsAwaitingPaymentResult(false);
+    setScreen('payment');
+  };
+
+  const handleBackToReview = () => {
+    setIsAwaitingPaymentResult(false);
+    setScreen('review');
+  };
+
+  const handleProcessPayment = () => {
+    setIsAwaitingPaymentResult(true);
+    handleSubmitPress();
+  };
+
+  const handleStartOver = () => {
+    setPaymentMethod('card');
+    setIsLogOpen(false);
+    setIsAwaitingPaymentResult(false);
+    setResultState(null);
+    setPaymentRequest(defaultPaymentRequest);
+    setCheckoutDraft(createDraftFromPaymentRequest(defaultPaymentRequest));
+    setScreen('review');
+  };
+
+  if (screen === 'review') {
+    return (
+      <View style={styles.container}>
+        <StepSection currentStep={1} />
+        <View style={styles.headerRow}>
+          <View style={styles.headerTextWrap}>
+            <Text style={styles.eyebrow}>Checkout</Text>
+            <Text style={styles.title}>Review Your Order</Text>
+            <Text style={styles.subtitle}>
+              Confirm the order details before continuing to payment.
+            </Text>
+          </View>
+          <Pressable onPress={onBackToHome} style={styles.headerAction}>
+            <Text style={styles.headerActionText}>Back to Home</Text>
+          </Pressable>
+        </View>
+        <View style={styles.heroCard}>
+          <Text style={styles.heroTitle}>Canvas Weekender Tote</Text>
+          <Text style={styles.heroDescription}>
+            Step one of checkout is the review section. Update the order and customer details here.
+          </Text>
+          <Text style={styles.heroPrice}>
+            Total due: {formatCurrency(parseCurrency(checkoutDraft.totalAmount, 0))}
+          </Text>
+        </View>
+        <View style={styles.builderCard}>
+          <Text style={styles.sectionTitle}>Order Details</Text>
+          <View style={styles.formRow}>
+            <View style={styles.fieldHalf}>
+              <Text style={styles.fieldLabel}>Order Total</Text>
+              <TextInput
+                value={checkoutDraft.totalAmount}
+                onChangeText={(value) => updateDraftField('totalAmount', value)}
+                keyboardType="decimal-pad"
+                style={styles.input}
+              />
+            </View>
+            <View style={styles.fieldHalf}>
+              <Text style={styles.fieldLabel}>Service Fee</Text>
+              <TextInput
+                value={checkoutDraft.serviceFee}
+                onChangeText={(value) => updateDraftField('serviceFee', value)}
+                keyboardType="decimal-pad"
+                style={styles.input}
+              />
+            </View>
+          </View>
+          <View style={styles.formRow}>
+            <View style={styles.fieldWide}>
+              <Text style={styles.fieldLabel}>Item Name</Text>
+              <TextInput
+                value={checkoutDraft.categoryLabel}
+                onChangeText={(value) => updateDraftField('categoryLabel', value)}
+                style={styles.input}
+              />
+            </View>
+          </View>
+          <View style={styles.formRow}>
+            <View style={styles.fieldHalf}>
+              <Text style={styles.fieldLabel}>Item Price</Text>
+              <TextInput
+                value={checkoutDraft.categoryAmount}
+                onChangeText={(value) => updateDraftField('categoryAmount', value)}
+                keyboardType="decimal-pad"
+                style={styles.input}
+              />
+            </View>
+            <View style={styles.fieldHalf}>
+              <Text style={styles.fieldLabel}>Quantity</Text>
+              <TextInput
+                value={checkoutDraft.quantity}
+                onChangeText={(value) => updateDraftField('quantity', value)}
+                keyboardType="number-pad"
+                style={styles.input}
+              />
+            </View>
+          </View>
+        </View>
+        <View style={styles.builderCard}>
+          <Text style={styles.sectionTitle}>Contact Details</Text>
+          <View style={styles.formRow}>
+            <View style={styles.fieldHalf}>
+              <Text style={styles.fieldLabel}>First Name</Text>
+              <TextInput
+                value={checkoutDraft.firstName}
+                onChangeText={(value) => updateDraftField('firstName', value)}
+                style={styles.input}
+              />
+            </View>
+            <View style={styles.fieldHalf}>
+              <Text style={styles.fieldLabel}>Last Name</Text>
+              <TextInput
+                value={checkoutDraft.lastName}
+                onChangeText={(value) => updateDraftField('lastName', value)}
+                style={styles.input}
+              />
+            </View>
+          </View>
+          <View style={styles.formRow}>
+            <View style={styles.fieldWide}>
+              <Text style={styles.fieldLabel}>Billing Email</Text>
+              <TextInput
+                value={checkoutDraft.billingEmail}
+                onChangeText={(value) => updateDraftField('billingEmail', value)}
+                autoCapitalize="none"
+                keyboardType="email-address"
+                style={styles.input}
+              />
+            </View>
+          </View>
+        </View>
+        <View style={styles.summaryCard}>
+          <Text style={styles.sectionTitle}>Order Summary</Text>
+          <Text style={styles.summaryLine}>
+            {checkoutDraft.categoryLabel || 'Canvas Weekender Tote'} x {parseInteger(checkoutDraft.quantity, 1)}
+          </Text>
+          <Text style={styles.summaryLine}>
+            Merchandise: {formatCurrency(parseCurrency(checkoutDraft.categoryAmount, 0))}
+          </Text>
+          <Text style={styles.summaryLine}>
+            Service Fee: {formatCurrency(parseCurrency(checkoutDraft.serviceFee, 0))}
+          </Text>
+          <Text style={styles.summaryTotal}>
+            Total: {formatCurrency(parseCurrency(checkoutDraft.totalAmount, 0))}
+          </Text>
+        </View>
+        <Button title="Continue to Payment" onPress={handleContinueToPayment} />
+      </View>
+    );
+  }
+
+  if (screen === 'result' && resultState) {
+    return (
+      <View style={styles.container}>
+        <StepSection currentStep={3} />
+        <View
+          style={[
+            styles.resultCard,
+            resultState.kind === 'success' ? styles.resultSuccess : styles.resultError,
+          ]}
+        >
+          <View
+            style={[
+              styles.resultStatusBadge,
+              resultState.kind === 'success'
+                ? styles.resultStatusBadgeSuccess
+                : styles.resultStatusBadgeError,
+            ]}
+          >
+            <Text style={styles.resultStatusIcon}>
+              {resultState.kind === 'success' ? '✓' : 'X'}
+            </Text>
+          </View>
+          <Text style={styles.resultEyebrow}>
+            {resultState.kind === 'success' ? 'Order Complete' : 'Payment Failed'}
+          </Text>
+          <Text style={styles.resultTitle}>{resultState.title}</Text>
+          <Text style={styles.resultMessage}>{resultState.message}</Text>
+          <View style={styles.resultActionStack}>
+            <Button title="Return Home" onPress={onBackToHome} />
+            <View style={styles.resultSecondaryAction}>
+              <Button title="Start Over" onPress={handleStartOver} />
+            </View>
+          </View>
+        </View>
+      </View>
+    );
+  }
+
   return (
     <View style={styles.container}>
-      <Text style={styles.title}>Payment Form</Text>
-      <Text style={styles.subtitle}>Enter your payment information below.</Text>
+      <StepSection currentStep={2} />
+      <View style={styles.headerRow}>
+        <View style={styles.headerTextWrap}>
+          <Text style={styles.eyebrow}>Checkout</Text>
+          <Text style={styles.title}>Payment</Text>
+          <Text style={styles.subtitle}>
+            Complete a {formatCurrency(paymentRequest.paymentDetails.totalAmount)} order using
+            {' '}card, ACH, or RDC.
+          </Text>
+        </View>
+        <Pressable onPress={handleBackToReview} style={styles.headerAction}>
+          <Text style={styles.headerActionText}>Back to Review</Text>
+        </Pressable>
+      </View>
       <View style={styles.tabs}>
         <Pressable
           onPress={() => setPaymentMethod('card')}
-          style={[
-            styles.tab,
-            paymentMethod === 'card' && styles.tabActive,
-          ]}
+          style={[styles.tab, paymentMethod === 'card' && styles.tabActive]}
         >
-          <Text
-            style={[
-              styles.tabText,
-              paymentMethod === 'card' && styles.tabTextActive,
-            ]}
-          >
+          <Text style={[styles.tabText, paymentMethod === 'card' && styles.tabTextActive]}>
             Card
           </Text>
         </Pressable>
         <Pressable
           onPress={() => setPaymentMethod('ach')}
-          style={[
-            styles.tab,
-            paymentMethod === 'ach' && styles.tabActive,
-          ]}
+          style={[styles.tab, paymentMethod === 'ach' && styles.tabActive]}
         >
-          <Text
-            style={[
-              styles.tabText,
-              paymentMethod === 'ach' && styles.tabTextActive,
-            ]}
-          >
+          <Text style={[styles.tabText, paymentMethod === 'ach' && styles.tabTextActive]}>
             ACH
           </Text>
         </Pressable>
         <Pressable
           onPress={() => setPaymentMethod('rdc')}
-          style={[
-            styles.tab,
-            paymentMethod === 'rdc' && styles.tabActive,
-          ]}
+          style={[styles.tab, paymentMethod === 'rdc' && styles.tabActive]}
         >
-          <Text
-            style={[
-              styles.tabText,
-              paymentMethod === 'rdc' && styles.tabTextActive,
-            ]}
-          >
+          <Text style={[styles.tabText, paymentMethod === 'rdc' && styles.tabTextActive]}>
             RDC
           </Text>
         </Pressable>
@@ -123,7 +512,7 @@ const PayabliCheckout = () => {
         <View style={styles.submitButtonWrap}>
           <Button
             title="Process Payment"
-            onPress={handleSubmitPress}
+            onPress={handleProcessPayment}
             disabled={!isPaymentReady}
           />
         </View>
@@ -171,22 +560,186 @@ const styles = StyleSheet.create({
     minHeight: 520,
     flex: 1,
   },
+  stepSection: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: 24,
+  },
+  stepItem: {
+    alignItems: 'center',
+  },
+  stepCircle: {
+    width: 34,
+    height: 34,
+    borderRadius: 17,
+    borderWidth: 1,
+    borderColor: '#d1d5db',
+    backgroundColor: '#ffffff',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  stepCircleActive: {
+    backgroundColor: '#111827',
+    borderColor: '#111827',
+  },
+  stepCircleComplete: {
+    backgroundColor: '#dbeafe',
+    borderColor: '#93c5fd',
+  },
+  stepCircleText: {
+    color: '#6b7280',
+    fontSize: 13,
+    fontWeight: '700',
+  },
+  stepCircleTextActive: {
+    color: '#ffffff',
+  },
+  stepLabel: {
+    marginTop: 8,
+    fontSize: 12,
+    color: '#6b7280',
+    fontWeight: '600',
+  },
+  stepLabelActive: {
+    color: '#111827',
+  },
+  stepDivider: {
+    flex: 1,
+    height: 1,
+    backgroundColor: '#d1d5db',
+    marginHorizontal: 10,
+    marginBottom: 18,
+  },
+  eyebrow: {
+    color: '#2563eb',
+    fontSize: 12,
+    fontWeight: '700',
+    textTransform: 'uppercase',
+    letterSpacing: 0.8,
+    marginBottom: 8,
+  },
   title: {
-    fontSize: 24,
-    lineHeight: 30,
+    fontSize: 28,
+    lineHeight: 34,
     fontWeight: '700',
     color: '#111827',
     marginBottom: 8,
   },
   subtitle: {
     color: '#4b5563',
-    fontSize: 14,
+    fontSize: 15,
+    lineHeight: 22,
+    marginBottom: 20,
+  },
+  headerRow: {
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    justifyContent: 'space-between',
+    gap: 16,
     marginBottom: 16,
+  },
+  headerTextWrap: {
+    flex: 1,
+  },
+  headerAction: {
+    paddingHorizontal: 14,
+    paddingVertical: 10,
+    borderRadius: 999,
+    backgroundColor: '#e5e7eb',
+  },
+  headerActionText: {
+    color: '#111827',
+    fontSize: 13,
+    fontWeight: '700',
+  },
+  heroCard: {
+    backgroundColor: '#111827',
+    borderRadius: 20,
+    padding: 20,
+    marginBottom: 16,
+  },
+  heroTitle: {
+    color: '#f9fafb',
+    fontSize: 22,
+    fontWeight: '700',
+    marginBottom: 8,
+  },
+  heroDescription: {
+    color: '#d1d5db',
+    fontSize: 14,
+    lineHeight: 20,
+    marginBottom: 14,
+  },
+  heroPrice: {
+    color: '#93c5fd',
+    fontSize: 18,
+    fontWeight: '700',
+  },
+  builderCard: {
+    backgroundColor: '#ffffff',
+    borderRadius: 20,
+    padding: 18,
+    marginBottom: 16,
+    borderWidth: 1,
+    borderColor: '#e5e7eb',
+  },
+  summaryCard: {
+    backgroundColor: '#f8fafc',
+    borderRadius: 20,
+    padding: 18,
+    marginBottom: 16,
+    borderWidth: 1,
+    borderColor: '#e5e7eb',
+  },
+  sectionTitle: {
+    fontSize: 16,
+    fontWeight: '700',
+    color: '#111827',
+    marginBottom: 12,
+  },
+  formRow: {
+    flexDirection: 'row',
+    gap: 12,
+    marginBottom: 12,
+  },
+  fieldHalf: {
+    flex: 1,
+  },
+  fieldWide: {
+    flex: 1,
+  },
+  fieldLabel: {
+    fontSize: 12,
+    fontWeight: '600',
+    color: '#4b5563',
+    marginBottom: 6,
+    textTransform: 'uppercase',
+  },
+  input: {
+    borderWidth: 1,
+    borderColor: '#d1d5db',
+    borderRadius: 10,
+    paddingHorizontal: 12,
+    paddingVertical: 10,
+    backgroundColor: '#ffffff',
+    color: '#111827',
+  },
+  summaryLine: {
+    color: '#1f2937',
+    fontSize: 14,
+    marginBottom: 6,
+  },
+  summaryTotal: {
+    color: '#111827',
+    fontSize: 18,
+    fontWeight: '700',
+    marginTop: 8,
   },
   tabs: {
     flexDirection: 'row',
     gap: 12,
     marginBottom: 16,
+    flexWrap: 'wrap',
   },
   tab: {
     paddingHorizontal: 14,
@@ -205,61 +758,54 @@ const styles = StyleSheet.create({
   tabTextActive: {
     color: '#f9fafb',
   },
+  webviewContainer: {
+    backgroundColor: 'transparent',
+    marginBottom: 12,
+  },
   webview: {
     minHeight: 1,
     backgroundColor: 'transparent',
   },
-  webviewContainer: {
-    backgroundColor: 'transparent',
-  },
   webviewLoading: {
-    flex: 1,
+    minHeight: 360,
     backgroundColor: 'transparent',
   },
   actionRow: {
-    marginTop: 16,
     flexDirection: 'row',
     alignItems: 'center',
-    justifyContent: 'space-between',
     gap: 12,
   },
   submitButtonWrap: {
     flex: 1,
   },
   logToggle: {
-    minWidth: 92,
-    paddingHorizontal: 14,
-    paddingVertical: 10,
-    borderRadius: 999,
-    backgroundColor: '#111827',
+    minWidth: 88,
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
-    gap: 8,
-    position: 'relative',
+    gap: 6,
+    paddingHorizontal: 14,
+    paddingVertical: 12,
+    borderRadius: 999,
+    backgroundColor: '#111827',
   },
   logToggleIcon: {
     color: '#f9fafb',
-    fontFamily: 'Courier',
-    fontSize: 13,
+    fontSize: 12,
     fontWeight: '700',
   },
   logToggleLabel: {
     color: '#f9fafb',
-    fontSize: 14,
-    fontWeight: '600',
+    fontSize: 13,
+    fontWeight: '700',
   },
   logBadge: {
-    position: 'absolute',
-    top: -6,
-    right: -4,
-    minWidth: 22,
-    height: 22,
-    borderRadius: 11,
+    minWidth: 20,
+    paddingHorizontal: 5,
+    paddingVertical: 2,
+    borderRadius: 999,
     backgroundColor: '#ef4444',
     alignItems: 'center',
-    justifyContent: 'center',
-    paddingHorizontal: 6,
   },
   logBadgeText: {
     color: '#ffffff',
@@ -267,67 +813,119 @@ const styles = StyleSheet.create({
     fontWeight: '700',
   },
   logPopover: {
-    position: 'absolute',
-    top: 110,
-    right: 0,
-    width: '92%',
-    maxWidth: 420,
-    maxHeight: 320,
-    borderRadius: 16,
-    padding: 14,
-    backgroundColor: '#0f172a',
+    marginTop: 16,
+    borderRadius: 20,
     borderWidth: 1,
-    borderColor: '#1f2937',
-    zIndex: 20,
-    elevation: 8,
-    shadowColor: '#000000',
-    shadowOpacity: 0.22,
-    shadowRadius: 18,
-    shadowOffset: { width: 0, height: 10 },
+    borderColor: '#d1d5db',
+    backgroundColor: '#030712',
+    overflow: 'hidden',
   },
   logPopoverHeader: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
+    paddingHorizontal: 16,
+    paddingVertical: 14,
+    borderBottomWidth: 1,
+    borderBottomColor: '#1f2937',
+  },
+  logTitle: {
+    color: '#f9fafb',
+    fontSize: 15,
+    fontWeight: '700',
   },
   logClose: {
     color: '#93c5fd',
     fontSize: 13,
-    fontWeight: '600',
-  },
-  logTitle: {
-    color: '#f9fafb',
-    fontSize: 14,
-    fontWeight: '600',
-    marginBottom: 8,
+    fontWeight: '700',
   },
   logScroll: {
-    maxHeight: 250,
+    maxHeight: 260,
   },
   logScrollContent: {
+    padding: 16,
     gap: 10,
-    paddingBottom: 4,
   },
   logEmpty: {
     color: '#9ca3af',
     fontSize: 13,
   },
   logEntry: {
-    borderRadius: 10,
-    backgroundColor: '#111827',
-    padding: 10,
+    gap: 4,
+    paddingBottom: 10,
+    borderBottomWidth: 1,
+    borderBottomColor: '#111827',
   },
   logEntryType: {
     color: '#93c5fd',
     fontSize: 12,
     fontWeight: '700',
     textTransform: 'uppercase',
-    marginBottom: 6,
   },
   logText: {
-    color: '#d1d5db',
+    color: '#e5e7eb',
     fontSize: 12,
     lineHeight: 18,
+  },
+  resultCard: {
+    borderRadius: 24,
+    padding: 24,
+    borderWidth: 1,
+  },
+  resultStatusBadge: {
+    width: 72,
+    height: 72,
+    borderRadius: 36,
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginBottom: 18,
+  },
+  resultStatusBadgeSuccess: {
+    backgroundColor: '#16a34a',
+  },
+  resultStatusBadgeError: {
+    backgroundColor: '#dc2626',
+  },
+  resultStatusIcon: {
+    color: '#ffffff',
+    fontSize: 36,
+    lineHeight: 40,
+    fontWeight: '800',
+  },
+  resultSuccess: {
+    backgroundColor: '#eff6ff',
+    borderColor: '#bfdbfe',
+  },
+  resultError: {
+    backgroundColor: '#fef2f2',
+    borderColor: '#fecaca',
+  },
+  resultEyebrow: {
+    color: '#374151',
+    fontSize: 12,
+    fontWeight: '700',
+    textTransform: 'uppercase',
+    letterSpacing: 0.8,
+    marginBottom: 8,
+  },
+  resultTitle: {
+    color: '#111827',
+    fontSize: 30,
+    lineHeight: 36,
+    fontWeight: '700',
+    marginBottom: 12,
+  },
+  resultMessage: {
+    color: '#374151',
+    fontSize: 15,
+    lineHeight: 22,
+    marginBottom: 20,
+  },
+  resultActionStack: {
+    gap: 12,
+  },
+  resultSecondaryAction: {
+    opacity: 0.95,
   },
 });
 

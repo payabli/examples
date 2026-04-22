@@ -27,6 +27,27 @@ export type PayabliLogEntry = {
 
 export type PayabliPaymentMethod = 'card' | 'ach' | 'rdc';
 
+export type PayabliCategory = {
+  label: string;
+  amount: number;
+  qty: number;
+};
+
+export type PayabliCustomerData = {
+  firstName: string;
+  lastName: string;
+  billingEmail: string;
+};
+
+export type PayabliPaymentRequest = {
+  paymentDetails: {
+    totalAmount: number;
+    serviceFee: number;
+    categories: PayabliCategory[];
+  };
+  customerData: PayabliCustomerData;
+};
+
 const PAYABLI_BRIDGE_CHANNEL = 'payabli-webview';
 
 const PAYABLI_COMPONENT_SCRIPT_URL =
@@ -39,15 +60,15 @@ const createHtmlShell = () => `<!DOCTYPE html>
   <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no">
   <style>
     :root, body, html {
-        background-color: transparent !important;
-        margin: 0 !important;
-        padding: 0 !important;
+      background-color: transparent !important;
+      margin: 0 !important;
+      padding: 0 !important;
     }
 
     #pay-component-1 {
-        background-color: transparent !important;
-        margin-bottom: 0 !important;
-        padding-bottom: 0 !important;
+      background-color: transparent !important;
+      margin-bottom: 0 !important;
+      padding-bottom: 0 !important;
     }
   </style>
   <title>Payabli Integration</title>
@@ -66,27 +87,27 @@ const sharedConfig = {
   temporaryToken: false,
   customCssStyle: `
     .payabliPaymentForm {
-        padding: 20px;
-        font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, "Noto Sans", sans-serif, "Apple Color Emoji", "Segoe UI Emoji", "Segoe UI Symbol", "Noto Color Emoji" !important;
-        color: white !important;
+      padding: 20px;
+      font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, "Noto Sans", sans-serif, "Apple Color Emoji", "Segoe UI Emoji", "Segoe UI Symbol", "Noto Color Emoji" !important;
+      color: white !important;
     }
 
     label {
-        font-weight: 600 !important;
+      font-weight: 600 !important;
     }
 
     input {
-        background-color: #111827 !important;
-        color: white !important;
-        border: 1px solid #374151 !important;
+      background-color: #111827 !important;
+      color: white !important;
+      border: 1px solid #374151 !important;
     }
 
     input:focus {
-        box-shadow: 0 0 0 2px #818cf8 !important;
+      box-shadow: 0 0 0 2px #818cf8 !important;
     }
 
-    :root, html body, #main-loading-layer { 
-        background-color: transparent;
+    :root, html body, #main-loading-layer {
+      background-color: transparent;
     }
   `,
 } as const;
@@ -130,7 +151,6 @@ const cardConfig = {
         row: 2,
         order: 0,
         floating: false,
-
       },
       cardZipcode: {
         label: 'ZIP Code',
@@ -183,13 +203,13 @@ const achConfig = {
   },
 } as const;
 
-const rdcConfig = {
+const buildRdcConfig = (paymentRequest: PayabliPaymentRequest) => ({
   ...sharedConfig,
   defaultOpen: 'rdc',
   card: { enabled: true },
   rdc: {
     enabled: true,
-    amount: 100,
+    amount: paymentRequest.paymentDetails.totalAmount,
     inputs: {
       rdcAccountHolderName: {
         label: 'Account Holder Name',
@@ -205,25 +225,13 @@ const rdcConfig = {
         floating: false,
         size: 6,
         row: 0,
-        order: 0,
+        order: 1,
       },
     },
   },
-} as const;
+});
 
-const buildPayabliConfig = (paymentMethod: PayabliPaymentMethod) => {
-  if (paymentMethod === 'ach') {
-    return achConfig;
-  }
-
-  if (paymentMethod === 'rdc') {
-    return rdcConfig;
-  }
-
-  return cardConfig;
-};
-
-const buildPaymentRequest = () => ({
+export const createDefaultPaymentRequest = (): PayabliPaymentRequest => ({
   paymentDetails: {
     totalAmount: 100,
     serviceFee: 0,
@@ -242,9 +250,24 @@ const buildPaymentRequest = () => ({
   },
 });
 
+const buildPayabliConfig = (
+  paymentMethod: PayabliPaymentMethod,
+  paymentRequest: PayabliPaymentRequest,
+) => {
+  if (paymentMethod === 'ach') {
+    return achConfig;
+  }
+
+  if (paymentMethod === 'rdc') {
+    return buildRdcConfig(paymentRequest);
+  }
+
+  return cardConfig;
+};
+
 const buildInjectedBootstrap = (
   config: ReturnType<typeof buildPayabliConfig>,
-  paymentRequest: ReturnType<typeof buildPaymentRequest>,
+  paymentRequest: PayabliPaymentRequest,
 ) => `
   (function () {
     var bridgeChannel = ${JSON.stringify(PAYABLI_BRIDGE_CHANNEL)};
@@ -357,7 +380,6 @@ const buildInjectedBootstrap = (
     }
 
     window.addEventListener('resize', reportHeight);
-
     window.addEventListener('message', handleBridgeMessage);
     document.addEventListener('message', handleBridgeMessage);
 
@@ -386,19 +408,22 @@ const isReadyMessage = (message: PaymentLogMessage) => {
   return Boolean((message.payload as { isReady?: boolean }).isReady);
 };
 
-export const usePayabliWebView = (paymentMethod: PayabliPaymentMethod) => {
+export const usePayabliWebView = (
+  paymentMethod: PayabliPaymentMethod,
+  paymentRequest: PayabliPaymentRequest,
+) => {
   const webViewRef = useRef<WebView>(null);
   const nextLogIdRef = useRef(1);
-  const lastReadyStateRef = useRef<boolean | null>(null);
   const [isPaymentReady, setIsPaymentReady] = useState(false);
   const [webViewHeight, setWebViewHeight] = useState(360);
   const [logEntries, setLogEntries] = useState<PayabliLogEntry[]>([]);
   const [unreadLogCount, setUnreadLogCount] = useState(0);
+  const [latestMessage, setLatestMessage] = useState<PaymentLogMessage | null>(null);
 
   const htmlShell = createHtmlShell();
   const injectedBootstrap = buildInjectedBootstrap(
-    buildPayabliConfig(paymentMethod),
-    buildPaymentRequest(),
+    buildPayabliConfig(paymentMethod, paymentRequest),
+    paymentRequest,
   );
 
   const appendLogEntry = useCallback((message: PaymentLogMessage) => {
@@ -434,6 +459,7 @@ export const usePayabliWebView = (paymentMethod: PayabliPaymentMethod) => {
   const handleMessage = (event: WebViewMessageEvent) => {
     try {
       const message = JSON.parse(event.nativeEvent.data) as PaymentLogMessage;
+      setLatestMessage(message);
 
       if (message.type === 'contentHeight' && message.payload && typeof message.payload === 'object') {
         const nextHeight = (message as PaymentHeightMessage).payload.height;
@@ -443,9 +469,7 @@ export const usePayabliWebView = (paymentMethod: PayabliPaymentMethod) => {
       }
 
       if (message.type === 'ready') {
-        const nextReadyState = isReadyMessage(message);
-        lastReadyStateRef.current = nextReadyState;
-        setIsPaymentReady(nextReadyState);
+        setIsPaymentReady(isReadyMessage(message));
       }
 
       appendLogEntry(message);
@@ -470,6 +494,7 @@ export const usePayabliWebView = (paymentMethod: PayabliPaymentMethod) => {
     webViewHeight,
     logEntries,
     unreadLogCount,
+    latestMessage,
     handleMessage,
     handleSubmitPress,
     markLogsSeen,
