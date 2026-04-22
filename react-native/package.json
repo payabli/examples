@@ -1,0 +1,44 @@
+{
+  "name": "payabli-rn-example",
+  "version": "1.0.0",
+  "main": "index.ts",
+  "scripts": {
+    "start": "expo start",
+    "android": "expo start --android",
+    "ios": "expo start --ios",
+    "web": "expo start --web"
+  },
+  "dependencies": {
+    "@payabli/sdk-node": "^0.0.141",
+    "expo": "~54.0.33",
+    "expo-asset": "^55.0.16",
+    "expo-file-system": "^55.0.17",
+    "expo-status-bar": "~3.0.9",
+    "react": "19.1.0",
+    "react-dom": "19.1.0",
+    "react-native": "0.81.5",
+    "react-native-web": "^0.21.0",
+    "react-native-webview": "^13.16.1"
+  },
+  "devDependencies": {
+    "@types/react": "~19.1.0",
+    "react-native-dotenv": "^3.4.11",
+    "typescript": "~5.9.2"
+  },
+  "babel": {
+    "plugins": [
+      [
+        "module:react-native-dotenv",
+        {
+          "moduleName": "@env",
+          "path": ".env",
+          "blocklist": null,
+          "allowlist": null,
+          "safe": false,
+          "allowUndefined": true
+        }
+      ]
+    ]
+  },
+  "private": true
+}
