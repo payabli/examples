@@ -13,7 +13,7 @@ The app is structured as a small mobile checkout demo:
 
 - Uses Expo to run a React Native Payabli sample app
 - Renders Payabli's Embedded Method UI component in a WebView
-- Passes payment details and customer data from native React state into the embedded checkout
+- Passes transaction amounts and metadata from native React state into the embedded checkout
 - Switches between Card, ACH, and RDC payment methods
 - Handles `postMessage` events from the embedded component to update native UI state
 
