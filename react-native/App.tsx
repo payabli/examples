@@ -1,12 +1,21 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { SafeAreaView, ScrollView, StyleSheet } from 'react-native';
+import HomePage from './components/HomePage';
 import PayabliCheckout from './components/PayabliCheckout';
 
+type AppScreen = 'main' | 'checkout';
+
 export default function App() {
+  const [screen, setScreen] = useState<AppScreen>('main');
+
   return (
     <SafeAreaView style={styles.safeArea}>
       <ScrollView contentContainerStyle={styles.container}>
-        <PayabliCheckout />
+        {screen === 'main' ? (
+          <HomePage onCheckout={() => setScreen('checkout')} />
+        ) : (
+          <PayabliCheckout onBackToHome={() => setScreen('main')} />
+        )}
       </ScrollView>
     </SafeAreaView>
   );
