@@ -8,7 +8,7 @@ import {
   TextInput,
   View,
 } from 'react-native';
-import { WebView } from 'react-native-webview';
+import PayabliEmbeddedWebView from './PayabliEmbeddedWebView';
 import {
   usePayabliWebView,
 } from '../hooks/usePayabliWebView';
@@ -347,28 +347,13 @@ const PayabliCheckout = ({ onBackToHome }: PayabliCheckoutProps) => {
           </Text>
         </Pressable>
       </View>
-      <WebView
-        key={paymentMethod}
-        ref={webViewRef}
-        originWhitelist={["*"]}
-        source={{ html: htmlShell }}
-        javaScriptEnabled
-        domStorageEnabled
-        startInLoadingState
-        renderLoading={() => <View style={styles.webviewLoading} />}
-        injectedJavaScript={injectedBootstrap}
+      <PayabliEmbeddedWebView
+        paymentMethod={paymentMethod}
+        htmlShell={htmlShell}
+        injectedBootstrap={injectedBootstrap}
+        webViewRef={webViewRef}
+        webViewHeight={webViewHeight}
         onMessage={handleMessage}
-        scrollEnabled={false}
-        bounces={false}
-        showsVerticalScrollIndicator={false}
-        showsHorizontalScrollIndicator={false}
-        automaticallyAdjustContentInsets={false}
-        contentInsetAdjustmentBehavior="never"
-        hideKeyboardAccessoryView
-        keyboardDisplayRequiresUserAction
-        allowsLinkPreview={false}
-        containerStyle={styles.webviewContainer}
-        style={[styles.webview, { height: webViewHeight }]}
       />
       <View style={styles.actionRow}>
         <View style={styles.submitButtonWrap}>
@@ -619,18 +604,6 @@ const styles = StyleSheet.create({
   },
   tabTextActive: {
     color: '#f9fafb',
-  },
-  webviewContainer: {
-    backgroundColor: 'transparent',
-    marginBottom: 12,
-  },
-  webview: {
-    minHeight: 1,
-    backgroundColor: 'transparent',
-  },
-  webviewLoading: {
-    minHeight: 360,
-    backgroundColor: 'transparent',
   },
   actionRow: {
     flexDirection: 'row',
