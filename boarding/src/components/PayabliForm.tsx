@@ -32,7 +32,7 @@ import { useFormLogic } from '@/onSubmit'
 import { DynamicFormSection } from './form/DynamicFormSection'
 import { Button } from './ui/button'
 import { useDrizzle } from '@/lib/clientDb'
-import { useFormWithSchema } from '@/Schema'
+import { formDefaultValues, useFormWithSchema } from '@/Schema'
 import { documentPages } from './ESigDocument'
 import { useESignature } from '@/hooks/use-esignature'
 import { formSchema, migrateBankAccounts } from '@/Schema'
@@ -247,7 +247,7 @@ export function PayabliForm() {
     setIsClearWorking(true)
     try {
       await clearFormData()
-      form.reset({}) // Reset the form after clearing data
+      form.reset(formDefaultValues)
     } catch (error) {
       console.error('Error clearing data:', error)
       // Optionally, set an error state here to display to the user
