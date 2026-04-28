@@ -1,5 +1,7 @@
 import type { APIRoute } from 'astro'
+import { z } from 'zod'
 import { getApiUrlPrefix } from '../../lib/getUrl';
+import { migrateBankAccounts, parseServerFormData } from '../../Schema'
 
 export const POST: APIRoute = async ({ request }) => {
   
@@ -7,7 +9,9 @@ export const POST: APIRoute = async ({ request }) => {
   const prefix = getApiUrlPrefix()
 
   try {
-    const formData = await request.json()
+    const requestData = await request.json()
+    // Final submission path: normalize enforced prefills, then fully validate and coerce.
+    const formData = parseServerFormData(migrateBankAccounts(requestData))
     
     // Log the entire application data for inspection
     console.log('\n========== FULL APPLICATION DATA ==========');
@@ -66,6 +70,15 @@ export const POST: APIRoute = async ({ request }) => {
       }
     })
   } catch (error) {
+    if (error instanceof z.ZodError) {
+      return new Response(JSON.stringify({ error: 'Invalid form data', details: error.flatten() }), {
+        status: 400,
+        headers: {
+          'Content-Type': 'application/json'
+        }
+      })
+    }
+
     console.error('Error submitting application:', error)
     return new Response(JSON.stringify({ error: 'Failed to submit application' }), {
       status: 500,

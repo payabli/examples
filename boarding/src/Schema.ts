@@ -1,6 +1,7 @@
 import { z } from 'zod'
 import { useForm } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
+import { createFormSchemaKit, prefill } from '@/lib/schemaPrefill'
 
 // Helper functions to create common fields
 const requiredString = () =>
@@ -12,10 +13,42 @@ const requiredDate = () =>
     message: 'Date must be in MM/DD/YYYY format',
   })
 
-// Define the form schema
-export const formSchema = z
-  .object({
-    templateId: requiredNumber().default(123),
+type PercentageDistribution = {
+  binperson: number
+  binphone: number
+  binweb: number
+}
+
+function validatePercentageDistribution(
+  data: PercentageDistribution,
+  ctx: z.RefinementCtx,
+) {
+  const errorMessage = 'The sum of percentages must equal 100%'
+  const total = data.binperson + data.binphone + data.binweb
+  if (total !== 100) {
+    ctx.addIssue({
+      path: ['binperson'],
+      fatal: false,
+      code: 'custom',
+      message: errorMessage,
+    })
+    ctx.addIssue({
+      path: ['binphone'],
+      fatal: false,
+      code: 'custom',
+      message: errorMessage,
+    })
+    ctx.addIssue({
+      path: ['binweb'],
+      fatal: false,
+      code: 'custom',
+      message: errorMessage,
+    })
+  }
+}
+
+const formSchemaKit = createFormSchemaKit({
+    templateId: prefill(requiredNumber(), 123),
     // only EITHER templateId or boardingLinkId are required, never both
     // boardingLinkId: requiredNumber.default(123),
     // orgId: requiredNumber().default(123),
@@ -196,31 +229,33 @@ export const formSchema = z
       acceptance: z.boolean().default(true),
     }),
   })
+
+// Define the form schema
+export const formSchema = formSchemaKit.clientSchema
   .superRefine((data, ctx) => {
-    const errorMessage = 'The sum of percentages must equal 100%'
-    const total = data.binperson + data.binphone + data.binweb
-    if (total !== 100) {
-      // Add errors for each field if the total is invalid
-      ctx.addIssue({
-        path: ['binperson'],
-        fatal: false,
-        code: 'custom',
-        message: errorMessage,
-      })
-      ctx.addIssue({
-        path: ['binphone'],
-        fatal: false,
-        code: 'custom',
-        message: errorMessage,
-      })
-      ctx.addIssue({
-        path: ['binweb'],
-        fatal: false,
-        code: 'custom',
-        message: errorMessage,
-      })
-    }
+    validatePercentageDistribution(data, ctx)
   })
+
+export const serverFormSchema = formSchemaKit.serverSchema.superRefine((data, ctx) => {
+  validatePercentageDistribution(data, ctx)
+})
+
+export const formDefaultValues = formSchemaKit.defaultValues
+
+// Use normalize when partial payloads are allowed and only server-owned prefill fields must be enforced.
+export function normalizeServerFormData(input: unknown) {
+  return formSchemaKit.normalizeInput(input)
+}
+
+// Use parse when the payload must be fully validated after prefill enforcement and coercion.
+export function parseServerFormData(input: unknown) {
+  return serverFormSchema.parse(normalizeServerFormData(input))
+}
+
+// Use safeParse when the payload must be fully validated after prefill enforcement but without throwing.
+export function safeParseServerFormData(input: unknown) {
+  return serverFormSchema.safeParse(normalizeServerFormData(input))
+}
 
 // Create a type for the form data
 export type FormSchemaType = z.infer<typeof formSchema>
@@ -229,6 +264,7 @@ export type FormSchemaType = z.infer<typeof formSchema>
 export function useFormWithSchema() {
   return useForm<FormSchemaType>({
     resolver: zodResolver(formSchema),
+    defaultValues: formDefaultValues,
   })
 }
 
