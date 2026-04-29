@@ -1,6 +1,5 @@
-@import "tailwindcss/base";
-@import "tailwindcss/components";
-@import "tailwindcss/utilities";
+@import "tailwindcss";
+@plugin "@tailwindcss/typography";
 
 .prose {
   max-width: 100%;
@@ -72,5 +71,5 @@
 
 iframe {
   display: none !important;
-  background-color: rgba(0, 0, 0, 0.0) !!important;
+  background-color: rgba(0, 0, 0, 0.0) !important;
 }
