@@ -2,6 +2,8 @@
 
 End-to-end demonstration of receiving a Payabli `ApprovedPayment` webhook using the official Node.js SDK and a plain Node.js HTTP server.
 
+This sample uses the GetPaid v2 transaction endpoint via `moneyIn.getpaidv2(...)`.
+
 ## Prerequisites
 
 - Node.js ≥ 18 (native `fetch` required; tested on Node 22)

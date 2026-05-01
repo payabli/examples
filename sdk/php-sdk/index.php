@@ -8,7 +8,7 @@ use Payabli\TokenStorage\Requests\AddMethodRequest;
 use Payabli\TokenStorage\Types\RequestTokenStorage;
 use Payabli\TokenStorage\Types\ConvertToken;
 use Payabli\Types\PayorDataRequest;
-use Payabli\MoneyIn\Requests\RequestPayment;
+use Payabli\MoneyIn\Requests\RequestPaymentV2;
 use Payabli\MoneyIn\Types\TransRequestBody;
 use Payabli\Types\PaymentDetail;
 use Payabli\Types\PayMethodStoredMethod;
@@ -907,7 +907,7 @@ function handleProcessTransactionWithToken($payabliClient, $entryPoint, $token) 
         error_log("Token stored successfully with ID: " . $storedMethodId);
 
         // Step 2: Process payment using the stored method
-        $paymentRequest = new RequestPayment([
+        $paymentRequest = new RequestPaymentV2([
             'body' => new TransRequestBody([
                 'customerData' => new PayorDataRequest([
                     'customerId' => 4440
@@ -927,11 +927,11 @@ function handleProcessTransactionWithToken($payabliClient, $entryPoint, $token) 
             ])
         ]);
 
-        $paymentResult = $payabliClient->moneyIn->getpaid($paymentRequest);
+        $paymentResult = $payabliClient->moneyIn->getpaidv2($paymentRequest);
         error_log("Payment processed successfully: " . json_encode($paymentResult));
         
         // Extract reference ID from the response
-        $referenceId = $paymentResult->responseData->referenceId ?? 'Unknown';
+        $referenceId = $paymentResult->data->referenceId ?? 'Unknown';
 
         http_response_code(200);
         header('Content-Type: text/html');

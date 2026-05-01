@@ -32,7 +32,7 @@ namespace PayabliSdkExample.Controllers
         {
             try
             {
-                var additionalFields = new Dictionary<string, string?>();
+                var additionalFields = new Dictionary<string, string>();
                 if (!string.IsNullOrEmpty(model.Hvac))
                     additionalFields["hvac"] = model.Hvac;
                 if (!string.IsNullOrEmpty(model.Electrical))
@@ -247,7 +247,7 @@ namespace PayabliSdkExample.Controllers
                 Console.WriteLine($"Token stored successfully with ID: {storedMethodId}");
 
                 // Step 2: Process payment using the stored method
-                var paymentRequest = new RequestPayment
+                var paymentRequest = new RequestPaymentV2
                 {
                     Body = new TransRequestBody
                     {
@@ -272,7 +272,7 @@ namespace PayabliSdkExample.Controllers
                     }
                 };
 
-                var paymentResult = await _payabliClient.MoneyIn.GetpaidAsync(paymentRequest);
+                var paymentResult = await _payabliClient.MoneyIn.Getpaidv2Async(paymentRequest);
                 Console.WriteLine($"Payment processed successfully: {paymentResult}");
 
                 return Content(
