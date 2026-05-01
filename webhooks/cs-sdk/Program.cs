@@ -1,6 +1,7 @@
 using DotNetEnv;
 using PayabliApi;
 using System.Text;
+using System.Text.Json;
 
 // Load environment variables from .env file.
 Env.Load();
@@ -65,7 +66,13 @@ var tunnelUrl = (Console.ReadLine() ?? "").Trim();
 await TestTunnel(tunnelUrl);
 
 // Build the Payabli SDK client using the API key from .env.
-var client = new PayabliApiClient(apiKey);
+var client = new PayabliApiClient(
+    apiKey,
+    new ClientOptions
+    {
+        BaseUrl = PayabliApiEnvironment.Sandbox
+    }
+);
 
 // Register the ApprovedPayment notification so Payabli knows where to POST.
 await CreateWebhookNotification(client, tunnelUrl, ownerId);
@@ -150,12 +157,13 @@ static async Task CreateWebhookNotification(PayabliApiClient client, string tunn
 }
 
 // TriggerTransaction sends a test $1.00 credit card transaction against the
-// configured entrypoint to generate an ApprovedPayment event and trigger the webhook.
+// configured entrypoint using the GetPaid v2 endpoint to generate an
+// ApprovedPayment event and trigger the webhook.
 static async Task TriggerTransaction(PayabliApiClient client, string entrypoint)
 {
     Console.WriteLine("\nTriggering a test transaction to generate webhook...");
 
-    var request = new RequestPayment
+    var request = new RequestPaymentV2
     {
         Body = new TransRequestBody
         {
@@ -185,10 +193,14 @@ static async Task TriggerTransaction(PayabliApiClient client, string entrypoint)
 
     try
     {
-        var response = await client.MoneyIn.GetpaidAsync(request);
+        var response = await client.MoneyIn.Getpaidv2Async(request);
         Console.WriteLine(
-            $"Transaction sent: IsSuccess={response.IsSuccess}, " +
-            $"ResponseText={response.ResponseText}");
+            "Transaction sent (v2 response):\n" +
+            JsonSerializer.Serialize(response, new JsonSerializerOptions
+            {
+                WriteIndented = true
+            })
+        );
     }
     catch (Exception ex)
     {

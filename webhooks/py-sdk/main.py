@@ -110,7 +110,7 @@ def trigger_transaction(client: payabli.payabli, entrypoint: str) -> None:
     print(f"Transaction request: EntryPoint={entrypoint}, Amount=1.00")
 
     try:
-        response = client.money_in.getpaid(
+        response = client.money_in.getpaidv_2(
             payment_details=PaymentDetail(total_amount=1.00, service_fee=0),
             payment_method=PayMethodCredit(
                 cardcvv="999",
@@ -124,10 +124,7 @@ def trigger_transaction(client: payabli.payabli, entrypoint: str) -> None:
             entry_point=entrypoint,
             ipaddress="255.255.255.255",
         )
-        print(
-            f"Transaction sent: IsSuccess={response.is_success}, "
-            f"ResponseText={response.response_text}"
-        )
+        print(f"Transaction sent (v2 response):\n{response}")
     except Exception as e:
         print(f"Failed to trigger transaction: {e}")
 

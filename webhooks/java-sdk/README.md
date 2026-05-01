@@ -2,6 +2,8 @@
 
 Demonstrates the full Payabli webhook quickstart flow using the [Payabli Java SDK](https://central.sonatype.com/artifact/io.github.payabli/sdk-java).
 
+This sample uses the GetPaid v2 transaction endpoint via `moneyIn().getpaidv2(...)`.
+
 ## What it does
 
 1. Starts a local HTTP server to receive webhook POSTs at `/webhook`

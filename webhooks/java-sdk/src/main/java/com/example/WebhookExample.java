@@ -2,9 +2,9 @@ package com.example;
 
 import com.sun.net.httpserver.HttpServer;
 import io.github.cdimascio.dotenv.Dotenv;
+import io.github.payabli.api.core.Environment;
 import io.github.payabli.api.PayabliApiClient;
 import io.github.payabli.api.PayabliApiClientBuilder;
-import io.github.payabli.api.resources.moneyin.requests.RequestPayment;
 import io.github.payabli.api.resources.moneyin.types.TransRequestBody;
 import io.github.payabli.api.resources.notification.types.AddNotificationRequest;
 import io.github.payabli.api.types.NotificationStandardRequest;
@@ -55,6 +55,7 @@ public class WebhookExample {
         // ── Build Payabli client ────────────────────────────────────────────
         PayabliApiClient client = new PayabliApiClientBuilder()
                 .apiKey(apiKey)
+            .environment(Environment.SANDBOX)
                 .build();
 
         // ── Start the HTTP server (JDK built-in) ───────────────────────────
@@ -214,40 +215,37 @@ public class WebhookExample {
     }
 
     /**
-     * Send a test $1.00 credit card transaction against the configured entrypoint
-     * to generate an ApprovedPayment event and trigger the webhook.
+         * Send a test $1.00 credit card transaction against the configured entrypoint
+         * through the GetPaid v2 endpoint to generate an ApprovedPayment event and trigger the webhook.
      */
     private static void triggerTransaction(PayabliApiClient client, String entrypoint) {
         System.out.println("\nTriggering a test transaction to generate webhook...");
         System.out.printf("Transaction request: EntryPoint=%s, Amount=1.00%n", entrypoint);
         try {
-            RequestPayment request = RequestPayment.builder()
-                    .body(TransRequestBody.builder()
-                            .paymentDetails(PaymentDetail.builder()
-                                    .totalAmount(1.00)
-                                    .serviceFee(0.0)
-                                    .build())
-                            .paymentMethod(PaymentMethod.of(
-                                    PayMethodCredit.builder()
-                                            .cardexp("02/27")
-                                            .cardnumber("4111111111111111")
-                                            .cardcvv("999")
-                                            .cardHolder("Test User")
-                                            .cardzip("12345")
-                                            .initiator("payor")
-                                            .build()
-                            ))
-                            .entryPoint(entrypoint)
-                            .ipaddress("255.255.255.255")
-                            .customerData(PayorDataRequest.builder()
-                                    .customerId(4440L)
-                                    .build())
-                            .build())
+            TransRequestBody request = TransRequestBody.builder()
+                .paymentDetails(PaymentDetail.builder()
+                    .totalAmount(1.00)
+                    .serviceFee(0.0)
+                    .build())
+                .paymentMethod(PaymentMethod.of(
+                    PayMethodCredit.builder()
+                        .cardexp("02/27")
+                        .cardnumber("4111111111111111")
+                        .cardcvv("999")
+                        .cardHolder("Test User")
+                        .cardzip("12345")
+                        .initiator("payor")
+                        .build()
+                ))
+                .entryPoint(entrypoint)
+                .ipaddress("255.255.255.255")
+                .customerData(PayorDataRequest.builder()
+                    .customerId(4440L)
+                    .build())
                     .build();
 
-            var resp = client.moneyIn().getpaid(request);
-            System.out.printf("Transaction sent: IsSuccess=%b, ResponseText=%s%n",
-                    resp.getIsSuccess(), resp.getResponseText());
+            var resp = client.moneyIn().getpaidv2(request);
+            System.out.printf("Transaction sent (v2 response): %s%n", resp);
         } catch (Exception e) {
             System.err.printf("Failed to trigger transaction: %s%n", e.getMessage());
         }

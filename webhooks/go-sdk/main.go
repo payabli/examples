@@ -3,6 +3,7 @@ package main
 import (
 	"bufio"
 	"context"
+	"encoding/json"
 	"fmt"
 	"io"
 	"log"
@@ -102,11 +103,12 @@ func createWebhookNotification(c *payabliclient.Client, tunnelURL string, ownerI
 	fmt.Printf("Webhook registered: %+v\n", resp)
 }
 
-// triggerTransaction sends a test $1.00 credit card transaction to generate an ApprovedPayment event.
+// triggerTransaction sends a test $1.00 credit card transaction through the
+// GetPaid v2 endpoint to generate an ApprovedPayment event.
 func triggerTransaction(c *payabliclient.Client, entrypoint string) {
 	fmt.Println("\nTriggering a test transaction to generate webhook...")
 
-	request := &payabli.RequestPayment{
+	request := &payabli.RequestPaymentV2{
 		Body: &payabli.TransRequestBody{
 			CustomerData: &payabli.PayorDataRequest{
 				CustomerId: payabli.Int64(int64(4440)),
@@ -132,12 +134,18 @@ func triggerTransaction(c *payabliclient.Client, entrypoint string) {
 
 	fmt.Printf("Transaction request body: %+v\n", request)
 
-	resp, err := c.MoneyIn.Getpaid(context.Background(), request)
+	resp, err := c.MoneyIn.Getpaidv2(context.Background(), request)
 	if err != nil {
 		log.Printf("Failed to trigger transaction: %v", err)
 		return
 	}
-	fmt.Printf("Transaction sent: %+v\n", resp)
+	responseJSON, err := json.MarshalIndent(resp, "", "  ")
+	if err != nil {
+		log.Printf("Failed to serialize v2 transaction response: %v", err)
+		fmt.Printf("Transaction sent: %+v\n", resp)
+		return
+	}
+	fmt.Printf("Transaction sent (v2 response):\n%s\n", responseJSON)
 }
 
 func main() {
