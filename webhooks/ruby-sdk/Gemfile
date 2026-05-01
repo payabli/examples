@@ -3,6 +3,6 @@
 source 'https://rubygems.org'
 
 gem 'dotenv'
-gem 'payabli'
+gem 'payabli', '2.2.26'
 gem 'sinatra'
 gem 'puma'

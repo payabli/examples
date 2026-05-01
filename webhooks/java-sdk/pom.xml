@@ -22,7 +22,7 @@
         <dependency>
             <groupId>io.github.payabli</groupId>
             <artifactId>sdk-java</artifactId>
-            <version>0.0.320</version>
+            <version>0.0.326</version>
         </dependency>
 
         <!-- SDK transitive dependencies -->

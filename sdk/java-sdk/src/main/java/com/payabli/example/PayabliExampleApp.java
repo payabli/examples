@@ -6,7 +6,7 @@ import io.github.payabli.api.PayabliApiClientBuilder;
 import io.github.payabli.api.resources.customer.requests.AddCustomerRequest;
 import io.github.payabli.api.resources.tokenstorage.requests.AddMethodRequest;
 import io.github.payabli.api.resources.tokenstorage.types.*;
-import io.github.payabli.api.resources.moneyin.requests.RequestPayment;
+import io.github.payabli.api.resources.moneyin.requests.RequestPaymentV2;
 import io.github.payabli.api.resources.moneyin.types.*;
 import io.github.payabli.api.types.*;
 import io.javalin.Javalin;
@@ -329,7 +329,7 @@ public class PayabliExampleApp {
 
             // Step 2: Process payment using the stored method
             System.out.println("\n💳 STEP 2: Processing payment using stored method...");
-            RequestPayment paymentRequest = RequestPayment.builder()
+            RequestPaymentV2 paymentRequest = RequestPaymentV2.builder()
                 .body(TransRequestBody.builder()
                     .paymentDetails(PaymentDetail.builder()
                         .totalAmount(100.0) // This should be dynamic based on your needs
@@ -350,9 +350,9 @@ public class PayabliExampleApp {
                     .build())
                 .build();
 
-            System.out.println("⏳ Calling MoneyIn.getpaid()...");
-            var paymentResult = payabliClient.moneyIn().getpaid(paymentRequest);
-            System.out.println("✅ MoneyIn.getpaid() completed!");
+            System.out.println("⏳ Calling MoneyIn.getpaidv2()...");
+            var paymentResult = payabliClient.moneyIn().getpaidv2(paymentRequest);
+            System.out.println("✅ MoneyIn.getpaidv2() completed!");
             System.out.println("💰 Payment result: " + paymentResult);
             logger.info("Payment processed successfully: {}", paymentResult);
 

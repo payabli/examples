@@ -22,8 +22,6 @@ export const POST: APIRoute = async ({ params }) => {
     console.log('apiKey exists:', !!apiKey);
     console.log('entryPoint exists:', !!entryPoint);
     console.log('entryPoint value:', entryPoint);
-    console.log('All env vars:', Object.keys(process.env).filter(key => key.includes('PAYABLI')));
-
     if (!apiKey || !entryPoint) {
       return new Response(
         '<input type="text" name="invalid" value="❌ Server configuration error" aria-invalid="true" readonly>',
@@ -58,7 +56,7 @@ export const POST: APIRoute = async ({ params }) => {
 
     console.log('Token storage result:', tokenResult);
 
-    if (!tokenResult.isSuccess) {
+    if (!tokenResult.isSuccess || !tokenResult.responseData?.referenceId) {
       return new Response(
         `<input type="text" name="invalid" value="❌ Token storage failed: ${tokenResult.responseText}" aria-invalid="true" readonly>`,
         {
@@ -71,8 +69,8 @@ export const POST: APIRoute = async ({ params }) => {
     const permanentToken = tokenResult.responseData.referenceId;
     console.log(`Permanent token created: ${permanentToken}`);
 
-        // Step 2: Create transaction using the permanent token
-    const transactionResult = await client.moneyIn.getpaid({
+    // Step 2: Create transaction using the permanent token
+    const transactionResult = await client.moneyIn.getpaidv2({
       body: {
         customerData: {
           customerId: 4440
@@ -94,8 +92,8 @@ export const POST: APIRoute = async ({ params }) => {
 
     console.log('Transaction result:', transactionResult);
 
-    if (transactionResult.isSuccess) {
-      const referenceId = transactionResult.responseData?.referenceId || 'Unknown';
+    if (transactionResult.code?.startsWith('A')) {
+      const referenceId = transactionResult.data?.paymentTransId || 'Unknown';
       return new Response(
         `<input type="text" name="valid" value="✅ Payment processed! Reference ID: ${referenceId}" readonly>`,
         {
@@ -105,7 +103,7 @@ export const POST: APIRoute = async ({ params }) => {
       );
     } else {
       return new Response(
-        `<input type="text" name="invalid" value="❌ Transaction failed: ${transactionResult.responseText}" aria-invalid="true" readonly>`,
+        `<input type="text" name="invalid" value="❌ Transaction failed: ${transactionResult.reason || 'Unknown error'}" aria-invalid="true" readonly>`,
         {
           status: 400,
           headers: { 'Content-Type': 'text/html' }

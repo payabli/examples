@@ -367,7 +367,7 @@ func processTransactionAPI(w http.ResponseWriter, r *http.Request) {
 	log.Printf("Token stored successfully with ID: %s", storedMethodId)
 
 	// Step 2: Process payment using the stored method
-	paymentRequest := &api.RequestPayment{
+	paymentRequest := &api.RequestPaymentV2{
 		Body: &api.TransRequestBody{
 			CustomerData: &api.PayorDataRequest{
 				CustomerId: &[]api.CustomerId{4440}[0],
@@ -389,7 +389,7 @@ func processTransactionAPI(w http.ResponseWriter, r *http.Request) {
 		},
 	}
 
-	paymentResult, err := payabliClient.MoneyIn.Getpaid(ctx, paymentRequest)
+	paymentResult, err := payabliClient.MoneyIn.Getpaidv2(ctx, paymentRequest)
 	if err != nil {
 		log.Printf("API Error processing payment: %v", err)
 		w.Header().Set("Content-Type", "text/html")

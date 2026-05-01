@@ -3,7 +3,7 @@
 source 'https://rubygems.org'
 
 gem 'sinatra'
-gem 'payabli'
+gem 'payabli', '2.2.26'
 gem 'thin'
 gem 'dotenv'
 

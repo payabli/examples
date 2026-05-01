@@ -6,7 +6,7 @@ require_once __DIR__ . '/vendor/autoload.php';
 use Payabli\PayabliClient;
 use Payabli\Types\NotificationStandardRequest;
 use Payabli\Types\NotificationStandardRequestContent;
-use Payabli\MoneyIn\Requests\RequestPayment;
+use Payabli\MoneyIn\Requests\RequestPaymentV2;
 use Payabli\MoneyIn\Types\TransRequestBody;
 use Payabli\Types\PaymentDetail;
 use Payabli\Types\PayMethodCredit;
@@ -131,7 +131,8 @@ function createWebhookNotification(PayabliClient $client, string $tunnelUrl, int
 
 /**
  * Send a test $1.00 credit card transaction against the configured entrypoint
- * to generate an ApprovedPayment event and trigger the webhook.
+ * through the GetPaid v2 endpoint to generate an ApprovedPayment event and
+ * trigger the webhook.
  */
 function triggerTransaction(PayabliClient $client, string $entrypoint): void
 {
@@ -139,8 +140,8 @@ function triggerTransaction(PayabliClient $client, string $entrypoint): void
     echo "Transaction request: EntryPoint={$entrypoint}, Amount=1.00\n";
 
     try {
-        $response = $client->moneyIn->getpaid(
-            new RequestPayment([
+        $response = $client->moneyIn->getpaidv2(
+            new RequestPaymentV2([
                 'body' => new TransRequestBody([
                     'customerData' => new PayorDataRequest([
                         'customerId' => 4440,
@@ -163,8 +164,8 @@ function triggerTransaction(PayabliClient $client, string $entrypoint): void
                 ]),
             ])
         );
-        echo "Transaction sent: IsSuccess={$response->isSuccess}, "
-            . "ResponseText={$response->responseText}\n";
+        echo "Transaction sent (v2 response):\n";
+        print_r($response);
     } catch (Exception $e) {
         echo "Failed to trigger transaction: {$e->getMessage()}\n";
     }

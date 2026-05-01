@@ -1,6 +1,6 @@
 # Payabli Ruby SDK Example
 
-Small Sinatra example that demonstrates basic usage of the local Payabli Ruby SDK (not published).
+Small Sinatra example that demonstrates basic usage of the Payabli Ruby SDK for customer operations, payment method tokenization, and v2 Money In transactions.
 
 ## Requirements
 - Ruby >= 3.3.0 (SDK requires 3.3+)
@@ -23,6 +23,10 @@ bundle exec ruby app.rb
 
 Then open http://localhost:4567
 
+## Pages
+- Create Customer
+- List Customers
+- Make Transaction using the v2 `MoneyIn/getpaid` endpoint
+
 ## Notes
-- This example references the local SDK via the Gemfile path. Do not change to a remote gem until the SDK is published.
 - If you get authorization errors, make sure the `PAYABLI_ENTRY` value matches the entrypoint for your API key.
