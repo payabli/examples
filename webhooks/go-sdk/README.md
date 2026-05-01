@@ -2,6 +2,8 @@
 
 Demonstrates the full Payabli webhook quickstart flow using the [Payabli Go SDK](https://github.com/payabli/sdk-go).
 
+This sample uses the GetPaid v2 transaction endpoint via `MoneyIn.Getpaidv2(...)`.
+
 ## What it does
 
 1. Starts a local HTTP server to receive webhook POSTs at `/webhook`

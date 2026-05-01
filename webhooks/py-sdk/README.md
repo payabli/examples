@@ -2,6 +2,8 @@
 
 Demonstrates the full Payabli webhook quickstart flow using the [Payabli Python SDK](https://pypi.org/project/payabli/).
 
+This sample uses the GetPaid v2 transaction endpoint via `money_in.getpaidv_2(...)`.
+
 ## What it does
 
 1. Starts a local Flask server to receive webhook POSTs at `/webhook`

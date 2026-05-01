@@ -242,7 +242,7 @@ async def process_transaction(token: str):
         print(f"Token stored successfully with ID: {stored_method_id}")
         
         # Step 2: Process payment using the stored method
-        payment_result = payabli_client.money_in.getpaid(
+        payment_result = payabli_client.money_in.getpaidv_2(
             customer_data=PayorDataRequest(
                 customer_id=4440,
             ),

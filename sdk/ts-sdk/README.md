@@ -1,12 +1,12 @@
-A basic example application using the Payabli Node SDK to perform customer operations and payment method tokenization.
+A basic example application using the Payabli Node SDK to perform customer operations, payment method tokenization, and v2 Money In transactions.
 See [`@payabli/sdk-node`](https://www.npmjs.com/package/@payabli/sdk-node) for more information.
 
 ## Summary
 
-The application has two pages:
+The application has three pages:
 1. **Create Customer** - this page has a form that allows you to create a new customer in your paypoint.
 2. **List Customers** - this page lists all the customers in your paypoint.
-3. **Make Transaction** - this page has an embedded component to save payment methods securely and send them to the API to process transactions.
+3. **Make Transaction** - this page has an embedded component to save payment methods securely and send them to the API to process transactions with the v2 `MoneyIn/getpaid` endpoint.
 
 ## Setup Instructions
 
@@ -19,7 +19,7 @@ git clone https://github.com/payabli/examples
 2. Navigate to the project directory.
 
 ```bash
-cd examples/sdk-example
+cd examples/sdk/ts-sdk
 ```
 
 3. Install the dependencies.

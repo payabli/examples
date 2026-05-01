@@ -2,7 +2,7 @@
 import * as http from "http";
 import * as readline from "readline";
 import * as dotenv from "dotenv";
-import { PayabliClient } from "@payabli/sdk-node";
+import { PayabliClient, PayabliEnvironment } from "@payabli/sdk-node";
 
 dotenv.config();
 
@@ -15,7 +15,10 @@ if (!API_KEY) { console.error("PAYABLI_KEY missing from .env"); process.exit(1);
 if (!ENTRY)   { console.error("PAYABLI_ENTRY missing from .env"); process.exit(1); }
 if (!OWNER_ID){ console.error("OWNER_ID missing from .env");  process.exit(1); }
 
-const client = new PayabliClient({ apiKey: API_KEY });
+const client = new PayabliClient({
+  apiKey: API_KEY,
+  environment: PayabliEnvironment.Sandbox,
+});
 
 const payloadBuffer: string[] = [];
 let pendingResolve: ((payload: string) => void) | null = null;
@@ -134,7 +137,7 @@ async function triggerTransaction(): Promise<void> {
   console.log(`Transaction request: EntryPoint=${ENTRY}, Amount=1.00`);
 
   try {
-    const res = await client.moneyIn.getpaid({
+    const res = await client.moneyIn.getpaidv2({
       body: {
         customerData: { customerId: 4440 },
         entryPoint: ENTRY,
@@ -151,7 +154,7 @@ async function triggerTransaction(): Promise<void> {
         },
       },
     });
-    console.log(`Transaction response: ${JSON.stringify(res)}`);
+    console.log(`Transaction response (v2): ${JSON.stringify(res, null, 2)}`);
   } catch (err) {
     console.error(`Transaction failed: ${err}`);
   }

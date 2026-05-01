@@ -2,6 +2,8 @@
 
 Demonstrates the full Payabli webhook quickstart flow using the [Payabli C# SDK](https://www.nuget.org/packages/PayabliApi).
 
+This sample uses the GetPaid v2 transaction endpoint via `MoneyIn.Getpaidv2Async(...)`.
+
 ## What it does
 
 1. Starts a local HTTP server to receive webhook POSTs at `/webhook`
@@ -13,7 +15,7 @@ Demonstrates the full Payabli webhook quickstart flow using the [Payabli C# SDK]
 
 ## Prerequisites
 
-- [.NET 9 SDK](https://dotnet.microsoft.com/download)
+- [.NET 8 SDK](https://dotnet.microsoft.com/download/dotnet/8.0) or later
 - A [Payabli API key](https://docs.payabli.com)
 - A tunnel tool such as [`ngrok`](https://ngrok.com/), [`localhost.run`](https://localhost.run/), or another local environment forwarder
 

@@ -99,7 +99,8 @@ rescue => e
   puts "Failed to register webhook: #{e.message}"
 end
 
-# Send a test $1.00 credit card transaction to generate an ApprovedPayment event using the SDK idiomatically.
+# Send a test $1.00 credit card transaction through the GetPaid v2 endpoint
+# to generate an ApprovedPayment event using the SDK idiomatically.
 def trigger_transaction(client, entrypoint)
   puts "\nTriggering a test transaction to generate webhook..."
   puts "Transaction request: EntryPoint=#{entrypoint}, Amount=1.00"
@@ -120,9 +121,8 @@ def trigger_transaction(client, entrypoint)
     }
   }
 
-  response = client.money_in.getpaid(**request_params)
-  puts "Transaction sent: IsSuccess=#{response.is_success}, " \
-       "ResponseText=#{response.response_text}"
+  response = client.money_in.getpaidv_2(**request_params)
+  puts "Transaction sent (v2 response): #{response.inspect}"
 rescue => e
   puts "Failed to trigger transaction: #{e.message}"
 end

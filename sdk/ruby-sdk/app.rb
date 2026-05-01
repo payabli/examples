@@ -256,9 +256,9 @@ post '/api/transaction/:reference_id' do
         stored_method_usage_type: 'unscheduled'
       }
     }
-  LOGGER.info("Calling money_in.getpaid with: #{payment_payload.to_json}")
-  payment_result = client.money_in.getpaid(**payment_payload)
-  LOGGER.info("money_in.getpaid response: #{payment_result.inspect}")
+  LOGGER.info("Calling money_in.getpaidv_2 with: #{payment_payload.to_json}")
+  payment_result = client.money_in.getpaidv_2(**payment_payload)
+  LOGGER.info("money_in.getpaidv_2 response: #{payment_result.inspect}")
 
     '<input type="text" name="valid" value="Payment processed successfully!" aria-invalid="false" readonly>'
   rescue Payabli::Errors::ApiError => e
