@@ -113,31 +113,12 @@ async fn trigger_transaction(client: &ApiClient, entrypoint: &str) {
         "Transaction request: EntryPoint={}, Amount=1.00",
         entrypoint
     );
-    let req = GetpaidRequest {
+    let req = Getpaidv2Request {
         body: TransRequestBody {
             account_id: None,
             customer_data: Some(PayorDataRequest {
                 customer_id: Some(CustomerId(4440)),
-                additional_data: None,
-                billing_address_1: None,
-                billing_address_2: None,
-                billing_city: None,
-                billing_country: None,
-                billing_email: None,
-                billing_phone: None,
-                billing_state: None,
-                billing_zip: None,
-                company: None,
-                customer_number: None,
-                first_name: None,
-                identifier_fields: None,
-                last_name: None,
-                shipping_address_1: None,
-                shipping_address_2: None,
-                shipping_city: None,
-                shipping_country: None,
-                shipping_state: None,
-                shipping_zip: None,
+                ..Default::default()
             }),
             entry_point: Some(Entrypointfield(entrypoint.to_string())),
             invoice_data: None,
@@ -145,14 +126,9 @@ async fn trigger_transaction(client: &ApiClient, entrypoint: &str) {
             order_description: None,
             order_id: None,
             payment_details: PaymentDetail {
-                categories: None,
-                check_image: None,
-                check_number: None,
-                currency: None,
                 service_fee: Some(0.0),
-                split_funding: None,
-                check_unique_id: None,
                 total_amount: 1.00,
+                ..Default::default()
             },
             payment_method: PaymentMethod::PayMethodCredit(PayMethodCredit {
                 cardcvv: Some(Cardcvv("999".to_string())),
@@ -170,9 +146,8 @@ async fn trigger_transaction(client: &ApiClient, entrypoint: &str) {
         },
         ach_validation: None,
         force_customer_creation: None,
-        include_details: None,
     };
-    match client.money_in.getpaid(&req, None).await {
+    match client.money_in.getpaidv_2(&req, None).await {
         Ok(resp) => println!("Transaction response: {:#?}", resp),
         Err(e) => eprintln!("Failed to trigger transaction: {e:?}"),
     }
