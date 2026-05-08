@@ -398,10 +398,9 @@ async fn process_transaction(
     let payment_result = state
         .payabli_client
         .money_in
-        .getpaid(&GetpaidRequest {
+        .getpaidv_2(&Getpaidv2Request {
             ach_validation: None,
             force_customer_creation: None,
-            include_details: None,
             body: TransRequestBody {
                 account_id: None,
                 order_description: None,
@@ -411,38 +410,14 @@ async fn process_transaction(
                 subscription_id: None,
                 subdomain: None,
                 customer_data: Some(PayorDataRequest {
-                    additional_data: None,
-                    billing_address_1: None,
-                    billing_address_2: None,
-                    billing_city: None,
-                    billing_country: None,
-                    billing_email: None,
-                    billing_phone: None,
-                    billing_state: None,
-                    billing_zip: None,
-                    company: None,
                     customer_id: Some(CustomerId(4440)),
-                    customer_number: None,
-                    first_name: None,
-                    identifier_fields: None,
-                    last_name: None,
-                    shipping_address_1: None,
-                    shipping_address_2: None,
-                    shipping_city: None,
-                    shipping_country: None,
-                    shipping_state: None,
-                    shipping_zip: None,
+                    ..Default::default()
                 }),
                 entry_point: Some(Entrypointfield(state.env_config.entry_point.to_string())),
                 ipaddress: Some(IpAddress("255.255.255.255".to_string())),
                 payment_details: PaymentDetail {
                     service_fee: Some(0.0),
                     total_amount: 100.0,
-                    categories: None,
-                    check_image: None,
-                    check_number: None,
-                    currency: None,
-                    split_funding: None,
                     ..Default::default()
                 },
                 payment_method: PaymentMethod::PayMethodStoredMethod(PayMethodStoredMethod {
