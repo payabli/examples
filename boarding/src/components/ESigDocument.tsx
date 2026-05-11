@@ -1,6 +1,12 @@
 export const documentPages = [
-  <div className="p-6 text-sm leading-6 text-gray-700">
-    <div className="mb-4 text-lg font-semibold text-gray-800">
+  <div
+    className="p-6 text-sm leading-6"
+    style={{ color: '#374151' }}
+  >
+    <div
+      className="mb-4 text-lg font-semibold"
+      style={{ color: '#1f2937' }}
+    >
       Sub-Merchant Agreement Acknowledgment
     </div>
 
@@ -11,7 +17,8 @@ export const documentPages = [
       provided at the following link: {' '}
       <a
         href="https://www.payabli.com/documents-payabli-sub-merchant-agreement/"
-        className="text-blue-600 underline"
+        className="underline"
+        style={{ color: '#2563eb' }}
         target="_blank"
         rel="noopener noreferrer"
       >

@@ -2,6 +2,7 @@ import { useState, useEffect, useRef } from 'react'
 import {
   Dialog,
   DialogContent,
+  DialogDescription,
   DialogHeader,
   DialogTitle,
 } from '@/components/ui/dialog'
@@ -128,8 +129,12 @@ export function ESignature({ contentRef, onConfirm }: ESignatureProps) {
     <Dialog open={isOpen} onOpenChange={onClose}>
       <DialogContent
         className="flex h-[90vh] max-h-[900px] w-[95vw] max-w-[1000px] flex-col overflow-hidden rounded-lg p-0"
+        aria-describedby={undefined}
         onPointerDownOutside={(e) => e.preventDefault()}
       >
+        <DialogDescription className="sr-only">
+          Review pricing, read the agreement, sign electronically, and submit the application.
+        </DialogDescription>
         {dialogState === 'pricing' && (
           <motion.div
             key="pricing"
@@ -241,12 +246,20 @@ export function ESignature({ contentRef, onConfirm }: ESignatureProps) {
                             padding: '40px',
                             fontSize: '12px',
                             lineHeight: '1.5',
+                            backgroundColor: '#ffffff',
+                            color: '#000000',
                           }}
                         >
                           {pageContent}
                           {index === documentBody.length - 1 && (
-                            <div className="mt-8 border-t border-gray-300 pt-4">
-                              <p className="text-sm text-gray-700">
+                            <div
+                              className="mt-8 pt-4"
+                              style={{ borderTop: '1px solid #d1d5db' }}
+                            >
+                              <p
+                                className="text-sm"
+                                style={{ color: '#374151' }}
+                              >
                                 By signing below, I acknowledge that I have read
                                 and agree to the E-Signature Agreement stated
                                 above.
@@ -255,27 +268,45 @@ export function ESignature({ contentRef, onConfirm }: ESignatureProps) {
                                 className="mt-4 flex items-center"
                                 ref={signatureLineRef}
                               >
-                                <span className="mr-2 text-sm font-medium text-gray-700">
+                                <span
+                                  className="mr-2 text-sm font-medium"
+                                  style={{ color: '#374151' }}
+                                >
                                   Signature:
                                 </span>
-                                <span className="relative h-4 flex-grow border-b border-gray-400">
+                                <span
+                                  className="relative h-4 flex-grow"
+                                  style={{ borderBottom: '1px solid #9ca3af' }}
+                                >
                                   <span className="absolute bottom-[0.025rem] text-xl">
                                     {signature}
                                   </span>
                                 </span>
                               </div>
-                              <p className="mt-2 text-sm text-gray-500">
+                              <p
+                                className="mt-2 text-sm"
+                                style={{ color: '#6b7280' }}
+                              >
                                 Signed on: {new Date().toLocaleDateString()}
                               </p>
-                              <p className="mt-2 text-sm text-gray-500">
+                              <p
+                                className="mt-2 text-sm"
+                                style={{ color: '#6b7280' }}
+                              >
                                 Device Type: {deviceType}
                               </p>
-                              <p className="mt-2 text-sm text-gray-500">
+                              <p
+                                className="mt-2 text-sm"
+                                style={{ color: '#6b7280' }}
+                              >
                                 IP Address: {ipAddress}
                               </p>
                             </div>
                           )}
-                          <div className="absolute bottom-2 right-2 text-xs text-gray-400">
+                          <div
+                            className="absolute bottom-2 right-2 text-xs"
+                            style={{ color: '#9ca3af' }}
+                          >
                             Page {index + 1} of {documentBody.length}
                           </div>
                         </div>

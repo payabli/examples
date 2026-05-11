@@ -366,7 +366,6 @@ export function PayabliForm() {
                 { value: 'Public Corp', label: 'Public Corp' },
                 { value: 'Tax Exempt', label: 'Tax Exempt' },
                 { value: 'Government', label: 'Government' },
-                { value: 'Partnership', label: 'Partnership' },
                 { value: 'Sole Proprietor', label: 'Sole Proprietor' },
               ]}
               tooltip="The legal structure of your business"
@@ -978,11 +977,15 @@ export function PayabliForm() {
 
   const onSuccessWithForm = async (values: FormSchemaType) => {
     try {
-      setAppId(await onSuccess(values))
+      const createdAppId = String((await onSuccess(values)) || '')
+      if (!createdAppId) {
+        return
+      }
+      setAppId(createdAppId)
+      handleESignatureProcess(createdAppId)
     } catch (error) {
       return
     }
-    handleESignatureProcess(appId)
   }
 
   const onConfirm = () => {
