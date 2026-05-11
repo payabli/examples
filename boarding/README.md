@@ -1,11 +1,10 @@
-
 # Payabli Boarding App
 
 A comprehensive merchant onboarding system built with TypeScript, React, Astro.js, Tailwind, and shadcn/ui. This project provides a responsive multi-step form wizard with validation, data persistence, dynamic fields, a clean and configurable API, and a smooth user experience.
 
 ## Summary
 
-As an Payabli partner, you'll need to board merchants onto the Payabli platform in some way to be able to run transactions through them. This is where the process of *boarding* comes in (which you can read about [here](https://docs.payabli.com/developer-guides/boarding-board-merchants)).
+As an Payabli partner, you'll need to board merchants onto the Payabli platform in some way to be able to run transactions through them. This is where the process of _boarding_ comes in (which you can read about [here](https://docs.payabli.com/developer-guides/boarding-board-merchants)).
 This project is an example application that any partner can clone, edit, and deploy to quickly start boarding merchants in a way that is completely controlled and owned by the partner.
 The advantage of an approach like this is the fine-grained control over the branding and user jouney as your merchants board.
 On the other hand, since you are moving beyond a simple white-labelled, Payabli-hosted page to something truly self-owned and self-hosted, you will naturally have to take on the responsibility of maintaining the application, ensuring it is secure, and keeping it up-to-date with Payabli's APIs and requirements.
@@ -65,7 +64,7 @@ Discuss with your Payabli solutions engineer to understand the implications of t
   │   ├── login.astro           # login/sign-up page
   │   └── index.astro           # Main page
   ├── lib/                      # Utility functions
-  │   ├── authClient.ts         # better-auth client-side logic 
+  │   ├── authClient.ts         # better-auth client-side logic
   │   ├── clientDb.ts           # Client-side DB logic
   │   ├── getUrl.ts             # Get URL from .env
   │   ├── helpers.ts            # Country/region data functions
@@ -91,10 +90,11 @@ git clone https://github.com/payabli/examples
 cd examples/boarding
 ```
 
-3. Install the dependencies.
+3. Install the dependencies with the package manager declared by the project.
 
 ```bash
-npm install
+corepack enable
+pnpm install
 ```
 
 4. Copy the `.env.template` file to `.env` and fill in the required values.
@@ -104,15 +104,16 @@ cp .env.template .env
 ```
 
 5. Set up better-auth.
+
 ```bash
-npx @better-auth/cli generate
-npx @better-auth/cli migrate
+pnpm dlx @better-auth/cli@1.4.22 generate
+pnpm dlx @better-auth/cli@1.4.22 migrate
 ```
 
 6. Start the development server.
 
 ```bash
-npm run dev
+pnpm dev
 ```
 
 ## Form Configuration API
@@ -139,11 +140,12 @@ The Wizard component manages the multi-step form flow.
 ```
 
 #### Save progress on page change
- 
+
 To save the form data progress on page change, you can use the `onPageChange` prop.
 This snippet is taken from the `PayabliForm.tsx` file.
 By default, the `handleSaveForLater()` function is commented out.
 Uncomment the function to enable saving form data progress on page change.
+
 ```tsx
 <Wizard
   currentPage={currentPage}
@@ -191,10 +193,12 @@ Select fields accept the following props:
 3. `option: { type: 'label'; label: string }` - An option to create a non-value separator, i.e. "North America".
 
 Switch fields accept the following props:
+
 1. `onlabel?: string` - The label for the switch when it is on.
 2. `offlabel?: string` - The label for the switch when it is off.
 
 Country picker fields accept the following props:
+
 1. `whitelist?: string[]` - An array of country codes to whitelist.
 2. `blacklist?: string[]` - An array of country codes to blacklist.
 3. `priorityOptions?: string[]` - An array of country codes to prioritize.
@@ -202,6 +206,7 @@ Country picker fields accept the following props:
 5. `flagsvg?: boolean` - Whether to display the country flag as an SVG.
 
 Region picker fields accept the following props:
+
 1. `countryCode: string` - The country code to display regions for, usually bound to a country picker.
 
 A combined country and region picker field is available and recommended for use in tandem as opposed to manual
@@ -209,6 +214,7 @@ state management. It accepts the same props as the country picker and region pic
 `country` or `region` in camel case, i.e. `countryName` or `regionTooltip`.
 
 File uploads accept the following props:
+
 1. `maxSizeMB?: number` - The maximum file size allowed in megabytes.
 2. `accept?: string` - The file types that are accepted. This is a string that specifies the file extensions or MIME types.
 3. `disabled?: boolean`- Whether the file upload is disabled.
@@ -223,17 +229,19 @@ File uploads accept the following props:
 12. `id?: string` - An ID for the file upload component (necessary if multiple are present).
 
 Checkbox groups accept the following props:
+
 1. `options: { name: string, label: string }[]` - An array of options for the checkbox group.
 
 > [!NOTE]
 > All form components use the `FormWrapper.tsx` component as a base for shared props and formatting, with the exception of the checkbox group component.
 
-#### Form Input Autocomplete 
+#### Form Input Autocomplete
 
 The `autoComplete` prop on the `FormInput` component receives an array of strings to use for autocompleting the input field.
 The `onAutoComplete` prop receives a function to handle the autocompleted value.
 These props allow for custom logic to be implemented when autocompleting fields, such as fetching suggestions from an API and filling multiple fields.
 The following snippet is taken from the `PayabliForm.tsx` file and demonstrates how to use the `autoComplete` and `onAutoComplete` props across multiple fields to handle addresses.
+
 ```tsx
 <FormInput
   name="baddress"
@@ -241,7 +249,7 @@ The following snippet is taken from the `PayabliForm.tsx` file and demonstrates 
   tooltip="The primary address of your business"
   // Use country and region codes that match the country and region pickers
   autoComplete={[
-    '123 Main St, New York, NY 10001, US', 
+    '123 Main St, New York, NY 10001, US',
     '456 Elm St, Los Angeles, CA 90001, US',
   ]}
   onAutoComplete={(value) => {
@@ -428,8 +436,11 @@ Once your initial setup is complete, you can define functions to access your dat
 
 ```ts
 export async function loadFormData(deviceToken: string) {
-  const result = await db.select().from(formData).where(sql`${formData.deviceToken} = ${deviceToken}`);
-  return result[0]?.data || null;
+  const result = await db
+    .select()
+    .from(formData)
+    .where(sql`${formData.deviceToken} = ${deviceToken}`)
+  return result[0]?.data || null
 }
 ```
 
@@ -446,15 +457,15 @@ The other three routes follow this flow:
 
 1. `createApp` - When you click `Confirm` on the final page of the form, the server will create an application within Payabli via a `POST` call to Payabli's API.
 2. `attachFiles` - After the e-signature is completed, the server will attach the signed document,
-as well as any other files (such as the images of the voided checks for proof of account) to the application via a `PUT` call to Payabli's API.
+   as well as any other files (such as the images of the voided checks for proof of account) to the application via a `PUT` call to Payabli's API.
 3. `submitApp` - Finally, the server will submit the application via a `GET` call to Payabli's API, which changes the internal status
-of the application to `Submitted`.
+   of the application to `Submitted`.
 
 Here's the entire `api/createApp.ts` file as an example:
 
 ```ts
 import type { APIRoute } from 'astro'
-import { getApiUrlPrefix } from '../../lib/getUrl';
+import { getApiUrlPrefix } from '../../lib/getUrl'
 
 export const POST: APIRoute = async ({ request }) => {
   const apiToken = import.meta.env.PAYABLI_API_TOKEN
@@ -463,100 +474,116 @@ export const POST: APIRoute = async ({ request }) => {
   try {
     const formData = await request.json()
     const jsonData = JSON.stringify(formData)
-    const response = await fetch(`https://api${prefix}.payabli.com/api/Boarding/app`, {
-      method: 'POST',
-      headers: { 'content-type': 'application/json', 'requestToken': apiToken },
-      body: jsonData
-    })
+    const response = await fetch(
+      `https://api${prefix}.payabli.com/api/Boarding/app`,
+      {
+        method: 'POST',
+        headers: { 'content-type': 'application/json', requestToken: apiToken },
+        body: jsonData,
+      },
+    )
 
-    if (!response.ok) { throw new Error(`HTTP error! status: ${response.status}`) }
+    if (!response.ok) {
+      throw new Error(`HTTP error! status: ${response.status}`)
+    }
 
     const responseBody = await response.json()
 
     return new Response(JSON.stringify(responseBody.responseData), {
       status: 200,
-      headers: { 'Content-Type': 'application/json' }
+      headers: { 'Content-Type': 'application/json' },
     })
   } catch (error) {
     console.error('Error submitting application:', error)
-    return new Response(JSON.stringify({ error: 'Failed to submit application' }), {
-      status: 500,
-      headers: { 'Content-Type': 'application/json' }
-    })
+    return new Response(
+      JSON.stringify({ error: 'Failed to submit application' }),
+      {
+        status: 500,
+        headers: { 'Content-Type': 'application/json' },
+      },
+    )
   }
 }
 ```
 
-## Authentication 
+## Authentication
 
 This project uses [better-auth](https://www.better-auth.com/) for authentication. The `auth.ts` file contains the configuration for the authentication client.
 If you want to add email verification, password reset, social logins (Google, Facebook, GitHub), or any other features, this is the place to do it.
 Visit the [better-auth documentation](https://www.better-auth.com/docs) for more information on how to configure it.
-```ts 
+
+```ts
 // auth.ts
-import { betterAuth } from "better-auth";
-import Database from "better-sqlite3";
- 
+import { betterAuth } from 'better-auth'
+import Database from 'better-sqlite3'
+
 export const auth = betterAuth({
-    database: new Database("./auth.db"),
-    emailAndPassword: {
-      enabled: true,
-    }
+  database: new Database('./auth.db'),
+  emailAndPassword: {
+    enabled: true,
+  },
 })
 ```
 
 The `src/middleware.ts` file contains the middleware that checks if the user is authenticated before allowing access to the boarding app.
 Here, you can define which routes require authentication and which do not, or add custom logic.
+
 ```ts
-import { auth } from "../auth"; // import your Better Auth instance
-import { defineMiddleware } from "astro:middleware";
+import { auth } from '../auth' // import your Better Auth instance
+import { defineMiddleware } from 'astro:middleware'
 
 export const onRequest = defineMiddleware(async (context, next) => {
-  const isAuthed = await auth.api
-    .getSession({
-      headers: context.request.headers,
-    })
-  if ((context.url.pathname === "/" || 
-       context.url.pathname === "/api/attachFiles" || 
-       context.url.pathname === "/api/createApp" || 
-       context.url.pathname === "/api/formData" || 
-       context.url.pathname === "/api/submitApp") && !isAuthed) {
-    return context.redirect("/login");
+  const isAuthed = await auth.api.getSession({
+    headers: context.request.headers,
+  })
+  if (
+    (context.url.pathname === '/' ||
+      context.url.pathname === '/api/attachFiles' ||
+      context.url.pathname === '/api/createApp' ||
+      context.url.pathname === '/api/formData' ||
+      context.url.pathname === '/api/submitApp') &&
+    !isAuthed
+  ) {
+    return context.redirect('/login')
   }
-  return next();
-});
+  return next()
+})
 ```
 
-To edit the login form itself, go to `src/components/LoginForm.tsx`. 
+To edit the login form itself, go to `src/components/LoginForm.tsx`.
 Here, you can call methods on `authClient` to perform actions like logging in, signing up, or logging out.
 If you set up email verification, password reset, or social logins in `auth.ts`, you can call those methods here as well.
+
 ```ts
 const handleLogin = async (email: string, password: string) => {
-// Implement your login logic here
-const { data, error } = await authClient.signIn.email({ 
-  email, 
-  password,
-}, { 
-  onRequest: (ctx) => { 
-    //show loading
-  }, 
-  onSuccess: (ctx) => { 
-    // redirect to home page
-    window.location.href = "/";
-  }, 
-  onError: (ctx) => { 
-    // show error message
-    alert(ctx.error.message); 
-  },
-})
+  // Implement your login logic here
+  const { data, error } = await authClient.signIn.email(
+    {
+      email,
+      password,
+    },
+    {
+      onRequest: (ctx) => {
+        //show loading
+      },
+      onSuccess: (ctx) => {
+        // redirect to home page
+        window.location.href = '/'
+      },
+      onError: (ctx) => {
+        // show error message
+        alert(ctx.error.message)
+      },
+    },
+  )
 
-if (error) {
-  console.error("Login failed:", error)
-  return false
-}
+  if (error) {
+    console.error('Login failed:', error)
+    return false
+  }
 
-// Return true if login is successful, false otherwise
-return true
+  // Return true if login is successful, false otherwise
+  return true
 }
 ```
 
@@ -565,59 +592,47 @@ return true
 
 ## Styling
 
-The project uses Tailwind CSS with the shadcn/ui default preset. Customize the theme in `globals.css` and point to those values in `tailwind.config.js`:
+The project now uses Tailwind CSS v4 through Astro's Vite plugin. Theme tokens live directly in `src/styles/globals.css`, and shadcn/ui reads from that stylesheet instead of a `tailwind.config.*` file.
 
 ```css
 /* ./src/styles/globals.css */
-@tailwind base;
-@tailwind components;
-@tailwind utilities;
+@import 'tailwindcss';
+@import 'tw-animate-css';
 
-@layer base {
-  :root {
-    /* Light mode CSS variables */
-  }
+@custom-variant dark (&:is(.dark *));
 
-  .dark {
-    /* Dark mode CSS variables */
-  }
+:root {
+  /* Light mode CSS variables */
 }
 
-@layer base {
-  * {
-    @apply border-border;
-  }
+.dark {
+  /* Dark mode CSS variables */
+}
 
-  html {
-    @apply scroll-smooth;
-  }
-
-  body {
-    @apply bg-background text-foreground;
-    font-synthesis-weight: none;
-    text-rendering: optimizeLegibility;
-  }
+@theme inline {
+  --color-background: var(--background);
+  --color-foreground: var(--foreground);
+  --color-border: var(--border);
+  --color-input: var(--input);
+  --color-ring: var(--ring);
 }
 ```
 
+`astro.config.ts` wires Tailwind through Vite:
 
-```javascript
-// ./tailwind.config.js
-import type { Config } from 'tailwindcss'
-import { fontFamily } from 'tailwindcss/defaultTheme'
+```ts
+import { defineConfig } from 'astro/config'
+import react from '@astrojs/react'
+import node from '@astrojs/node'
+import tailwindcss from '@tailwindcss/vite'
 
-const config = {
-  darkMode: ['class'],
-  content: ['./src/**/*.{astro,html,js,jsx,md,mdx,svelte,ts,tsx,vue}'],
-  prefix: '',
-  theme: {
-    // Your CSS variable theme configuration goes here
-    // Point your tailwind values to CSS variables defined in globals.css
+export default defineConfig({
+  integrations: [react()],
+  vite: {
+    plugins: [tailwindcss()],
   },
-  plugins: [require("tailwindcss-animate")]
-} satisfies Config
-
-export default config
+  adapter: node({ mode: 'standalone' }),
+})
 ```
 
 ## Contributing

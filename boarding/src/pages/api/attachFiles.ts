@@ -60,7 +60,9 @@ export const POST: APIRoute = async ({ request }) => {
     )
 
     if (!response.ok) {
-      throw new Error('Failed to attach files')
+      const errorBody = await response.text()
+      console.error('Attach files request failed:', response.status, errorBody)
+      throw new Error(`Failed to attach files: ${response.status}`)
     }
 
     return new Response(JSON.stringify({ success: true }), {

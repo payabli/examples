@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef, useMemo } from 'react'
-import { useFormContext, useWatch, useForm } from 'react-hook-form'
+import { useFormContext, useWatch } from 'react-hook-form'
 import {
   Select,
   SelectContent,
@@ -15,8 +15,7 @@ import {
   TooltipTrigger,
 } from '@/components/ui/tooltip'
 import { filterCountries, filterRegions } from '@/lib/helpers'
-//@ts-ignore
-import countryRegionData from 'country-region-data/dist/data-umd'
+import { allCountries } from 'country-region-data'
 import ReactCountryFlag from 'react-country-flag'
 import { FormWrapper, FormWrapperProps } from './FormWrapper'
 
@@ -31,6 +30,14 @@ export interface CountryRegion {
   regions: Region[]
 }
 
+const countryRegionData: CountryRegion[] = allCountries.map(
+  ([countryName, countryShortCode, regions]) => ({
+    countryName,
+    countryShortCode,
+    regions: regions.map(([name, shortCode]) => ({ name, shortCode })),
+  }),
+)
+
 type FormCountryRegionProps = FormWrapperProps & {
   placeholder?: string
   disabled?: boolean
@@ -43,7 +50,7 @@ const TooltipTrigger2 = React.memo(
   ({ label, handleClick }: { label: string; handleClick: () => void }) => (
     <TooltipTrigger
       asChild
-      className="ml-[4px] h-full w-9 rounded-e-lg border border-transparent text-muted-foreground/80 ring-offset-background transition-shadow hover:text-foreground focus-visible:border-ring focus-visible:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/30 focus-visible:ring-offset-2 disabled:pointer-events-none disabled:cursor-not-allowed disabled:opacity-50"
+      className="text-muted-foreground/80 ring-offset-background hover:text-foreground focus-visible:border-ring focus-visible:text-foreground focus-visible:ring-ring/30 ml-[4px] h-full w-9 rounded-e-lg border border-transparent transition-shadow focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:outline-hidden disabled:pointer-events-none disabled:cursor-not-allowed disabled:opacity-50"
     >
       <button
         type="button"
@@ -264,12 +271,7 @@ const InternalFormRegionSelect = React.memo(
 InternalFormRegionSelect.displayName = 'InternalFormRegionSelect'
 
 export const FormCountrySelect = React.memo((props: FormCountryRegionProps) => {
-  const form = useForm()
-  return (
-    <form>
-      <InternalFormCountrySelect {...props} />
-    </form>
-  )
+  return <InternalFormCountrySelect {...props} />
 })
 
 FormCountrySelect.displayName = 'FormCountrySelect'
@@ -279,18 +281,7 @@ export const FormRegionSelect = React.memo(
     countryCode,
     ...props
   }: FormCountryRegionProps & { countryCode: string }) => {
-    const form = useForm({
-      defaultValues: {
-        [props.name]: '',
-        [countryCode]: countryCode,
-      },
-    })
-
-    return (
-      <form>
-        <InternalFormRegionSelect {...props} countryCode={countryCode} />
-      </form>
-    )
+    return <InternalFormRegionSelect {...props} countryCode={countryCode} />
   },
 )
 

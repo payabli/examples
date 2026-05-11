@@ -1,6 +1,5 @@
 import { useState, useCallback, useRef } from 'react'
-import html2canvas from 'html2canvas'
-import jsPDF from 'jspdf'
+import type { jsPDF } from 'jspdf'
 import { create } from 'zustand'
 
 type OtherAttachment = {
@@ -92,6 +91,9 @@ export function useESignature({
   const handleConfirm = useCallback(
     async (appId: string) => {
       console.log('Confirming with appId: ', appId)
+      if (!appId) {
+        throw new Error('Missing application ID for e-signature submission')
+      }
       if (!contentRef.current) return
       try {
         const pdf = await generatePDF(contentRef.current)
@@ -122,7 +124,7 @@ export function useESignature({
           ),
         )
 
-        const response = await fetch('/api/attachFiles', {
+        const attachResponse = await fetch('/api/attachFiles', {
           method: 'POST',
           headers: {
             'Content-Type': 'application/json',
@@ -130,11 +132,17 @@ export function useESignature({
           body: JSON.stringify({ attachments, appId }),
         })
 
-        if (!response.ok) {
-          throw new Error('Failed to attach PDF')
+        const attachResponseBody = await attachResponse
+          .json()
+          .catch(() => null)
+
+        if (!attachResponse.ok) {
+          throw new Error(
+            attachResponseBody?.error || 'Failed to attach application files',
+          )
         }
 
-        await fetch('/api/submitApp', {
+        const submitResponse = await fetch('/api/submitApp', {
           method: 'POST',
           headers: {
             'Content-Type': 'application/json',
@@ -142,8 +150,14 @@ export function useESignature({
           body: JSON.stringify({ appId }),
         })
 
-        if (!response.ok) {
-          throw new Error('Failed to submit application')
+        const submitResponseBody = await submitResponse
+          .json()
+          .catch(() => null)
+
+        if (!submitResponse.ok) {
+          throw new Error(
+            submitResponseBody?.error || 'Failed to submit application',
+          )
         }
 
         store.setDialogState('success')
@@ -185,6 +199,10 @@ async function getPublicIpAddress(): Promise<string> {
 }
 
 async function generatePDF(content: HTMLElement): Promise<jsPDF> {
+  const [{ default: html2canvas }, { jsPDF }] = await Promise.all([
+    import('html2canvas'),
+    import('jspdf'),
+  ])
   const pdf = new jsPDF({ format: 'a4', unit: 'pt' })
   const scale = 2
   const pageWidth = pdf.internal.pageSize.getWidth()
