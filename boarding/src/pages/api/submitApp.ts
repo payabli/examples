@@ -21,6 +21,8 @@ export const POST: APIRoute = async ({ request }) => {
     )
 
     if (!response.ok) {
+      const errorBody = await response.text()
+      console.error('Submit app request failed:', response.status, errorBody)
       throw new Error(`HTTP error! status: ${response.status}`)
     }
 

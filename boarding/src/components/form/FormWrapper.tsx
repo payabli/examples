@@ -68,14 +68,14 @@ export function FormWrapper({
                 <FormLabel className="flex items-center">
                   {label}
                   {required && (
-                    <span className="ml-1 text-destructive" aria-hidden="true">
+                    <span className="text-destructive ml-1" aria-hidden="true">
                       *
                     </span>
                   )}
                   {tooltip && showTooltip && (
                     <TooltipTrigger
                       asChild
-                      className="ml-[4px] h-full w-9 rounded-e-lg border border-transparent text-muted-foreground/80 ring-offset-background transition-shadow hover:text-foreground focus-visible:border-ring focus-visible:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/30 focus-visible:ring-offset-2 disabled:pointer-events-none disabled:cursor-not-allowed disabled:opacity-50"
+                      className="text-muted-foreground/80 ring-offset-background hover:text-foreground focus-visible:border-ring focus-visible:text-foreground focus-visible:ring-ring/30 ml-[4px] h-full w-9 rounded-e-lg border border-transparent transition-shadow focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:outline-hidden disabled:pointer-events-none disabled:cursor-not-allowed disabled:opacity-50"
                     >
                       <button
                         type="button"
