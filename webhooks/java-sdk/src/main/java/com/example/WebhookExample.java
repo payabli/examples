@@ -5,8 +5,10 @@ import io.github.cdimascio.dotenv.Dotenv;
 import io.github.payabli.api.core.Environment;
 import io.github.payabli.api.PayabliApiClient;
 import io.github.payabli.api.PayabliApiClientBuilder;
-import io.github.payabli.api.resources.moneyin.types.TransRequestBody;
-import io.github.payabli.api.resources.notification.types.AddNotificationRequest;
+import io.github.payabli.api.types.TransRequestBody;
+import io.github.payabli.api.types.AddNotificationRequest;
+import io.github.payabli.api.types.PayMethodCreditMethod;
+import io.github.payabli.api.resources.moneyin.requests.RequestPaymentV2;
 import io.github.payabli.api.types.NotificationStandardRequest;
 import io.github.payabli.api.types.NotificationStandardRequestContent;
 import io.github.payabli.api.types.NotificationStandardRequestContentEventType;
@@ -222,29 +224,32 @@ public class WebhookExample {
         System.out.println("\nTriggering a test transaction to generate webhook...");
         System.out.printf("Transaction request: EntryPoint=%s, Amount=1.00%n", entrypoint);
         try {
-            TransRequestBody request = TransRequestBody.builder()
-                .paymentDetails(PaymentDetail.builder()
-                    .totalAmount(1.00)
-                    .serviceFee(0.0)
-                    .build())
-                .paymentMethod(PaymentMethod.of(
-                    PayMethodCredit.builder()
-                        .cardexp("02/27")
-                        .cardnumber("4111111111111111")
-                        .cardcvv("999")
-                        .cardHolder("Test User")
-                        .cardzip("12345")
-                        .initiator("payor")
-                        .build()
-                ))
-                .entryPoint(entrypoint)
-                .ipaddress("255.255.255.255")
-                .customerData(PayorDataRequest.builder()
-                    .customerId(4440L)
-                    .build())
-                    .build();
-
-            var resp = client.moneyIn().getpaidv2(request);
+            var resp = client.moneyIn().getpaidv2(
+                RequestPaymentV2.builder()
+                    .body(TransRequestBody.builder()
+                        .paymentDetails(PaymentDetail.builder()
+                            .totalAmount(1.00)
+                            .serviceFee(0.0)
+                            .build())
+                        .paymentMethod(PaymentMethod.of(
+                            PayMethodCredit.builder()
+                                .cardexp("02/27")
+                                .cardnumber("4111111111111111")
+                                .method(PayMethodCreditMethod.CARD)
+                                .cardcvv(java.util.Optional.of("999"))
+                                .cardHolder(java.util.Optional.of("Test User"))
+                                .cardzip(java.util.Optional.of("12345"))
+                                .initiator(java.util.Optional.of("payor"))
+                                .build()
+                        ))
+                        .entryPoint(entrypoint)
+                        .ipaddress("255.255.255.255")
+                        .customerData(PayorDataRequest.builder()
+                            .customerId(4440L)
+                            .build())
+                        .build())
+                    .build()
+            );
             System.out.printf("Transaction sent (v2 response): %s%n", resp);
         } catch (Exception e) {
             System.err.printf("Failed to trigger transaction: %s%n", e.getMessage());

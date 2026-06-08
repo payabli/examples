@@ -156,12 +156,12 @@ func createCustomerAPI(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// Prepare additional fields
-	additionalFields := make(map[string]*string)
+	additionalFields := make(map[string]string)
 	if hvac != "" {
-		additionalFields["hvac"] = &hvac
+		additionalFields["hvac"] = hvac
 	}
 	if electrical != "" {
-		additionalFields["electrical"] = &electrical
+		additionalFields["electrical"] = electrical
 	}
 
 	ctx := context.Background()

@@ -238,7 +238,7 @@ async def process_transaction(token: str):
             method_description="Main card"
         )
         
-        stored_method_id = token_result.response_data.referenceId
+        stored_method_id = token_result.response_data.reference_id
         print(f"Token stored successfully with ID: {stored_method_id}")
         
         # Step 2: Process payment using the stored method

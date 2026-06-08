@@ -127,6 +127,7 @@ func triggerTransaction(c *payabliclient.Client, entrypoint string) {
 					Cardnumber: "4111111111111111",
 					Cardzip:    payabli.String("12345"),
 					Initiator:  payabli.String("payor"),
+					Method:     payabli.PayMethodCreditMethodCard,
 				},
 			},
 		},

@@ -5,9 +5,7 @@ import io.github.payabli.api.PayabliApiClient;
 import io.github.payabli.api.PayabliApiClientBuilder;
 import io.github.payabli.api.resources.customer.requests.AddCustomerRequest;
 import io.github.payabli.api.resources.tokenstorage.requests.AddMethodRequest;
-import io.github.payabli.api.resources.tokenstorage.types.*;
 import io.github.payabli.api.resources.moneyin.requests.RequestPaymentV2;
-import io.github.payabli.api.resources.moneyin.types.*;
 import io.github.payabli.api.types.*;
 import io.javalin.Javalin;
 import io.javalin.http.Context;
@@ -129,12 +127,12 @@ public class PayabliExampleApp {
             String electrical = ctx.formParam("electrical");
 
             // Prepare additional fields
-            Map<String, Optional<String>> additionalFields = new HashMap<>();
+            Map<String, String> additionalFields = new HashMap<>();
             if (hvac != null && !hvac.isEmpty()) {
-                additionalFields.put("hvac", Optional.of(hvac));
+                additionalFields.put("hvac", hvac);
             }
             if (electrical != null && !electrical.isEmpty()) {
-                additionalFields.put("electrical", Optional.of(electrical));
+                additionalFields.put("electrical", electrical);
             }
 
             // Create customer data
@@ -149,7 +147,7 @@ public class PayabliExampleApp {
                     .zip(zip)
                     .country(country)
                     .additionalFields(additionalFields.isEmpty() ? Optional.empty() : Optional.of(additionalFields))
-                    .identifierFields(Optional.of(Arrays.asList(Optional.of("email"))))
+                    .identifierFields(Optional.of(Arrays.asList("email")))
                     .build();
 
             // Create the request
