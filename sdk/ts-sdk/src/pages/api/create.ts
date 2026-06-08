@@ -17,20 +17,18 @@ export async function POST({ request }: { request: any }) {
     try {
       const result = await payabliClient.customer.addCustomer(entryPoint, {
         forceCustomerCreation: true,
-        body: {
-          firstname: formData.get('firstname'),
-          lastname: formData.get('lastname'),
-          email: formData.get('email'),
-          zip: formData.get('zip'),
-          timeZone: formData.get('timeZone'),
-          country: formData.get('country'),
-          state: formData.get('state'),
-          city: formData.get('city'),
-          address: formData.get('address'),
-          additionalFields: {
-            hvac: formData.get('hvac'),
-            electrical: formData.get('electrical'),
-          }
+        firstname: formData.get('firstname'),
+        lastname: formData.get('lastname'),
+        email: formData.get('email'),
+        zip: formData.get('zip'),
+        timeZone: formData.get('timeZone'),
+        country: formData.get('country'),
+        state: formData.get('state'),
+        city: formData.get('city'),
+        address: formData.get('address'),
+        additionalFields: {
+          hvac: formData.get('hvac'),
+          electrical: formData.get('electrical'),
         }
       })
       

@@ -862,9 +862,7 @@ dependencies = [
 
 [[package]]
 name = "payabli_api"
-version = "1.0.9"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "28b63a68b1c48f93f4537b866e5da58d3832495e4e364d8e7962125d91552188"
+version = "0.1.0"
 dependencies = [
  "base64",
  "bytes",
@@ -875,7 +873,6 @@ dependencies = [
  "serde_json",
  "thiserror 1.0.69",
  "tokio",
- "uuid",
 ]
 
 [[package]]
@@ -1630,17 +1627,6 @@ name = "utf8_iter"
 version = "1.0.4"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "b6c140620e7ffbb22c2dee59cafe6084a59b5ffc27a8859a5f0d494b5d52b6be"
-
-[[package]]
-name = "uuid"
-version = "1.22.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "a68d3c8f01c0cfa54a75291d83601161799e4a89a39e0929f4b0354d88757a37"
-dependencies = [
- "js-sys",
- "serde_core",
- "wasm-bindgen",
-]
 
 [[package]]
 name = "vcpkg"
