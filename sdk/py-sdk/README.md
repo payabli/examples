@@ -10,45 +10,6 @@ The application has three pages:
 
 ## Setup Instructions
 
-### Option 1: Quick Start (Unix/Linux/macOS)
-
-1. Clone this repo and navigate to the project directory:
-
-```bash
-git clone https://github.com/payabli/examples
-cd examples/sdk/py-sdk
-```
-
-2. Run the startup script:
-
-```bash
-chmod +x start.sh
-./start.sh
-```
-
-The script will:
-- Create a virtual environment if it doesn't exist
-- Install dependencies
-- Create a .env file from the template
-- Start the development server
-
-### Option 2: Quick Start (Windows)
-
-1. Clone this repo and navigate to the project directory:
-
-```cmd
-git clone https://github.com/payabli/examples
-cd examples/sdk/py-sdk
-```
-
-2. Run the startup script:
-
-```cmd
-start.bat
-```
-
-### Option 3: Manual Setup
-
 1. Clone this repo and navigate to the project directory:
 
 ```bash

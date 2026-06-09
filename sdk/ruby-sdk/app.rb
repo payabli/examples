@@ -76,6 +76,7 @@ post '/api/create' do
     # map fields like Python example
     payload = {
       entry: ExampleConfig.entrypoint,
+      force_customer_creation: true,
       firstname: params['firstname'],
       lastname: params['lastname'],
       email: params['email'],
@@ -139,9 +140,7 @@ get '/api/list' do
           <td>#{zip_code}</td>
           <td>#{time_zone}</td>
           <td>
-            <form method="post" action="/api/delete/#{customer_id}" hx-swap="outerHTML">
-              <button type="submit">❌</button>
-            </form>
+            <button type="button" hx-post="/api/delete/#{customer_id}" hx-target="closest tr" hx-swap="outerHTML">❌</button>
           </td>
         </tr>
         ROW
@@ -200,9 +199,9 @@ post '/api/delete/:customer_id' do
   content_type 'text/html'
   begin
   LOGGER.info("POST /api/delete/#{params[:customer_id]} - deleting customer")
-  client.customer.delete_customer(customerId: params[:customer_id])
+  client.customer.delete_customer(customer_id: params[:customer_id].to_i)
   LOGGER.info("customer.delete_customer called for #{params[:customer_id]}")
-    '<input type="text" name="valid" value="Deleted" aria-invalid="false" readonly>'
+    ''
   rescue => e
   LOGGER.error("customer.delete_customer error: #{e.class} #{e.message}")
   LOGGER.debug(e.backtrace.join("\n"))

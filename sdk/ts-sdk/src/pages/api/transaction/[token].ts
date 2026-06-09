@@ -40,18 +40,16 @@ export const POST: APIRoute = async ({ params }) => {
     const tokenResult = await client.tokenStorage.addMethod({
       createAnonymous: true,
       temporary: false,
-      body: {
-        customerData: {
-          customerId: 4440 // This should be dynamic based on your needs
-        },
-        entryPoint: entryPoint,
-        paymentMethod: {
-          method: "card",
-          tokenId: token // The temporary token from the embedded component
-        },
-        source: "web",
-        methodDescription: "Main card"
-      }
+      customerData: {
+        customerId: 4440 // This should be dynamic based on your needs
+      },
+      entryPoint: entryPoint,
+      paymentMethod: {
+        method: "card",
+        tokenId: token // The temporary token from the embedded component
+      },
+      source: "web",
+      methodDescription: "Main card"
     });
 
     console.log('Token storage result:', tokenResult);
@@ -71,22 +69,20 @@ export const POST: APIRoute = async ({ params }) => {
 
     // Step 2: Create transaction using the permanent token
     const transactionResult = await client.moneyIn.getpaidv2({
-      body: {
-        customerData: {
-          customerId: 4440
-        },
-        entryPoint: entryPoint,
-        ipaddress: "255.255.255.255",
-        paymentDetails: {
-          serviceFee: 0.0,
-          totalAmount: 100.0
-        },
-        paymentMethod: {
-          initiator: "payor",
-          method: "card",
-          storedMethodId: permanentToken,
-          storedMethodUsageType: "unscheduled"
-        }
+      customerData: {
+        customerId: 4440
+      },
+      entryPoint: entryPoint,
+      ipaddress: "255.255.255.255",
+      paymentDetails: {
+        serviceFee: 0.0,
+        totalAmount: 100.0
+      },
+      paymentMethod: {
+        initiator: "payor",
+        method: "card",
+        storedMethodId: permanentToken,
+        storedMethodUsageType: "unscheduled"
       }
     });
 
