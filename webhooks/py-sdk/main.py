@@ -113,6 +113,7 @@ def trigger_transaction(client: payabli.payabli, entrypoint: str) -> None:
         response = client.money_in.getpaidv_2(
             payment_details=PaymentDetail(total_amount=1.00, service_fee=0),
             payment_method=PayMethodCredit(
+                method="card",
                 cardcvv="999",
                 cardexp="02/27",
                 card_holder="Test User",

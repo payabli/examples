@@ -182,7 +182,8 @@ static async Task TriggerTransaction(PayabliApiClient client, string entrypoint)
                 CardHolder = "Test User",
                 Cardnumber = "4111111111111111",
                 Cardzip = "12345",
-                Initiator = "payor"
+                Initiator = "payor",
+                Method = PayMethodCreditMethod.Card
             }
         }
     };

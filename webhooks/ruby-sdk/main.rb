@@ -75,19 +75,15 @@ def create_webhook_notification(client, tunnel_url, owner_id)
   puts "\nRegistering webhook notification with Payabli..."
   puts "Notification request: Target=#{webhook_url}, OwnerId=#{owner_id}"
 
-  notification_request = Payabli::Types::NotificationStandardRequest.new(
-    content: Payabli::Types::NotificationStandardRequestContent.new(
-      event_type: 'ApprovedPayment'
-    ),
-    frequency: Payabli::Types::NotificationStandardRequestFrequency::UNTILCANCELLED,
-    method_: Payabli::Types::NotificationStandardRequestMethod::WEB,
+  response = client.notification.add_notification(
+    content: { event_type: 'ApprovedPayment' },
+    frequency: 'untilcancelled',
+    method: 'web',
     owner_id: owner_id,
     owner_type: 0,
     status: 1,
     target: webhook_url
   )
-
-  response = client.notification.add_notification(notification_request)
   if response.is_success
     puts "Webhook registered: IsSuccess=#{response.is_success}, " \
          "ResponseCode=#{response.response_code}, " \
@@ -117,7 +113,7 @@ def trigger_transaction(client, entrypoint)
       cardnumber:  '4111111111111111',
       cardzip:     '12345',
       initiator:   'payor',
-      method:      'card'
+      method_:     'card'
     }
   }
 

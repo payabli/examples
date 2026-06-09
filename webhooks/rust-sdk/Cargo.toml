@@ -4,7 +4,7 @@ version = "0.1.0"
 edition = "2024"
 
 [dependencies]
-payabli_api = "1.0.7"
+payabli_api = "*"
 tokio = { version = "1.37", features = ["full"] }
 axum = "0.7"
 dotenv = "0.15"

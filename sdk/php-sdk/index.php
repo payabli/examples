@@ -5,11 +5,11 @@ use Payabli\PayabliClient;
 use Payabli\Customer\Requests\AddCustomerRequest;
 use Payabli\Types\CustomerData;
 use Payabli\TokenStorage\Requests\AddMethodRequest;
-use Payabli\TokenStorage\Types\RequestTokenStorage;
-use Payabli\TokenStorage\Types\ConvertToken;
+use Payabli\Types\RequestTokenStorage;
+use Payabli\Types\ConvertToken;
 use Payabli\Types\PayorDataRequest;
 use Payabli\MoneyIn\Requests\RequestPaymentV2;
-use Payabli\MoneyIn\Types\TransRequestBody;
+use Payabli\Types\TransRequestBody;
 use Payabli\Types\PaymentDetail;
 use Payabli\Types\PayMethodStoredMethod;
 use Dotenv\Dotenv;
@@ -931,7 +931,7 @@ function handleProcessTransactionWithToken($payabliClient, $entryPoint, $token) 
         error_log("Payment processed successfully: " . json_encode($paymentResult));
         
         // Extract reference ID from the response
-        $referenceId = $paymentResult->data->referenceId ?? 'Unknown';
+        $referenceId = $paymentResult->data->responseData->transactionid ?? $paymentResult->data->paymentTransId ?? 'Unknown';
 
         http_response_code(200);
         header('Content-Type: text/html');

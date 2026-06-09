@@ -137,7 +137,7 @@ async fn trigger_transaction(client: &ApiClient, entrypoint: &str) {
                 cardnumber: Cardnumber("4111111111111111".to_string()),
                 cardzip: Some(Cardzip("12345".to_string())),
                 initiator: Some(Initiator("payor".to_string())),
-                method: "card".to_string(),
+                method: PayMethodCreditMethod::Card,
                 save_if_success: None,
             }),
             source: None,

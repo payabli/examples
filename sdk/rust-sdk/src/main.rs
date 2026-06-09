@@ -139,10 +139,10 @@ async fn create_customer(
 
     let mut additional_fields = std::collections::HashMap::new();
     if let Some(hvac) = form.hvac {
-        additional_fields.insert("hvac".to_string(), Some(hvac));
+        additional_fields.insert("hvac".to_string(), hvac);
     }
     if let Some(electrical) = form.electrical {
-        additional_fields.insert("electrical".to_string(), Some(electrical));
+        additional_fields.insert("electrical".to_string(), electrical);
     }
 
     let result = state
@@ -178,11 +178,11 @@ async fn create_customer(
                 } else {
                     None
                 },
-                identifier_fields: Some(Identifierfields(vec![Some("email".to_string())])),
+                identifier_fields: Some(Identifierfields(vec!["email".to_string()])),
                 created_at: None,
             },
             replace_existing: Some(0),
-            force_customer_creation: Some(false),
+            force_customer_creation: Some(true),
         }, None)
         .await;
 

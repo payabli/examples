@@ -7,7 +7,7 @@ use Payabli\PayabliClient;
 use Payabli\Types\NotificationStandardRequest;
 use Payabli\Types\NotificationStandardRequestContent;
 use Payabli\MoneyIn\Requests\RequestPaymentV2;
-use Payabli\MoneyIn\Types\TransRequestBody;
+use Payabli\Types\TransRequestBody;
 use Payabli\Types\PaymentDetail;
 use Payabli\Types\PayMethodCredit;
 use Payabli\Types\PayorDataRequest;

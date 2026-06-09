@@ -138,20 +138,18 @@ async function triggerTransaction(): Promise<void> {
 
   try {
     const res = await client.moneyIn.getpaidv2({
-      body: {
-        customerData: { customerId: 4440 },
-        entryPoint: ENTRY,
-        ipaddress: "255.255.255.255",
-        paymentDetails: { totalAmount: 1.00, serviceFee: 0 },
-        paymentMethod: {
-          cardexp:    "02/27",
-          cardnumber: "4111111111111111",
-          cardcvv:    "999",
-          cardHolder: "Test User",
-          cardzip:    "12345",
-          initiator:  "payor",
-          method:     "card",
-        },
+      customerData: { customerId: 4440 },
+      entryPoint: ENTRY,
+      ipaddress: "255.255.255.255",
+      paymentDetails: { totalAmount: 1.00, serviceFee: 0 },
+      paymentMethod: {
+        cardexp:    "02/27",
+        cardnumber: "4111111111111111",
+        cardcvv:    "999",
+        cardHolder: "Test User",
+        cardzip:    "12345",
+        initiator:  "payor",
+        method:     "card",
       },
     });
     console.log(`Transaction response (v2): ${JSON.stringify(res, null, 2)}`);
