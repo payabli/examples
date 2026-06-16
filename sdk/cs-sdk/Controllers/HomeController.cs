@@ -182,7 +182,7 @@ namespace PayabliSdkExample.Controllers
         {
             try
             {
-                await _payabliClient.Customer.DeleteCustomerAsync(id, new DeleteCustomerRequest());
+                await _payabliClient.Customer.DeleteCustomerAsync(id);
                 Console.WriteLine($"Customer {id} deleted successfully");
                 return Content("", "text/html");
             }
