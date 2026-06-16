@@ -4,5 +4,6 @@ source 'https://rubygems.org'
 
 gem 'dotenv'
 gem 'payabli'
+gem 'rackup'
 gem 'sinatra'
 gem 'puma'
