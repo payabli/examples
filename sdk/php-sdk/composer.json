@@ -19,5 +19,5 @@
             "Composer\\Config::disableProcessTimeout",
             "php -S localhost:8000"
         ]
-    },
+    }
 }
