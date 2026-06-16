@@ -9,7 +9,8 @@
     "astro": "astro"
   },
   "dependencies": {
+    "@astrojs/node": "^10.1.4",
     "@payabli/sdk-node": "latest",
-    "astro": "^6.1.6"
+    "astro": "^6.4.7"
   }
 }
