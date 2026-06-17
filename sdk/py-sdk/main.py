@@ -32,18 +32,17 @@ payabli_client = payabli(api_key=api_key)
 @app.get("/", response_class=HTMLResponse)
 async def create_customer_page(request: Request):
     """Render the create customer form page."""
-    return templates.TemplateResponse("create.html", {"request": request})
+    return templates.TemplateResponse(request, "create.html")
 
 @app.get("/list", response_class=HTMLResponse)
 async def list_customers_page(request: Request):
     """Render the list customers page."""
-    return templates.TemplateResponse("list.html", {"request": request})
+    return templates.TemplateResponse(request, "list.html")
 
 @app.get("/transaction", response_class=HTMLResponse)
 async def make_transaction_page(request: Request):
     """Render the make transaction page."""
-    return templates.TemplateResponse("transaction.html", {
-        "request": request,
+    return templates.TemplateResponse(request, "transaction.html", context={
         "public_token": public_token,
         "entry_point": entry_point
     })
