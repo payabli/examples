@@ -1,0 +1,15 @@
+{
+  "originHash" : "b4238d9834f3620405700a5165624cd0c60158e8a992757a33fdab28e4a3ad9a",
+  "pins" : [
+    {
+      "identity" : "sdk-ios",
+      "kind" : "remoteSourceControl",
+      "location" : "https://github.com/payabli/sdk-ios.git",
+      "state" : {
+        "branch" : "main",
+        "revision" : "5804af4c2179cc36fe7905e2083c38a8d57e15ea"
+      }
+    }
+  ],
+  "version" : 3
+}

@@ -1,0 +1,15 @@
+# Xcode
+xcuserdata/
+*.xcuserstate
+DerivedData/
+.swiftpm/
+*.xcworkspace/xcuserdata/
+
+.build/
+
+# copy Secrets.swift.sample to Secrets.swift
+PayabliPayInDemo/Secrets.swift
+
+# copy .env.template to .env
+TokenServer/.env
+
