@@ -1,0 +1,54 @@
+name: PayabliPayInDemo
+options:
+  createIntermediateGroups: true
+  deploymentTarget:
+    iOS: "16.7"
+
+packages:
+  PayabliSDK:
+    url: https://github.com/payabli/sdk-ios.git
+    branch: main
+
+targets:
+  PayabliPayInDemo:
+    type: application
+    platform: iOS
+    sources:
+      - path: PayabliPayInDemo
+        excludes:
+          - "Secrets.swift.sample"
+    settings:
+      base:
+        PRODUCT_BUNDLE_IDENTIFIER: com.payabli.examples.payinDemo
+        SWIFT_VERSION: "5.9"
+        CODE_SIGN_ENTITLEMENTS: PayabliPayInDemo/PayabliPayInDemo.entitlements
+        TARGETED_DEVICE_FAMILY: "1"
+        ENABLE_PREVIEWS: true
+        # sdk-ios ships PayabliSDKTapToPay and PayabliSDKPayInPaymentFlow as
+        # separate dynamic library products that both depend on the
+        # PayabliSDKCore target. Xcode's package graph can't reconcile that
+        # diamond when a single app target links both products (it works
+        # fine linking either one alone) and hard-fails the build without
+        # this flag. See mobile/ios/README.md#known-issue.
+        DISABLE_DIAMOND_PROBLEM_DIAGNOSTIC: YES
+    info:
+      path: PayabliPayInDemo/Info.plist
+      properties:
+        UILaunchScreen: {}
+        UISupportedInterfaceOrientations:
+          - UIInterfaceOrientationPortrait
+        NSAppTransportSecurity:
+          NSAllowsLocalNetworking: true
+    dependencies:
+      - package: PayabliSDK
+        product: PayabliSDKTapToPay
+      - package: PayabliSDK
+        product: PayabliSDKPayInPaymentFlow
+
+schemes:
+  PayabliPayInDemo:
+    build:
+      targets:
+        PayabliPayInDemo: all
+    run:
+      config: Debug
