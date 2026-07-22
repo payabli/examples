@@ -4,9 +4,8 @@
     "allowJs": true,
     "verbatimModuleSyntax": false,
     "esModuleInterop": true,
-    "baseUrl": ".",
     "paths": {
-      "@/*": ["src/*"]
+      "@/*": ["./src/*"]
     },
     "jsx": "react-jsx",
     "jsxImportSource": "react"
