@@ -40,8 +40,8 @@ cp .env.template .env
 
 Fill in:
 
-- `PAYABLI_API_KEY`
-- `PAYABLI_ENTRY_POINT`
+- `EXPO_PUBLIC_PAYABLI_API_KEY`
+- `EXPO_PUBLIC_PAYABLI_ENTRY_POINT`
 
 ## Run
 
