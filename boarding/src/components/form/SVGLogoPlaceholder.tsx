@@ -23,7 +23,7 @@ export function SVGLogoPlaceholder({
   const uniqueId = useMemo(() => `shape-mask-${sanitizedText}-${Math.random().toString(36).substr(2, 9)}`, [sanitizedText])
 
   const generateShapes = () => {
-    const shapes: JSX.Element[] = []
+    const shapes: React.JSX.Element[] = []
     const hue = Math.floor(Math.random() * 360)
     const saturation = 70 + Math.floor(Math.random() * 30)
     const lightness = 40 + Math.floor(Math.random() * 20)

@@ -37,7 +37,7 @@ import {
 } from '@/components/ui/accordion'
 
 interface ESignatureProps {
-  contentRef: React.RefObject<HTMLDivElement>
+  contentRef: React.RefObject<HTMLDivElement | null>
   onConfirm: () => void
 }
 

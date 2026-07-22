@@ -1,5 +1,5 @@
 import { z } from 'zod'
-import { useForm } from 'react-hook-form'
+import { useForm, type Resolver } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
 import { createFormSchemaKit, prefill } from '@/lib/schemaPrefill'
 
@@ -263,7 +263,10 @@ export type FormSchemaType = z.infer<typeof formSchema>
 // Create a custom hook to use the form
 export function useFormWithSchema() {
   return useForm<FormSchemaType>({
-    resolver: zodResolver(formSchema),
+    // The client schema is built from a generic schema-kit mapped type, which
+    // defeats zodResolver's own field-type inference; the runtime resolver is
+    // unaffected, so this only restores the type we already export as FormSchemaType.
+    resolver: zodResolver(formSchema) as unknown as Resolver<FormSchemaType>,
     defaultValues: formDefaultValues,
   })
 }

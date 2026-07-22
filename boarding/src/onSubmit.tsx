@@ -8,7 +8,7 @@ import { useFormWithSchema } from './Schema'
 type FormSchemaType = z.infer<typeof formSchema>
 
 export function useFormLogic(
-  steps: React.ReactElement,
+  steps: React.ReactElement<{ children?: React.ReactNode }>,
   setCurrentPage: React.Dispatch<React.SetStateAction<number>>,
 ) {
   const form = useFormWithSchema()
@@ -73,12 +73,12 @@ export function useFormLogic(
       if (steps && steps.props && steps.props.children) {
         const errorPages = React.Children.map(
           steps.props.children,
-          (step: React.ReactElement, index: number) => {
+          (step: React.ReactNode, index: number) => {
             const errorElementIndex = findErrorElementIndex(step)
             return errorElementIndex !== -1 ? index : 0
           },
         )
-        const earliestErrorPage = Math.min(...errorPages) || 0
+        const earliestErrorPage = Math.min(...(errorPages ?? [])) || 0
 
         toast({
           variant: 'destructive',
@@ -102,7 +102,7 @@ export function useFormLogic(
 
   function findErrorElementIndex(element: React.ReactNode): number {
     if (React.isValidElement(element)) {
-      const name = element.props.name as keyof FormSchemaType
+      const name = (element.props as { name?: string }).name as keyof FormSchemaType
       if (name && form.formState.errors[name]) {
         return 0
       }

@@ -74,8 +74,9 @@ export function DynamicFormSection({
                   />
                 )}
                 {React.Children.map(children, (child) => {
-                  if (React.isValidElement<any>(child)) {
-                    const newProps = Object.entries(child.props).reduce(
+                  if (React.isValidElement(child)) {
+                    const element = child as ReactElement<any>
+                    const newProps = Object.entries(element.props).reduce(
                       (acc: Record<string, any>, [key, value]) => {
                         if (typeof value === 'string') {
                           acc[key] = value.replace(/\[\]/g, `[${index}]`)
@@ -87,9 +88,9 @@ export function DynamicFormSection({
                       {},
                     )
 
-                    return React.cloneElement(child, {
+                    return React.cloneElement(element, {
                       ...newProps,
-                      key: `${child.props.name}-${index}`,
+                      key: `${element.props.name}-${index}`,
                       index: index,
                     })
                   }
