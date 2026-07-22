@@ -11,3 +11,5 @@
 **/dist/
 **/bun.lock
 **/.vscode
+webhooks/go-sdk/go-sdk
+sdk/go-sdk/go-sdk
