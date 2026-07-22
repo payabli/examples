@@ -43,7 +43,7 @@ export const queryTransaction = async (transId: string): Promise<Response> => {
 
   try {
     const fetchResponse = await fetch(url, {
-      transactionId: 'GET',
+      method: 'GET',
       headers: headers,
     });
 

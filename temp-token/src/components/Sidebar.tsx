@@ -111,36 +111,37 @@ const Message: React.FC<MessageProps> = React.memo(({ message, isNew, libraries 
       className="message-item mb-4 overflow-hidden"
     >
       <div className="rounded-md border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 p-4 shadow overflow-hidden">
-        <ReactMarkdown
-          remarkPlugins={[remarkGfm]}
-          components={{
-          h1: ({ node, ...props }) => <h1 className="text-3xl font-bold my-4" {...props} />,
-          h2: ({ node, ...props }) => <h2 className="text-2xl font-bold my-3" {...props} />,
-          h3: ({ node, ...props }) => <h3 className="text-xl font-bold my-2" {...props} />,
-          h4: ({ node, ...props }) => <h4 className="text-lg font-bold my-2" {...props} />,
-          h5: ({ node, ...props }) => <h5 className="text-base font-bold my-1" {...props} />,
-          h6: ({ node, ...props }) => <h6 className="text-sm font-bold my-1" {...props} />,           
-          code({ node, inline, className, children, ...props }) {
-              const match = /language-(\w+)/.exec(className || "")
-              return !inline && match ? (
-                <CodeBlock
-                  language={match[1]}
-                  value={String(children).replace(/\n$/, "")}
-                  SyntaxHighlighter={SyntaxHighlighter}
-                  vscDarkPlus={vscDarkPlus}
-                  {...props}
-                />
-              ) : (
-                <code className={className} {...props}>
-                  {children}
-                </code>
-              )
-            },
-          }}
-          className="prose prose-sm dark:prose-invert max-w-none overflow-hidden"
-        >
-          {message}
-        </ReactMarkdown>
+        <div className="prose prose-sm dark:prose-invert max-w-none overflow-hidden">
+          <ReactMarkdown
+            remarkPlugins={[remarkGfm]}
+            components={{
+            h1: ({ node, ...props }) => <h1 className="text-3xl font-bold my-4" {...props} />,
+            h2: ({ node, ...props }) => <h2 className="text-2xl font-bold my-3" {...props} />,
+            h3: ({ node, ...props }) => <h3 className="text-xl font-bold my-2" {...props} />,
+            h4: ({ node, ...props }) => <h4 className="text-lg font-bold my-2" {...props} />,
+            h5: ({ node, ...props }) => <h5 className="text-base font-bold my-1" {...props} />,
+            h6: ({ node, ...props }) => <h6 className="text-sm font-bold my-1" {...props} />,
+            code({ node, className, children, ...props }) {
+                const match = /language-(\w+)/.exec(className || "")
+                return match ? (
+                  <CodeBlock
+                    language={match[1]}
+                    value={String(children).replace(/\n$/, "")}
+                    SyntaxHighlighter={SyntaxHighlighter}
+                    vscDarkPlus={vscDarkPlus}
+                    {...props}
+                  />
+                ) : (
+                  <code className={className} {...props}>
+                    {children}
+                  </code>
+                )
+              },
+            }}
+          >
+            {message}
+          </ReactMarkdown>
+        </div>
       </div>
     </motion.div>
   )
@@ -242,7 +243,7 @@ export default function SidebarChat() {
           setUnreadCount((prev) => prev + newMessagesCount)
         } else {
           const newMessages = messages.slice(-newMessagesCount)
-          const hasUnreadMessages = newMessages.some((msg) => new Date(msg.timestamp).getTime() > lastOpenedRef.current)
+          const hasUnreadMessages = newMessages.some((msg: any) => new Date(msg.timestamp).getTime() > lastOpenedRef.current)
           if (hasUnreadMessages) {
             setUnreadCount((prev) => prev + newMessagesCount)
           }
@@ -271,9 +272,9 @@ export default function SidebarChat() {
 
   const sidebarTransition = useMemo(
     () => ({
-      type: isMobile ? "tween" : "spring",
+      type: isMobile ? ("tween" as const) : ("spring" as const),
       duration: isMobile ? 0.2 : undefined,
-      ease: isMobile ? [0.25, 0.1, 0.25, 1] : undefined,
+      ease: isMobile ? ([0.25, 0.1, 0.25, 1] as const) : undefined,
       stiffness: isMobile ? undefined : 500,
       damping: isMobile ? undefined : 30,
     }),
@@ -282,9 +283,9 @@ export default function SidebarChat() {
 
   const buttonTransition = useMemo(
     () => ({
-      type: isMobile ? "tween" : "spring",
+      type: isMobile ? ("tween" as const) : ("spring" as const),
       duration: isMobile ? 0.2 : undefined,
-      ease: isMobile ? [0.25, 0.1, 0.25, 1] : undefined,
+      ease: isMobile ? ([0.25, 0.1, 0.25, 1] as const) : undefined,
       stiffness: isMobile ? undefined : 500,
       damping: isMobile ? undefined : 30,
     }),

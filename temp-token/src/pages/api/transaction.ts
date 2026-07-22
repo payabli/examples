@@ -16,14 +16,16 @@ export const POST: APIRoute = async ({ request }) => {
       });
     }
 
-    var response
-  
     if (method) {
-      response = await makeTransaction(method);
+      return await makeTransaction(method);
     } else if (token) {
-      response = await makeOneTimeTransaction(token);
+      return await makeOneTimeTransaction(token);
     }
-    return response; // return the response directly
+
+    return new Response(null, {
+      status: 404,
+      statusText: 'Not found',
+    });
   } catch (error) {
     console.error('Error in POST request:', error);
     return new Response(null, {
