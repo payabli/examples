@@ -32,7 +32,9 @@ export function Wizard({
   onPageChange,
 }: WizardProps) {
   const steps = React.Children.toArray(children).filter(
-    (child) => React.isValidElement(child) && child.props.className !== "wizard-step",
+    (child) =>
+      React.isValidElement(child) &&
+      (child as React.ReactElement<any>).props.className !== "wizard-step",
   ) as React.ReactElement<WizardStepProps>[]
   const totalPages = steps.length
 

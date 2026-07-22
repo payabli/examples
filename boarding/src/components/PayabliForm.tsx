@@ -170,11 +170,11 @@ export function PayabliForm() {
       setIsLoading(true)
       setIsDataLoaded(false)
       try {
-        let savedData = await loadSavedData()
-        if (savedData) {
+        const loadedData = await loadSavedData()
+        if (loadedData) {
           // Migrate old bank account format to new format if needed
-          savedData = migrateBankAccounts(savedData)
-          
+          const savedData: FormSchemaType = migrateBankAccounts(loadedData)
+
           form.reset(savedData)
 
           setBusinessCountry(savedData.bcountry || '')
@@ -188,7 +188,12 @@ export function PayabliForm() {
             setOwnership(savedData.ownership)
           }
           if (savedData.bankData && savedData.bankData.length > 0) {
-            setBankData(savedData.bankData)
+            setBankData(
+              savedData.bankData.map((account) => ({
+                ...account,
+                bankAccountFunction: String(account.bankAccountFunction),
+              })),
+            )
           } else {
             // Ensure default bank accounts if none exist
             const defaultBankData = [

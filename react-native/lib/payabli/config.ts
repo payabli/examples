@@ -1,5 +1,3 @@
-import { PAYABLI_API_KEY, PAYABLI_ENTRY_POINT } from '@env';
-
 import {
   type PayabliPaymentMethod,
   type PayabliPaymentRequest,
@@ -52,8 +50,8 @@ export const createHtmlShell = () => `<!DOCTYPE html>
 const sharedConfig: PayabliEmbeddedConfig = {
   type: 'methodEmbedded',
   rootContainer: PAYABLI_COMPONENT_ROOT_ID,
-  token: PAYABLI_API_KEY,
-  entryPoint: PAYABLI_ENTRY_POINT,
+  token: process.env.EXPO_PUBLIC_PAYABLI_API_KEY,
+  entryPoint: process.env.EXPO_PUBLIC_PAYABLI_ENTRY_POINT,
   temporaryToken: false,
   customCssStyle: `
     .payabliPaymentForm {

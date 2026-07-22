@@ -3,6 +3,7 @@
 **/.astro/
 **/node_modules/
 **/package-lock.json
+**/pnpm-lock.yaml
 **/bun.lockb
 **/.git.bk/
 **/sdk-*/
@@ -11,3 +12,5 @@
 **/dist/
 **/bun.lock
 **/.vscode
+webhooks/go-sdk/go-sdk
+sdk/go-sdk/go-sdk
