@@ -4,9 +4,10 @@ export async function DELETE({ params }: { params: any }) {
 
   console.log(params);
 
-  const apiKey = import.meta.env.PAYABLI_KEY
+  const clientId = import.meta.env.PAYABLI_CLIENT_ID
+  const clientSecret = import.meta.env.PAYABLI_CLIENT_SECRET
 
-  const client = new PayabliClient({ apiKey: apiKey });
+  const client = new PayabliClient({ bearerAuth: { clientId, clientSecret } });
 
   try {
     const res = await client.customer.deleteCustomer(params.customerId);

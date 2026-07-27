@@ -43,21 +43,23 @@ public class PayabliExampleApp {
                 .load();
         
         // First try to get from .env file, then fall back to system environment
-        String apiKey = dotenv.get("PAYABLI_KEY", System.getenv("PAYABLI_KEY"));
+        String clientId = dotenv.get("PAYABLI_CLIENT_ID", System.getenv("PAYABLI_CLIENT_ID"));
+        String clientSecret = dotenv.get("PAYABLI_CLIENT_SECRET", System.getenv("PAYABLI_CLIENT_SECRET"));
         entryPoint = dotenv.get("PAYABLI_ENTRY", System.getenv("PAYABLI_ENTRY"));
         publicToken = dotenv.get("PAYABLI_PUBLIC_TOKEN", System.getenv("PAYABLI_PUBLIC_TOKEN"));
 
-        if (apiKey == null || entryPoint == null || publicToken == null) {
-            logger.error("PAYABLI_KEY, PAYABLI_ENTRY, and PAYABLI_PUBLIC_TOKEN environment variables must be set");
+        if (clientId == null || clientSecret == null || entryPoint == null || publicToken == null) {
+            logger.error("PAYABLI_CLIENT_ID, PAYABLI_CLIENT_SECRET, PAYABLI_ENTRY, and PAYABLI_PUBLIC_TOKEN environment variables must be set");
             logger.error("Please ensure your .env file exists and contains these variables, or set them as system environment variables");
             System.exit(1);
         }
-        
+
         logger.info("Successfully loaded configuration - Entry Point: {}", entryPoint);
 
         // Initialize Payabli client
         payabliClient = new PayabliApiClientBuilder()
-                .apiKey(apiKey)
+                .clientId(clientId)
+                .clientSecret(clientSecret)
                 .build();
 
         // Create and configure Javalin app

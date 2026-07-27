@@ -3,7 +3,9 @@
 source 'https://rubygems.org'
 
 gem 'sinatra'
-gem 'payabli'
+# >= 3.0.6: OAuth client_id/client_secret support was briefly removed in 3.0.5
+# and the token refresh became thread-safe in 3.0.6. Don't drop below 3.0.6.
+gem 'payabli', '>= 3.0.6'
 gem 'thin'
 gem 'dotenv'
 

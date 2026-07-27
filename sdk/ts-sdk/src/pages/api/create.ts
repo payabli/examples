@@ -3,7 +3,8 @@ import { PayabliClient } from '@payabli/sdk-node';
 
 export async function POST({ request }: { request: any }) {
 
-  const apiKey = import.meta.env.PAYABLI_KEY
+  const clientId = import.meta.env.PAYABLI_CLIENT_ID
+  const clientSecret = import.meta.env.PAYABLI_CLIENT_SECRET
   const entryPoint = import.meta.env.PAYABLI_ENTRY
 
   try {
@@ -11,7 +12,7 @@ export async function POST({ request }: { request: any }) {
     const formData = await request.formData();
 
     // Instantiate the Payabli client
-    const payabliClient = new PayabliClient({ apiKey: apiKey });
+    const payabliClient = new PayabliClient({ bearerAuth: { clientId, clientSecret } });
 
     // Send the form data to Payabli's API
     try {

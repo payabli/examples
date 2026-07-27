@@ -8,6 +8,11 @@ The application has three pages:
 2. **List Customers** - this page lists all the customers in your paypoint.
 3. **Make Transaction** - this page has an embedded component to save payment methods securely and send them to the API to process transactions with the v2 `MoneyIn/getpaid` endpoint.
 
+## Prerequisites
+
+- Java 11+ and Maven
+- This example requires `io.github.payabli:sdk-java` 1.0.11 or later, which adds OAuth client-credentials support (`PayabliApiClientBuilder.clientId(...)`/`.clientSecret(...)`).
+
 ## Setup Instructions
 
 1. Clone this repo and navigate to the project directory:
@@ -46,7 +51,8 @@ cp .env.template .env
 Edit the `.env` file:
 ```
 PAYABLI_ENTRY="your_paypoint_entry_id"
-PAYABLI_KEY="your_api_key"
+PAYABLI_CLIENT_ID="your_client_id"
+PAYABLI_CLIENT_SECRET="your_client_secret"
 ```
 
 6. Start the development server:

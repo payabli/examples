@@ -15,14 +15,16 @@ export const POST: APIRoute = async ({ params }) => {
       );
     }
 
-    const apiKey = import.meta.env.PAYABLI_KEY;
+    const clientId = import.meta.env.PAYABLI_CLIENT_ID;
+    const clientSecret = import.meta.env.PAYABLI_CLIENT_SECRET;
     const entryPoint = import.meta.env.PAYABLI_ENTRY;
 
     console.log('Environment check:');
-    console.log('apiKey exists:', !!apiKey);
+    console.log('clientId exists:', !!clientId);
+    console.log('clientSecret exists:', !!clientSecret);
     console.log('entryPoint exists:', !!entryPoint);
     console.log('entryPoint value:', entryPoint);
-    if (!apiKey || !entryPoint) {
+    if (!clientId || !clientSecret || !entryPoint) {
       return new Response(
         '<input type="text" name="invalid" value="❌ Server configuration error" aria-invalid="true" readonly>',
         {
@@ -34,7 +36,7 @@ export const POST: APIRoute = async ({ params }) => {
 
     console.log(`Converting temporary token to permanent: ${token}`);
 
-    const client = new PayabliClient({ apiKey });
+    const client = new PayabliClient({ bearerAuth: { clientId, clientSecret } });
 
     // Step 1: Use token storage to convert temporary token to permanent
     const tokenResult = await client.tokenStorage.addMethod({

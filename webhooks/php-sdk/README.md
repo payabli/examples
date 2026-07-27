@@ -17,7 +17,7 @@ This sample uses the GetPaid v2 transaction endpoint via `moneyIn->getpaidv2(...
 
 - PHP 8.1+
 - [Composer](https://getcomposer.org)
-- A [Payabli API key](https://docs.payabli.com)
+- A Payabli OAuth2 client ID and client secret (see [Payabli docs](https://docs.payabli.com))
 - A tunnel tool such as [`ngrok`](https://ngrok.com/), [`localhost.run`](https://localhost.run/), or another local environment forwarder
 
 ## Setup
@@ -26,7 +26,7 @@ This sample uses the GetPaid v2 transaction endpoint via `moneyIn->getpaidv2(...
 composer install
 
 cp .env.example .env
-# Fill in PAYABLI_KEY, PAYABLI_ENTRY, and OWNER_ID in .env
+# Fill in PAYABLI_CLIENT_ID, PAYABLI_CLIENT_SECRET, PAYABLI_ENTRY, and OWNER_ID in .env
 ```
 
 ## Run

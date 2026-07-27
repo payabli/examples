@@ -12,10 +12,11 @@ Dotenv.load(File.join(__dir__, '.env'))
 
 # ─── Configuration ────────────────────────────────────────────────────────────
 
-PORT       = Integer(ENV.fetch('PORT', '3000'))
-API_KEY    = ENV['PAYABLI_KEY']   or abort('PAYABLI_KEY missing in .env')
-ENTRYPOINT = ENV['PAYABLI_ENTRY'] or abort('PAYABLI_ENTRY missing in .env')
-OWNER_ID   = Integer(ENV.fetch('OWNER_ID', '0').tap { |v| abort('OWNER_ID missing in .env') if v == '0' })
+PORT          = Integer(ENV.fetch('PORT', '3000'))
+CLIENT_ID     = ENV['PAYABLI_CLIENT_ID']     or abort('PAYABLI_CLIENT_ID missing in .env')
+CLIENT_SECRET = ENV['PAYABLI_CLIENT_SECRET'] or abort('PAYABLI_CLIENT_SECRET missing in .env')
+ENTRYPOINT    = ENV['PAYABLI_ENTRY']         or abort('PAYABLI_ENTRY missing in .env')
+OWNER_ID      = Integer(ENV.fetch('OWNER_ID', '0').tap { |v| abort('OWNER_ID missing in .env') if v == '0' })
 
 # Thread-safe queue: the Sinatra handler pushes received payloads here,
 # the main thread pops and prints them.
@@ -142,7 +143,8 @@ test_tunnel(tunnel_url)
 
 # Build the Payabli SDK client.
 client = Payabli::Client.new(
-  api_key: API_KEY,
+  client_id: CLIENT_ID,
+  client_secret: CLIENT_SECRET,
   base_url: Payabli::Environment::SANDBOX
 )
 

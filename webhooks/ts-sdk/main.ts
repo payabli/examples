@@ -6,17 +6,22 @@ import { PayabliClient, PayabliEnvironment } from "@payabli/sdk-node";
 
 dotenv.config();
 
-const API_KEY = process.env.PAYABLI_KEY ?? "";
+const CLIENT_ID = process.env.PAYABLI_CLIENT_ID ?? "";
+const CLIENT_SECRET = process.env.PAYABLI_CLIENT_SECRET ?? "";
 const ENTRY = process.env.PAYABLI_ENTRY ?? "";
 const OWNER_ID = parseInt(process.env.OWNER_ID ?? "0", 10);
 const PORT = parseInt(process.env.PORT ?? "3000", 10);
 
-if (!API_KEY) { console.error("PAYABLI_KEY missing from .env"); process.exit(1); }
+if (!CLIENT_ID)     { console.error("PAYABLI_CLIENT_ID missing from .env"); process.exit(1); }
+if (!CLIENT_SECRET) { console.error("PAYABLI_CLIENT_SECRET missing from .env"); process.exit(1); }
 if (!ENTRY)   { console.error("PAYABLI_ENTRY missing from .env"); process.exit(1); }
 if (!OWNER_ID){ console.error("OWNER_ID missing from .env");  process.exit(1); }
 
 const client = new PayabliClient({
-  apiKey: API_KEY,
+  bearerAuth: {
+    clientId: CLIENT_ID,
+    clientSecret: CLIENT_SECRET,
+  },
   environment: PayabliEnvironment.Sandbox,
 });
 
@@ -125,7 +130,7 @@ async function createWebhookNotification(targetBase: string): Promise<void> {
     );
     if (!isSuccess) {
       console.error(`WARNING: Notification registration failed – ResponseText: ${res.responseText ?? "(none)"}`);
-      console.error("No webhook will be delivered. Check your PAYABLI_KEY, OWNER_ID, and PAYABLI_ENTRY.");
+      console.error("No webhook will be delivered. Check your PAYABLI_CLIENT_ID, PAYABLI_CLIENT_SECRET, OWNER_ID, and PAYABLI_ENTRY.");
     }
   } catch (err) {
     console.error(`Failed to register webhook: ${err}`);

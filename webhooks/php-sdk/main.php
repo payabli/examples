@@ -11,6 +11,7 @@ use Payabli\Types\TransRequestBody;
 use Payabli\Types\PaymentDetail;
 use Payabli\Types\PayMethodCredit;
 use Payabli\Types\PayorDataRequest;
+use Payabli\Environments;
 use Dotenv\Dotenv;
 
 // ─── Shared log file (IPC between cli-server request handlers and the CLI process)
@@ -178,14 +179,16 @@ if (file_exists(__DIR__ . '/.env')) {
     $dotenv->load();
 }
 
-$port       = $_ENV['PORT'] ?? '3000';
-$apiKey     = $_ENV['PAYABLI_KEY'] ?? '';
-$entrypoint = $_ENV['PAYABLI_ENTRY'] ?? '';
-$ownerIdStr = $_ENV['OWNER_ID'] ?? '';
+$port         = $_ENV['PORT'] ?? '3000';
+$clientId     = $_ENV['PAYABLI_CLIENT_ID'] ?? '';
+$clientSecret = $_ENV['PAYABLI_CLIENT_SECRET'] ?? '';
+$entrypoint   = $_ENV['PAYABLI_ENTRY'] ?? '';
+$ownerIdStr   = $_ENV['OWNER_ID'] ?? '';
 
-if ($apiKey === '')     { die("PAYABLI_KEY missing in .env\n"); }
-if ($entrypoint === '') { die("PAYABLI_ENTRY missing in .env\n"); }
-if ($ownerIdStr === '') { die("OWNER_ID missing in .env\n"); }
+if ($clientId === '')     { die("PAYABLI_CLIENT_ID missing in .env\n"); }
+if ($clientSecret === '') { die("PAYABLI_CLIENT_SECRET missing in .env\n"); }
+if ($entrypoint === '')   { die("PAYABLI_ENTRY missing in .env\n"); }
+if ($ownerIdStr === '')   { die("OWNER_ID missing in .env\n"); }
 
 $ownerId = (int)$ownerIdStr;
 
@@ -227,8 +230,12 @@ $tunnelUrl = prompt("Paste your public tunnel URL (e.g. https://xxxx.ngrok-free.
 // Self-test the tunnel to confirm end-to-end connectivity before registering.
 testTunnel($tunnelUrl);
 
-// Build the Payabli SDK client using the API key from .env.
-$client = new PayabliClient($apiKey);
+// Build the Payabli SDK client using OAuth client credentials from .env.
+$client = new PayabliClient(
+    clientId: $clientId,
+    clientSecret: $clientSecret,
+    options: ['baseUrl' => Environments::Sandbox->value]
+);
 
 // Register the ApprovedPayment notification so Payabli knows where to POST.
 createWebhookNotification($client, $tunnelUrl, $ownerId);

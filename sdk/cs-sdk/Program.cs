@@ -11,16 +11,23 @@ Env.Load();
 builder.Services.AddControllersWithViews();
 
 // Register PayabliApiClient as a singleton
-var apiKey = Environment.GetEnvironmentVariable("PAYABLI_KEY") 
-    ?? throw new InvalidOperationException("PAYABLI_KEY environment variable is required");
-    
-var entryPoint = Environment.GetEnvironmentVariable("PAYABLI_ENTRY") 
+var clientId = Environment.GetEnvironmentVariable("PAYABLI_CLIENT_ID")
+    ?? throw new InvalidOperationException("PAYABLI_CLIENT_ID environment variable is required");
+
+var clientSecret = Environment.GetEnvironmentVariable("PAYABLI_CLIENT_SECRET")
+    ?? throw new InvalidOperationException("PAYABLI_CLIENT_SECRET environment variable is required");
+
+var entryPoint = Environment.GetEnvironmentVariable("PAYABLI_ENTRY")
     ?? throw new InvalidOperationException("PAYABLI_ENTRY environment variable is required");
 
-var publicToken = Environment.GetEnvironmentVariable("PAYABLI_PUBLIC_TOKEN") 
+var publicToken = Environment.GetEnvironmentVariable("PAYABLI_PUBLIC_TOKEN")
     ?? throw new InvalidOperationException("PAYABLI_PUBLIC_TOKEN environment variable is required");
 
-builder.Services.AddSingleton<PayabliApiClient>(_ => new PayabliApiClient(apiKey));
+builder.Services.AddSingleton<PayabliApiClient>(_ => new PayabliApiClient(
+    clientId: clientId,
+    clientSecret: clientSecret,
+    clientOptions: new ClientOptions { BaseUrl = PayabliApiEnvironment.Sandbox }
+));
 builder.Services.AddSingleton(provider => new ConfigurationService(entryPoint, publicToken));
 
 var app = builder.Build();

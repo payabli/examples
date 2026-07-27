@@ -3,8 +3,12 @@
 require 'dotenv/load'
 
 module ExampleConfig
-  def self.api_key
-    ENV['PAYABLI_KEY']
+  def self.client_id
+    ENV['PAYABLI_CLIENT_ID']
+  end
+
+  def self.client_secret
+    ENV['PAYABLI_CLIENT_SECRET']
   end
 
   def self.entrypoint
@@ -12,8 +16,12 @@ module ExampleConfig
   end
 
   def self.require_config!
-    unless api_key && api_key != 'your_api_key_here'
-      puts "Missing PAYABLI_KEY in .env - please set it from .env.template"
+    unless client_id && client_id != 'your_client_id_here'
+      puts "Missing PAYABLI_CLIENT_ID in .env - please set it from .env.template"
+      exit 1
+    end
+    unless client_secret && client_secret != 'your_client_secret_here'
+      puts "Missing PAYABLI_CLIENT_SECRET in .env - please set it from .env.template"
       exit 1
     end
     unless entrypoint && entrypoint != 'your_entrypoint_id_here'
