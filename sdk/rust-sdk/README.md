@@ -26,7 +26,8 @@ cp .env.template .env
 Edit the `.env` file:
 ```
 PAYABLI_ENTRY="your_paypoint_entry_id"
-PAYABLI_KEY="your_api_key"
+PAYABLI_CLIENT_ID="your_client_id"
+PAYABLI_CLIENT_SECRET="your_client_secret"
 PAYABLI_PUBLIC_TOKEN="your_public_token"
 ```
 

@@ -98,7 +98,7 @@ async fn create_webhook_notification(
                     resp.response_text
                 );
                 eprintln!(
-                    "No webhook will be delivered. Check your PAYABLI_KEY, OWNER_ID, and PAYABLI_ENTRY."
+                    "No webhook will be delivered. Check your PAYABLI_CLIENT_ID, PAYABLI_CLIENT_SECRET, OWNER_ID, and PAYABLI_ENTRY."
                 );
             }
         }
@@ -159,7 +159,8 @@ async fn trigger_transaction(client: &ApiClient, entrypoint: &str) {
 async fn main() {
     dotenv().ok();
 
-    let api_key = env::var("PAYABLI_KEY").expect("PAYABLI_KEY missing in .env");
+    let client_id = env::var("PAYABLI_CLIENT_ID").expect("PAYABLI_CLIENT_ID missing in .env");
+    let client_secret = env::var("PAYABLI_CLIENT_SECRET").expect("PAYABLI_CLIENT_SECRET missing in .env");
     let entrypoint = env::var("PAYABLI_ENTRY").expect("PAYABLI_ENTRY missing in .env");
     let owner_id: i64 = env::var("OWNER_ID")
         .expect("OWNER_ID missing in .env")
@@ -202,7 +203,8 @@ async fn main() {
 
     // ── Build Payabli client ───────────────────────────────────────────────
     let config = ClientConfig {
-        api_key: Some(api_key.clone()),
+        client_id: Some(client_id.clone()),
+        client_secret: Some(client_secret.clone()),
         ..Default::default()
     };
     let client = ApiClient::new(config).expect("Failed to build Payabli client");

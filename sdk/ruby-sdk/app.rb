@@ -39,7 +39,8 @@ ExampleConfig.require_config!
 
 # Initialize client
 client = Payabli::Client.new(
-  api_key: ExampleConfig.api_key,
+  client_id: ExampleConfig.client_id,
+  client_secret: ExampleConfig.client_secret,
   base_url: Payabli::Environment::SANDBOX
 )
 

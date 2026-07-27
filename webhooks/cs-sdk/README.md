@@ -16,14 +16,14 @@ This sample uses the GetPaid v2 transaction endpoint via `MoneyIn.Getpaidv2Async
 ## Prerequisites
 
 - [.NET 8 SDK](https://dotnet.microsoft.com/download/dotnet/8.0) or later
-- A [Payabli API key](https://docs.payabli.com)
+- A [Payabli OAuth2 client ID and client secret](https://docs.payabli.com)
 - A tunnel tool such as [`ngrok`](https://ngrok.com/), [`localhost.run`](https://localhost.run/), or another local environment forwarder
 
 ## Setup
 
 ```bash
 cp .env.example .env
-# Fill in PAYABLI_KEY, PAYABLI_ENTRY, and OWNER_ID in .env
+# Fill in PAYABLI_CLIENT_ID, PAYABLI_CLIENT_SECRET, PAYABLI_ENTRY, and OWNER_ID in .env
 ```
 
 ## Run

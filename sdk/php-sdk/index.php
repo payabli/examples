@@ -12,6 +12,7 @@ use Payabli\MoneyIn\Requests\RequestPaymentV2;
 use Payabli\Types\TransRequestBody;
 use Payabli\Types\PaymentDetail;
 use Payabli\Types\PayMethodStoredMethod;
+use Payabli\Environments;
 use Dotenv\Dotenv;
 
 // Load environment variables
@@ -21,19 +22,25 @@ if (file_exists(__DIR__ . '/.env')) {
 }
 
 // Configuration
-$apiKey = $_ENV['PAYABLI_KEY'] ?? '';
+$clientId = $_ENV['PAYABLI_CLIENT_ID'] ?? '';
+$clientSecret = $_ENV['PAYABLI_CLIENT_SECRET'] ?? '';
 $entryPoint = $_ENV['PAYABLI_ENTRY'] ?? '';
 
-// Debug: Log environment variables (mask API key for security)
-error_log("API Key loaded: " . (empty($apiKey) ? 'NO' : 'YES (length: ' . strlen($apiKey) . ')'));
+// Debug: Log environment variables (mask secrets for security)
+error_log("Client ID loaded: " . (empty($clientId) ? 'NO' : 'YES (length: ' . strlen($clientId) . ')'));
+error_log("Client Secret loaded: " . (empty($clientSecret) ? 'NO' : 'YES (length: ' . strlen($clientSecret) . ')'));
 error_log("Entry Point loaded: " . (empty($entryPoint) ? 'NO' : $entryPoint));
 
-if (empty($apiKey) || empty($entryPoint)) {
-    die('PAYABLI_KEY and PAYABLI_ENTRY must be set in .env file');
+if (empty($clientId) || empty($clientSecret) || empty($entryPoint)) {
+    die('PAYABLI_CLIENT_ID, PAYABLI_CLIENT_SECRET, and PAYABLI_ENTRY must be set in .env file');
 }
 
 // Initialize Payabli client
-$payabliClient = new PayabliClient($apiKey);
+$payabliClient = new PayabliClient(
+    clientId: $clientId,
+    clientSecret: $clientSecret,
+    options: ['baseUrl' => Environments::Sandbox->value]
+);
 
 // Handle routing based on request method and path
 $requestMethod = $_SERVER['REQUEST_METHOD'];

@@ -32,17 +32,19 @@ func init() {
 		log.Println("Warning: .env file not found, using system environment variables")
 	}
 
-	apiKey := os.Getenv("PAYABLI_KEY")
+	clientID := os.Getenv("PAYABLI_CLIENT_ID")
+	clientSecret := os.Getenv("PAYABLI_CLIENT_SECRET")
 	entryPoint = os.Getenv("PAYABLI_ENTRY")
 	publicToken = os.Getenv("PAYABLI_PUBLIC_TOKEN")
 
-	if apiKey == "" || entryPoint == "" || publicToken == "" {
-		log.Fatal("PAYABLI_KEY, PAYABLI_ENTRY, and PAYABLI_PUBLIC_TOKEN must be set in environment variables")
+	if clientID == "" || clientSecret == "" || entryPoint == "" || publicToken == "" {
+		log.Fatal("PAYABLI_CLIENT_ID, PAYABLI_CLIENT_SECRET, PAYABLI_ENTRY, and PAYABLI_PUBLIC_TOKEN must be set in environment variables")
 	}
 
 	// Initialize Payabli client
 	payabliClient = client.NewClient(
-		option.WithApiKey(apiKey),
+		option.WithClientID(clientID),
+		option.WithClientSecret(clientSecret),
 		option.WithBaseURL(api.Environments.Sandbox), // Use sandbox environment
 	)
 

@@ -10,6 +10,8 @@ The application has three pages:
 
 ## Setup Instructions
 
+> **Note:** This example requires `github.com/payabli/sdk-go` v1.0.12 or later, which adds OAuth2 client-credentials support (`option.WithClientID` / `option.WithClientSecret`).
+
 1. Clone this repo and navigate to the project directory:
 
 ```bash
@@ -32,7 +34,8 @@ cp .env.template .env
 Edit the `.env` file:
 ```
 PAYABLI_ENTRY="your_paypoint_entry_id"
-PAYABLI_KEY="your_api_key"
+PAYABLI_CLIENT_ID="your_client_id"
+PAYABLI_CLIENT_SECRET="your_client_secret"
 ```
 
 4. Start the development server:

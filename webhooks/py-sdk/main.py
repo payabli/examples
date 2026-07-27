@@ -18,12 +18,15 @@ from payabli.types import (
 load_dotenv()
 
 PORT = int(os.environ.get("PORT", "3000"))
-API_KEY = os.environ.get("PAYABLI_KEY") or ""
+CLIENT_ID = os.environ.get("PAYABLI_CLIENT_ID") or ""
+CLIENT_SECRET = os.environ.get("PAYABLI_CLIENT_SECRET") or ""
 ENTRYPOINT = os.environ.get("PAYABLI_ENTRY") or ""
 OWNER_ID = int(os.environ.get("OWNER_ID", "0"))
 
-if not API_KEY:
-    raise SystemExit("PAYABLI_KEY missing in .env")
+if not CLIENT_ID:
+    raise SystemExit("PAYABLI_CLIENT_ID missing in .env")
+if not CLIENT_SECRET:
+    raise SystemExit("PAYABLI_CLIENT_SECRET missing in .env")
 if not ENTRYPOINT:
     raise SystemExit("PAYABLI_ENTRY missing in .env")
 if not OWNER_ID:
@@ -149,7 +152,7 @@ def main() -> None:
 
     test_tunnel(tunnel_url)
 
-    client = payabli.payabli(api_key=API_KEY)
+    client = payabli.payabli(client_id=CLIENT_ID, client_secret=CLIENT_SECRET)
 
     create_webhook_notification(client, tunnel_url, OWNER_ID)
 

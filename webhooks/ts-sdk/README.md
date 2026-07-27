@@ -8,7 +8,7 @@ This sample uses the GetPaid v2 transaction endpoint via `moneyIn.getpaidv2(...)
 
 - Node.js ≥ 18 (native `fetch` required; tested on Node 22)
 - A tunnel tool such as [`ngrok`](https://ngrok.com/), [`localhost.run`](https://localhost.run/), or another local environment forwarder
-- A Payabli sandbox API key, entrypoint token, and owner ID
+- A Payabli sandbox OAuth2 client ID and client secret, entrypoint token, and owner ID
 
 ## Setup
 
@@ -25,7 +25,8 @@ cp .env.example .env
 
 | Variable | Description |
 |---|---|
-| `PAYABLI_KEY` | Your sandbox API key (`requestToken`) |
+| `PAYABLI_CLIENT_ID` | Your sandbox OAuth2 client ID |
+| `PAYABLI_CLIENT_SECRET` | Your sandbox OAuth2 client secret |
 | `PAYABLI_ENTRY` | Your entrypoint token (e.g. `f743aed24a`) |
 | `OWNER_ID` | Your numeric owner ID (e.g. `236`) |
 | `PORT` | Local port for the webhook server (default `3000`) |

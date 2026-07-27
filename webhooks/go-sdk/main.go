@@ -159,9 +159,14 @@ func main() {
 		port = "3000"
 	}
 
-	apiKey := os.Getenv("PAYABLI_KEY")
-	if apiKey == "" {
-		log.Fatal("PAYABLI_KEY missing in .env")
+	clientID := os.Getenv("PAYABLI_CLIENT_ID")
+	if clientID == "" {
+		log.Fatal("PAYABLI_CLIENT_ID missing in .env")
+	}
+
+	clientSecret := os.Getenv("PAYABLI_CLIENT_SECRET")
+	if clientSecret == "" {
+		log.Fatal("PAYABLI_CLIENT_SECRET missing in .env")
 	}
 
 	entrypoint := os.Getenv("PAYABLI_ENTRY")
@@ -206,7 +211,10 @@ func main() {
 	testTunnel(tunnelURL)
 	time.Sleep(500 * time.Millisecond)
 
-	c := payabliclient.NewClient(option.WithApiKey(apiKey))
+	c := payabliclient.NewClient(
+		option.WithClientID(clientID),
+		option.WithClientSecret(clientSecret),
+	)
 
 	createWebhookNotification(c, tunnelURL, ownerID)
 

@@ -16,7 +16,8 @@ use tracing_subscriber::{layer::SubscriberExt, util::SubscriberInitExt};
 struct EnvConfig {
     entry_point: String,
     public_token: String,
-    api_key: String,
+    client_id: String,
+    client_secret: String,
 }
 
 struct AppState {
@@ -79,16 +80,17 @@ async fn main() {
     // Load environment variables
     dotenvy::dotenv().ok();
 
-    let api_key = std::env::var("PAYABLI_KEY").expect("PAYABLI_KEY must be set");
     let env_config = Arc::new(EnvConfig {
         entry_point: std::env::var("PAYABLI_ENTRY").expect("PAYABLI_ENTRY must be set"),
         public_token: std::env::var("PAYABLI_PUBLIC_TOKEN").expect("PAYABLI_PUBLIC_TOKEN must be set"),
-        api_key: std::env::var("PAYABLI_KEY").expect("PAYABLI_KEY must be set"),
+        client_id: std::env::var("PAYABLI_CLIENT_ID").expect("PAYABLI_CLIENT_ID must be set"),
+        client_secret: std::env::var("PAYABLI_CLIENT_SECRET").expect("PAYABLI_CLIENT_SECRET must be set"),
     });
 
     // Initialize Payabli client
     let config = ClientConfig {
-        api_key: Some(env_config.api_key.clone()),
+        client_id: Some(env_config.client_id.clone()),
+        client_secret: Some(env_config.client_secret.clone()),
         ..Default::default()
     };
     let payabli_client = ApiClient::new(config).expect("Failed to build client");

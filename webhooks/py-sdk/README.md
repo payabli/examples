@@ -16,7 +16,7 @@ This sample uses the GetPaid v2 transaction endpoint via `money_in.getpaidv_2(..
 ## Prerequisites
 
 - Python 3.9+
-- A [Payabli API key](https://docs.payabli.com)
+- A [Payabli OAuth client ID and client secret](https://docs.payabli.com)
 - A tunnel tool such as [`ngrok`](https://ngrok.com/), [`localhost.run`](https://localhost.run/), or another local environment forwarder
 
 ## Setup
@@ -27,7 +27,7 @@ source .venv/bin/activate
 pip install -r requirements.txt
 
 cp .env.example .env
-# Fill in PAYABLI_KEY, PAYABLI_ENTRY, and OWNER_ID in .env
+# Fill in PAYABLI_CLIENT_ID, PAYABLI_CLIENT_SECRET, PAYABLI_ENTRY, and OWNER_ID in .env
 ```
 
 ## Run

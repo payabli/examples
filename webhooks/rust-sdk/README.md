@@ -14,14 +14,14 @@ Demonstrates the full Payabli webhook quickstart flow using the [Payabli Rust SD
 ## Prerequisites
 
 - Rust 1.75+ (with Cargo)
-- A [Payabli API key](https://docs.payabli.com)
+- A [Payabli OAuth2 client ID and client secret](https://docs.payabli.com)
 - A tunnel tool such as [`ngrok`](https://ngrok.com/), [`localhost.run`](https://localhost.run/), or another local environment forwarder
 
 ## Setup
 
 ```bash
-cp .env.example .env
-# Fill in PAYABLI_KEY, PAYABLI_ENTRY, and OWNER_ID in .env
+cp .env.template .env
+# Fill in PAYABLI_CLIENT_ID, PAYABLI_CLIENT_SECRET, PAYABLI_ENTRY, and OWNER_ID in .env
 ```
 
 ## Run

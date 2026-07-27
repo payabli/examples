@@ -8,8 +8,11 @@ Env.Load();
 
 var port = Environment.GetEnvironmentVariable("PORT") ?? "3000";
 
-var apiKey = Environment.GetEnvironmentVariable("PAYABLI_KEY")
-    ?? throw new InvalidOperationException("PAYABLI_KEY missing in .env");
+var clientId = Environment.GetEnvironmentVariable("PAYABLI_CLIENT_ID")
+    ?? throw new InvalidOperationException("PAYABLI_CLIENT_ID missing in .env");
+
+var clientSecret = Environment.GetEnvironmentVariable("PAYABLI_CLIENT_SECRET")
+    ?? throw new InvalidOperationException("PAYABLI_CLIENT_SECRET missing in .env");
 
 var entrypoint = Environment.GetEnvironmentVariable("PAYABLI_ENTRY")
     ?? throw new InvalidOperationException("PAYABLI_ENTRY missing in .env");
@@ -65,10 +68,11 @@ var tunnelUrl = (Console.ReadLine() ?? "").Trim();
 // Self-test the tunnel before registering with Payabli.
 await TestTunnel(tunnelUrl);
 
-// Build the Payabli SDK client using the API key from .env.
+// Build the Payabli SDK client using the OAuth client credentials from .env.
 var client = new PayabliApiClient(
-    apiKey,
-    new ClientOptions
+    clientId: clientId,
+    clientSecret: clientSecret,
+    clientOptions: new ClientOptions
     {
         BaseUrl = PayabliApiEnvironment.Sandbox
     }

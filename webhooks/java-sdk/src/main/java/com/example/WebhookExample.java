@@ -42,22 +42,25 @@ public class WebhookExample {
         // ── Load .env ──────────────────────────────────────────────────────
         Dotenv dotenv = Dotenv.configure().ignoreIfMissing().load();
 
-        String apiKey     = firstNonNull(dotenv.get("PAYABLI_KEY"),   System.getenv("PAYABLI_KEY"));
-        String entrypoint = firstNonNull(dotenv.get("PAYABLI_ENTRY"), System.getenv("PAYABLI_ENTRY"));
-        String ownerIdStr = firstNonNull(dotenv.get("OWNER_ID"),      System.getenv("OWNER_ID"));
-        String portStr    = firstNonNull(dotenv.get("PORT"),          System.getenv("PORT"), "3000");
+        String clientId     = firstNonNull(dotenv.get("PAYABLI_CLIENT_ID"),     System.getenv("PAYABLI_CLIENT_ID"));
+        String clientSecret = firstNonNull(dotenv.get("PAYABLI_CLIENT_SECRET"), System.getenv("PAYABLI_CLIENT_SECRET"));
+        String entrypoint   = firstNonNull(dotenv.get("PAYABLI_ENTRY"), System.getenv("PAYABLI_ENTRY"));
+        String ownerIdStr   = firstNonNull(dotenv.get("OWNER_ID"),      System.getenv("OWNER_ID"));
+        String portStr      = firstNonNull(dotenv.get("PORT"),          System.getenv("PORT"), "3000");
 
-        if (apiKey     == null) { System.err.println("PAYABLI_KEY missing in .env");  System.exit(1); }
-        if (entrypoint == null) { System.err.println("PAYABLI_ENTRY missing in .env"); System.exit(1); }
-        if (ownerIdStr == null) { System.err.println("OWNER_ID missing in .env");     System.exit(1); }
+        if (clientId     == null) { System.err.println("PAYABLI_CLIENT_ID missing in .env");     System.exit(1); }
+        if (clientSecret == null) { System.err.println("PAYABLI_CLIENT_SECRET missing in .env"); System.exit(1); }
+        if (entrypoint   == null) { System.err.println("PAYABLI_ENTRY missing in .env"); System.exit(1); }
+        if (ownerIdStr   == null) { System.err.println("OWNER_ID missing in .env");     System.exit(1); }
 
         int ownerId = Integer.parseInt(ownerIdStr);
         int port    = Integer.parseInt(portStr);
 
         // ── Build Payabli client ────────────────────────────────────────────
         PayabliApiClient client = new PayabliApiClientBuilder()
-                .apiKey(apiKey)
-            .environment(Environment.SANDBOX)
+                .clientId(clientId)
+                .clientSecret(clientSecret)
+                .environment(Environment.SANDBOX)
                 .build();
 
         // ── Start the HTTP server (JDK built-in) ───────────────────────────
@@ -209,7 +212,7 @@ public class WebhookExample {
             if (!isSuccess) {
                 System.err.printf("WARNING: Notification registration failed \u2014 ResponseText: %s%n",
                         res.getResponseText());
-                System.err.println("No webhook will be delivered. Check your PAYABLI_KEY, OWNER_ID, and PAYABLI_ENTRY.");
+                System.err.println("No webhook will be delivered. Check your PAYABLI_CLIENT_ID, PAYABLI_CLIENT_SECRET, OWNER_ID, and PAYABLI_ENTRY.");
             }
         } catch (Exception e) {
             System.err.printf("Failed to register webhook: %s%n", e.getMessage());

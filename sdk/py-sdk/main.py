@@ -20,14 +20,15 @@ templates = Jinja2Templates(directory="templates")
 app.mount("/static", StaticFiles(directory="static"), name="static")
 
 # Initialize Payabli client
-api_key = os.getenv("PAYABLI_KEY")
+client_id = os.getenv("PAYABLI_CLIENT_ID")
+client_secret = os.getenv("PAYABLI_CLIENT_SECRET")
 entry_point = os.getenv("PAYABLI_ENTRY")
 public_token = os.getenv("PAYABLI_PUBLIC_TOKEN")
 
-if not api_key or not entry_point or not public_token:
-    raise ValueError("PAYABLI_KEY, PAYABLI_ENTRY, and PAYABLI_PUBLIC_TOKEN must be set in environment variables")
+if not client_id or not client_secret or not entry_point or not public_token:
+    raise ValueError("PAYABLI_CLIENT_ID, PAYABLI_CLIENT_SECRET, PAYABLI_ENTRY, and PAYABLI_PUBLIC_TOKEN must be set in environment variables")
 
-payabli_client = payabli(api_key=api_key)
+payabli_client = payabli(client_id=client_id, client_secret=client_secret)
 
 @app.get("/", response_class=HTMLResponse)
 async def create_customer_page(request: Request):

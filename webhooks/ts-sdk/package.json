@@ -7,7 +7,7 @@
     "start": "ts-node main.ts"
   },
   "dependencies": {
-    "@payabli/sdk-node": "latest",
+    "@payabli/sdk-node": "^1.0.8",
     "dotenv": "^17.4.2"
   },
   "devDependencies": {

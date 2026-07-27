@@ -2,10 +2,11 @@ import { PayabliClient } from '@payabli/sdk-node';
 
 export async function GET() {
 
-  const apiKey = import.meta.env.PAYABLI_KEY
+  const clientId = import.meta.env.PAYABLI_CLIENT_ID
+  const clientSecret = import.meta.env.PAYABLI_CLIENT_SECRET
   const entryPoint = import.meta.env.PAYABLI_ENTRY
 
-  const client = new PayabliClient({ apiKey: apiKey });
+  const client = new PayabliClient({ bearerAuth: { clientId, clientSecret } });
 
   const result = await client.query.listCustomers(entryPoint)
 
