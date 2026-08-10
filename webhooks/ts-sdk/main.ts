@@ -115,7 +115,7 @@ async function createWebhookNotification(targetBase: string): Promise<void> {
 
   try {
     const res = await client.notification.addNotification({
-      content: { eventType: "ApprovedPayment" },
+      content: { eventType: "approvedpayment" },
       frequency: "untilcancelled",
       method: "web",
       ownerId: OWNER_ID,
