@@ -1,0 +1,17 @@
+{
+  "name": "embedded-components-javascript",
+  "private": true,
+  "version": "0.0.1",
+  "type": "module",
+  "scripts": {
+    "dev": "vite",
+    "build": "vite build",
+    "preview": "vite preview"
+  },
+  "dependencies": {
+    "@payabli/components-web": "^0.1.0"
+  },
+  "devDependencies": {
+    "vite": "^7.3.1"
+  }
+}
