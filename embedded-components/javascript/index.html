@@ -1,0 +1,139 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Payabli Embedded Components — JavaScript</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap"
+      rel="stylesheet"
+    />
+    <link rel="stylesheet" href="/src/style.css" />
+  </head>
+  <body>
+    <div class="page">
+      <header class="site-header">
+        <div class="brand">
+          <span class="brand-mark">P</span>
+          <span class="brand-name">Payabli</span>
+        </div>
+        <div class="badges">
+          <span class="badge">JavaScript</span>
+          <span class="badge badge-muted">ECv2 · Sandbox preview</span>
+        </div>
+      </header>
+
+      <main class="layout">
+        <section class="panel payment-panel">
+          <div class="panel-head">
+            <div>
+              <h1>Pay In</h1>
+              <p class="muted">A live payment form rendered in a secure, PCI-compliant iframe.</p>
+            </div>
+            <span class="status-pill status-connecting" id="status-pill">
+              <span class="status-dot"></span>
+              Connecting…
+            </span>
+          </div>
+
+          <div class="amount-field">
+            <span class="field-label">Amount</span>
+            <div class="amount-picker" id="amount-picker" role="group" aria-label="Amount">
+              <button type="button" class="amount-chip" data-amount-cents="1000">$10</button>
+              <button type="button" class="amount-chip" data-amount-cents="2500">$25</button>
+              <button type="button" class="amount-chip" data-amount-cents="5000">$50</button>
+              <label class="amount-custom">
+                <span class="amount-custom-prefix">$</span>
+                <input
+                  type="number"
+                  id="amount-custom-input"
+                  min="1"
+                  step="0.01"
+                  inputmode="decimal"
+                  placeholder="Custom"
+                  aria-label="Custom amount in dollars"
+                />
+              </label>
+            </div>
+          </div>
+
+          <div class="payment-stage" id="payment-stage">
+            <div class="skeleton" id="skeleton" aria-hidden="true">
+              <div class="skeleton-tabs">
+                <div class="skeleton-line skeleton-tab"></div>
+                <div class="skeleton-line skeleton-tab"></div>
+              </div>
+              <div class="skeleton-line" style="width: 30%; height: 12px"></div>
+              <div class="skeleton-line" style="height: 42px"></div>
+              <div class="skeleton-line" style="width: 30%; height: 12px; margin-top: 8px"></div>
+              <div class="skeleton-line" style="height: 42px"></div>
+              <div class="skeleton-row">
+                <div class="skeleton-line" style="height: 42px"></div>
+                <div class="skeleton-line" style="height: 42px"></div>
+              </div>
+              <div class="skeleton-line" style="height: 44px; margin-top: 16px; border-radius: 10px"></div>
+            </div>
+
+            <div id="payment"></div>
+
+            <div class="state-card state-error" id="error-card" hidden>
+              <div class="state-icon state-icon-error">!</div>
+              <h3>Couldn't start a session</h3>
+              <p class="muted" id="error-message"></p>
+              <button type="button" class="btn" id="retry-btn">Retry</button>
+            </div>
+
+            <div class="state-card state-success" id="success-card" hidden>
+              <div class="state-icon state-icon-success">✓</div>
+              <h3>Payment received</h3>
+              <p class="muted">
+                <span id="success-amount"></span> · Transaction <code id="success-tx">—</code>
+              </p>
+              <button type="button" class="btn" id="restart-btn">Start another payment</button>
+            </div>
+          </div>
+        </section>
+
+        <aside class="sidebar">
+          <div class="panel how-it-works">
+            <h2>How this works</h2>
+            <ol class="steps">
+              <li>
+                <strong>Your server mints a session.</strong>
+                It exchanges your client credentials for a bearer token, then calls
+                <code>Session/init</code>. The secret never leaves your backend.
+              </li>
+              <li>
+                <strong>Your page loads the SDK.</strong>
+                <code>loadPayabli()</code> fetches <code>components-web.js</code> and hands it
+                the session.
+              </li>
+              <li>
+                <strong>Payabli renders the form.</strong>
+                A secure, PCI-compliant iframe handles card data directly — it never touches
+                your code.
+              </li>
+            </ol>
+          </div>
+
+          <div class="panel event-log">
+            <div class="event-log-head">
+              <h2>Event log</h2>
+              <button type="button" class="btn-ghost" id="clear-log">Clear</button>
+            </div>
+            <ol class="timeline" id="timeline"></ol>
+            <p class="timeline-empty muted" id="timeline-empty">Events will appear here.</p>
+          </div>
+        </aside>
+      </main>
+
+      <footer class="site-footer">
+        <span>Built with <code>@payabli/components-web</code></span>
+        <a href="https://docs.payabli.com" target="_blank" rel="noreferrer">Docs ↗</a>
+      </footer>
+    </div>
+    <script type="module" src="/src/main.js"></script>
+  </body>
+</html>
