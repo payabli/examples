@@ -10,11 +10,11 @@ const DEV_PORT = 5173;
  * shell variable silently wins over what's in `.env`. `PAYABLI_ENTRYPOINT` and
  * `PAYABLI_ENVIRONMENT` are common enough names that a shell profile set up for
  * another Payabli project can already export them — and a session minted with
- * only some of these overridden mixes a QA-issued token with a sandbox
- * `environment`, which points the SDK's refresh calls and iframe at the wrong
- * host. It fails quietly in the browser rather than at session creation. Reading
- * the file ourselves keeps this example reproducible regardless of what the
- * shell already has set.
+ * only some of these overridden mixes a session token issued for one environment
+ * with a different `environment` value, which points the SDK's refresh calls and
+ * iframe at the wrong host. It fails quietly in the browser rather than at session
+ * creation. Reading the file ourselves keeps this example reproducible regardless
+ * of what the shell already has set.
  *
  * @param {string} path
  * @returns {Record<string, string>}

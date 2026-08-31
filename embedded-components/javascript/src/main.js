@@ -76,8 +76,9 @@ function setPickerDisabled(disabled) {
 let sdkPromise = null;
 function getSdk() {
   // ECv2 hasn't launched yet, so the SDK isn't published to the default production
-  // CDN this points at (https://cdn.payabli.com/...) — only QA serves it today. Drop
-  // this override once @payabli/components-web ships against the production CDN.
+  // CDN this points at (https://cdn.payabli.com/...) — only the sandbox host serves
+  // it today. Drop this override once @payabli/components-web ships against the
+  // production CDN.
   sdkPromise ??= loadPayabli({ scriptSrc: 'https://cdn-qa.payabli.com/components-web.js' });
   return sdkPromise;
 }

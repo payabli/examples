@@ -3,12 +3,12 @@
 A vanilla JavaScript integration of Payabli's embedded components (ECv2), using the
 `@payabli/components-web` npm package to load the Pay In component — no framework,
 no build-time type checker, just `loadPayabli()` and the DOM. Pick an amount, fill
-out the form, and it processes a real (QA) payment — with a live event log showing
-every SDK/component event as it happens.
+out the form, and it processes a real payment — with a live event log showing every
+SDK/component event as it happens.
 
-> **Preview.** ECv2 has not launched yet — this example is pointed at Payabli's QA
-> environment. See [Pointing somewhere else](#pointing-somewhere-else) for how to
-> retarget it once sandbox/production are live.
+> **Preview.** ECv2 has not launched yet — this example is pointed at Payabli's
+> sandbox environment. See [Pointing somewhere else](#pointing-somewhere-else) for
+> how to retarget it once production is live.
 
 ## How it works
 
@@ -78,9 +78,9 @@ session is created against. Change both together — `environment` has to name t
 host a session was actually created against, since the SDK uses it to pick the
 refresh host and iframe origin.
 
-The SDK script itself is also loaded from a QA-specific URL in `src/main.js`
-(`https://cdn-qa.payabli.com/components-web.js`), since ECv2 isn't published to the
-default production CDN yet. Drop the `scriptSrc` override there once it is.
+The SDK script itself is also loaded from a sandbox-specific URL in `src/main.js`,
+since ECv2 isn't published to the default production CDN yet. Drop the `scriptSrc`
+override there once it is.
 
 ## Things to know
 
