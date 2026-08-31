@@ -4,17 +4,8 @@ import { defineConfig } from 'vite';
 const DEV_PORT = 5173;
 
 /**
- * Reads `.env` directly, ignoring `process.env` entirely.
- *
- * Vite's own `loadEnv` merges the file over `process.env`, so an already-exported
- * shell variable silently wins over what's in `.env`. `PAYABLI_ENTRYPOINT` and
- * `PAYABLI_ENVIRONMENT` are common enough names that a shell profile set up for
- * another Payabli project can already export them — and a session minted with
- * only some of these overridden mixes a session token issued for one environment
- * with a different `environment` value, which points the SDK's refresh calls and
- * iframe at the wrong host. It fails quietly in the browser rather than at session
- * creation. Reading the file ourselves keeps this example reproducible regardless
- * of what the shell already has set.
+ * Reads `.env` directly, ignoring `process.env`, so config here doesn't depend on
+ * whatever the shell happens to have exported.
  *
  * @param {string} path
  * @returns {Record<string, string>}
@@ -68,16 +59,8 @@ function readSessionConfig(env) {
 }
 
 /**
- * Reads the origin the browser actually loaded this page from — `Origin` first (sent
- * on every POST, same-origin or not), falling back to `Referer`'s origin.
- *
- * `allowedParentOrigins` has to name whatever page is embedding the component. A
- * static `.env` value can only ever be right for one hostname at a time, which breaks
- * the moment you access the same dev server through more than one origin — say,
- * `http://localhost:5173` directly and an `https://*.ngrok-free.app` tunnel to it in
- * the same session. Reading it per-request instead means both work at once with no
- * `.env` edits. `PAYABLI_PARENT_ORIGIN` still exists as the fallback for requests
- * that carry neither header (rare, but possible with some HTTP clients).
+ * Resolves the embedding page's origin from the request itself, falling back to
+ * `fallback` if neither `Origin` nor `Referer` is present.
  *
  * @param {import('node:http').IncomingMessage} req
  * @param {string} fallback
@@ -100,20 +83,14 @@ function resolveParentOrigin(req, fallback) {
 }
 
 /**
- * Mints a real ECv2 session against the Payabli API, server-side.
+ * Mints a session server-side, so the client secret never reaches the browser.
+ * The page fetches the finished session from `/api/session`.
  *
- * Creating a session needs an OAuth bearer token, which needs the client secret. The
- * secret must never reach the browser, so this runs inside the Vite dev server and the
- * page only ever fetches the finished session from `/api/session` — the same split a
- * real integration's backend would perform. No refresh endpoint is needed here: the
- * SDK refreshes sessions on its own, directly against the Payabli API.
+ * Accepts an optional `{ amountCents }` JSON body to mint a session for a
+ * different amount.
  *
- * Accepts an optional `{ amountCents }` JSON body so the page can re-mint a session
- * for a different amount — the amount is server-side session config, not something
- * the client SDK can change after the fact.
- *
- * Dev only. `apply: 'serve'` keeps it out of `vite build`; a real app performs this
- * same exchange from its own backend, not from a bundler plugin.
+ * Dev only. `apply: 'serve'` keeps it out of `vite build`; a real app performs
+ * this exchange from its own backend, not from a bundler plugin.
  *
  * @param {Record<string, string>} env
  * @returns {import('vite').Plugin}
@@ -198,11 +175,6 @@ function payabliSessionEndpoint(env) {
                   },
                   body: JSON.stringify({
                     entryPoint: config.entryPoint,
-                    // Must match the origin this request actually came from (see
-                    // resolveParentOrigin). The API snapshots this list into the render
-                    // token, and payhub writes it into
-                    // `Content-Security-Policy: frame-ancestors`, so any other parent is
-                    // refused at render time.
                     allowedParentOrigins: [parentOrigin],
                     components: [
                       {
@@ -231,8 +203,6 @@ function payabliSessionEndpoint(env) {
                 JSON.stringify({
                   sessionToken: initBody.data.sessionToken,
                   renderToken: initBody.data.renderToken,
-                  // The slug in the URL path, not the entryPoint. The SDK builds
-                  // `/api/v2/{entryName}/Session/refresh` from this.
                   entryName: config.entryName,
                   environment: config.environment,
                   expiresAt: initBody.data.expiresAt,
@@ -250,18 +220,13 @@ function payabliSessionEndpoint(env) {
 }
 
 export default defineConfig(() => {
-  // .env only, never process.env: see readDotEnv for why. A key this file doesn't
-  // define falls through to readSessionConfig's own default, not to whatever the
-  // shell happens to have exported. These stay server-side — nothing in this file
-  // is inlined into the client bundle.
   const env = readDotEnv(new URL('.env', import.meta.url).pathname);
 
   return {
     plugins: [payabliSessionEndpoint(env)],
     server: {
       port: DEV_PORT,
-      // Vite rejects unrecognized Host headers by default. Widen it for ngrok tunnels
-      // testing this dev server from an https origin.
+      // Vite rejects unrecognized Host headers by default.
       allowedHosts: ['.ngrok-free.app', '.ngrok.io', '.ngrok.app'],
     },
   };
