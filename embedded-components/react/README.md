@@ -6,42 +6,24 @@ A React integration of Payabli's embedded components, using
 
 ## Setup
 
-1. Clone this repo and navigate here.
+```bash
+git clone https://github.com/payabli/examples
+cd examples/embedded-components/react
+npm install
+cp .env.example .env  # fill in your credentials
+npm run dev
+```
 
-   ```bash
-   git clone https://github.com/payabli/examples
-   cd examples/embedded-components/react
-   ```
-
-2. Install dependencies.
-
-   ```bash
-   npm install
-   ```
-
-3. Copy `.env.example` to `.env` and fill in your credentials.
-
-   ```bash
-   cp .env.example .env
-   ```
-
-4. Start the dev server.
-
-   ```bash
-   npm run dev
-   ```
-
-5. Open http://localhost:5174.
+Open http://localhost:5174.
 
 ## How it works
 
-Your backend exchanges API credentials for a session, then your page hands that
-session to `<PayabliProvider>`, which loads the SDK and renders `<PayIn>` as a
-PCI-compliant payment form in a secure iframe. `vite.config.js` handles session
-creation for local development; `src/PaymentPanel.jsx` renders the component and
-wires up its events.
+Your backend exchanges API credentials for a session (`vite.config.js` does this
+for local dev), then your page hands that session to `<PayabliProvider>`, which
+loads the SDK and renders `<PayIn>` as a PCI-compliant payment form in a secure
+iframe. `src/PaymentPanel.jsx` renders the component and wires up its events.
 
 ## Learn more
 
-- [Embedded components overview](https://docs.payabli.com)
-- [Embedded components framework integrations](https://docs.payabli.com/developers/developer-guides/embedded-components-frameworks)
+- [Embedded components overview](https://docs.payabli.com/guides/embedded-components-overview)
+- [Session initialization](https://docs.payabli.com/developers/api-reference/session/init-component-session)
