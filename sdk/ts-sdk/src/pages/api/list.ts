@@ -1,4 +1,5 @@
 import { PayabliClient } from '@payabli/sdk-node';
+import type { Payabli } from '@payabli/sdk-node';
 
 export async function GET() {
 
@@ -8,7 +9,7 @@ export async function GET() {
 
   const client = new PayabliClient({ bearerAuth: { clientId, clientSecret } });
 
-  let result;
+  let result: Payabli.QueryCustomerResponse;
   try {
     result = await client.query.listCustomers(entryPoint)
   } catch (error) {
