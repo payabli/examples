@@ -67,7 +67,7 @@ namespace PayabliSdkExample.Controllers
                     "text/html"
                 );
             }
-            catch (PayabliApiApiException ex)
+            catch (PayabliApiClientApiException ex)
             {
                 Console.WriteLine($"API Error: {ex.Message}");
                 return Content(
@@ -75,7 +75,7 @@ namespace PayabliSdkExample.Controllers
                     "text/html"
                 );
             }
-            catch (PayabliApiException ex)
+            catch (PayabliApiClientException ex)
             {
                 Console.WriteLine($"API Error: {ex.Message}");
                 return Content(
@@ -280,7 +280,7 @@ namespace PayabliSdkExample.Controllers
                     "text/html"
                 );
             }
-            catch (PayabliApiApiException ex)
+            catch (PayabliApiClientApiException ex)
             {
                 Console.WriteLine($"API Error processing transaction: {ex.Message}");
                 return Content(

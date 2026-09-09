@@ -74,7 +74,7 @@ var client = new PayabliApiClient(
     clientSecret: clientSecret,
     clientOptions: new ClientOptions
     {
-        BaseUrl = PayabliApiEnvironment.Sandbox
+        BaseUrl = PayabliApiClientEnvironment.Sandbox
     }
 );
 
@@ -127,7 +127,7 @@ static async Task CreateWebhookNotification(PayabliApiClient client, string tunn
     {
         Content = new NotificationStandardRequestContent
         {
-            EventType = NotificationStandardRequestContentEventType.ApprovedPayment
+            EventType = NotificationStandardRequestContentEventType.Approvedpayment
         },
         Frequency = NotificationStandardRequestFrequency.Untilcancelled,
         Method = NotificationStandardRequestMethod.Web,

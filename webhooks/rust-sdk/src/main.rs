@@ -68,7 +68,7 @@ async fn create_webhook_notification(
         AddNotificationRequest::NotificationStandardRequest(NotificationStandardRequest {
             content: Some(NotificationStandardRequestContent {
                 event_type: Some(
-                    NotificationStandardRequestContentEventType::ApprovedPayment,
+                    NotificationStandardRequestContentEventType::Approvedpayment,
                 ),
                 internal_data: None,
                 transaction_id: None,

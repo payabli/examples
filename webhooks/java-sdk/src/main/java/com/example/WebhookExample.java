@@ -196,7 +196,7 @@ public class WebhookExample {
                         .content(java.util.Optional.of(
                             NotificationStandardRequestContent.builder()
                                 .eventType(java.util.Optional.of(
-                                    NotificationStandardRequestContentEventType.APPROVED_PAYMENT))
+                                    NotificationStandardRequestContentEventType.APPROVEDPAYMENT))
                                 .build()
                         ))
                         .ownerId(java.util.Optional.of(ownerId))
