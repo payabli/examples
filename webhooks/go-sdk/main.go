@@ -82,7 +82,7 @@ func createWebhookNotification(c *payabliclient.Client, tunnelURL string, ownerI
 	request := &payabli.AddNotificationRequest{
 		NotificationStandardRequest: &payabli.NotificationStandardRequest{
 			Content: &payabli.NotificationStandardRequestContent{
-				EventType: payabli.NotificationStandardRequestContentEventTypeApprovedPayment.Ptr(),
+				EventType: payabli.NotificationStandardRequestContentEventTypeApprovedpayment.Ptr(),
 			},
 			Frequency: payabli.NotificationStandardRequestFrequencyUntilcancelled,
 			Method:    payabli.NotificationStandardRequestMethodWeb,

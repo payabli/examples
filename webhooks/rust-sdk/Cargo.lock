@@ -979,9 +979,9 @@ dependencies = [
 
 [[package]]
 name = "payabli_api"
-version = "2.0.7"
+version = "2.0.13"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "bef5089094c3d0a1479aeae15260a70feff65c7bba33794d174613332d101dea"
+checksum = "2d9da58edc20d76f2cea3bc67f4cb206386aecedfa127f6639763c385e5cb671"
 dependencies = [
  "base64",
  "bytes",

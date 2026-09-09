@@ -1,4 +1,5 @@
 import { PayabliClient } from '@payabli/sdk-node';
+import type { Payabli } from '@payabli/sdk-node';
 
 export async function GET() {
 
@@ -8,7 +9,19 @@ export async function GET() {
 
   const client = new PayabliClient({ bearerAuth: { clientId, clientSecret } });
 
-  const result = await client.query.listCustomers(entryPoint)
+  let result: Payabli.QueryCustomerResponse;
+  try {
+    result = await client.query.listCustomers(entryPoint)
+  } catch (error) {
+    console.error('Error listing customers:', error);
+
+    return new Response('<p>Error loading customers. Please check your API credentials and try again.</p>', {
+      status: 500,
+      headers: {
+        'Content-Type': 'text/html'
+      }
+    });
+  }
 
   const tableRows = result.Records?.map((record) => `
     <tr>

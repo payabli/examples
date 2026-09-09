@@ -26,7 +26,7 @@ var publicToken = Environment.GetEnvironmentVariable("PAYABLI_PUBLIC_TOKEN")
 builder.Services.AddSingleton<PayabliApiClient>(_ => new PayabliApiClient(
     clientId: clientId,
     clientSecret: clientSecret,
-    clientOptions: new ClientOptions { BaseUrl = PayabliApiEnvironment.Sandbox }
+    clientOptions: new ClientOptions { BaseUrl = PayabliApiClientEnvironment.Sandbox }
 ));
 builder.Services.AddSingleton(provider => new ConfigurationService(entryPoint, publicToken));
 
