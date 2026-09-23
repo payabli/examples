@@ -1,12 +1,25 @@
 import type { APIRoute } from 'astro';
 import { saveFormData, loadFormData, clearFormData } from '../../lib/serverDb';
-import { normalizeServerFormData } from '../../Schema';
+import { normalizeServerFormData, safeParseServerFormData } from '../../Schema';
 
 // Draft persistence path: enforce server-owned prefills without requiring a complete valid submission.
 function normalizeSerializedFormData(serialized: string) {
   const parsedData = JSON.parse(serialized);
   const normalizedData = normalizeServerFormData(parsedData);
   return JSON.stringify(normalizedData);
+}
+
+// A saved draft from a previous version of this form's schema won't validate
+// against the current one (field names/shape can change between releases).
+// Treat that as "no draft" rather than handing the client a stale shape it
+// can't cleanly render.
+function isDraftCompatibleWithCurrentSchema(serialized: string): boolean {
+  try {
+    const parsedData = JSON.parse(serialized);
+    return safeParseServerFormData(parsedData).success;
+  } catch {
+    return false;
+  }
 }
 
 export const POST: APIRoute = async ({ request }) => {
@@ -52,12 +65,20 @@ export const POST: APIRoute = async ({ request }) => {
       case 'load':
         console.log(`Loading data for identifier: ${encryptedIdentifier}`);
         const loadedData = await loadFormData(encryptedIdentifier);
-        const normalizedLoadedData = loadedData ? normalizeSerializedFormData(loadedData) : loadedData;
+        const compatibleLoadedData =
+          loadedData && isDraftCompatibleWithCurrentSchema(loadedData) ? loadedData : null;
+        if (loadedData && !compatibleLoadedData) {
+          console.log('Saved draft no longer matches the current form schema; discarding it.');
+          await clearFormData(encryptedIdentifier);
+        }
+        const normalizedLoadedData = compatibleLoadedData
+          ? normalizeSerializedFormData(compatibleLoadedData)
+          : null;
         console.log('Load operation completed, data:', normalizedLoadedData ? `found (length: ${normalizedLoadedData.length})` : 'not found');
         if (normalizedLoadedData) {
           console.log('Loaded data (first 50 chars):', normalizedLoadedData.substring(0, 50) + '...');
         }
-        return new Response(JSON.stringify({ encryptedData: normalizedLoadedData }), { 
+        return new Response(JSON.stringify({ encryptedData: normalizedLoadedData }), {
           status: 200,
           headers: { 'Content-Type': 'application/json' }
         });

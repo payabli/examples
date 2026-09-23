@@ -7,45 +7,34 @@ import { useFormWithSchema } from './Schema'
 
 type FormSchemaType = z.infer<typeof formSchema>
 
+type CreatedApplication = {
+  applicationReference: string
+  signerPersonReference: string
+}
+
 export function useFormLogic(
   steps: React.ReactElement<{ children?: React.ReactNode }>,
   setCurrentPage: React.Dispatch<React.SetStateAction<number>>,
 ) {
   const form = useFormWithSchema()
 
-  async function onSuccess(values: FormSchemaType) {
+  async function onSuccess(
+    values: FormSchemaType,
+  ): Promise<CreatedApplication | undefined> {
     try {
-      // Transform the data to match the new API format
-      const transformedValues = {
-        ...values,
-        // Remove id from bankData items for POST requests and ensure bankAccountFunction is a number
-        bankData: values.bankData?.map(({ ...bank }) => {
-          // Don't include id field in POST requests
-          const bankWithoutId = { ...bank };
-          delete (bankWithoutId as any).id;
-          // Ensure bankAccountFunction is a number
-          bankWithoutId.bankAccountFunction = Number(bankWithoutId.bankAccountFunction);
-          return bankWithoutId;
-        }) || [],
-      };
-
-      // Remove deprecated fields if they exist
-      delete (transformedValues as any).depositAccount;
-      delete (transformedValues as any).withdrawalAccount;
-
       const response = await fetch('/api/createApp', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
         },
-        body: JSON.stringify(transformedValues),
+        body: JSON.stringify(values),
       })
 
       if (!response.ok) {
         throw new Error(`HTTP error! status: ${response.status}`)
       }
 
-      const responseData = await response.json()
+      const responseData = (await response.json()) as CreatedApplication
 
       return responseData
     } catch (error) {
