@@ -29,20 +29,13 @@ java -version
 mvn -version
 ```
 
-3. Build and install the Payabli Java SDK:
-
-```bash
-chmod +x install-sdk.sh
-./install-sdk.sh
-```
-
-4. Install the dependencies:
+3. Install the dependencies:
 
 ```bash
 mvn clean install
 ```
 
-5. Copy the `.env.template` file to `.env` and fill in the required values:
+4. Copy the `.env.template` file to `.env` and fill in the required values:
 
 ```bash
 cp .env.template .env
@@ -55,7 +48,7 @@ PAYABLI_CLIENT_ID="your_client_id"
 PAYABLI_CLIENT_SECRET="your_client_secret"
 ```
 
-6. Start the development server:
+5. Start the development server:
 
 ```bash
 mvn compile exec:java

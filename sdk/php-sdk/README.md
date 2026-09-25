@@ -28,7 +28,7 @@ git clone https://github.com/payabli/examples
 2. Navigate to the project directory.
 
 ```bash
-cd examples/php-sdk
+cd examples/sdk/php-sdk
 ```
 
 3. Install dependencies.
