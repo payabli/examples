@@ -3,6 +3,9 @@ dist/
 # generated types
 .astro/
 
+# local clone of payabliDocs (its own separate git repo)
+payabliDocs/
+
 # dependencies
 node_modules/
 
