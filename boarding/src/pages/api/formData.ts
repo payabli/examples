@@ -1,22 +1,23 @@
 import type { APIRoute } from 'astro';
 import { saveFormData, loadFormData, clearFormData } from '../../lib/serverDb';
-import { normalizeServerFormData } from '../../Schema';
+import { normalizeServerFormData, redactDraftFormData } from '../../Schema';
 
 // Draft persistence path: enforce server-owned prefills without requiring a complete valid submission.
+// Drafts are stored as plain JSON, so sensitive fields are redacted before saving and when loading older drafts.
 function normalizeSerializedFormData(serialized: string) {
   const parsedData = JSON.parse(serialized);
-  const normalizedData = normalizeServerFormData(parsedData);
+  const normalizedData = redactDraftFormData(normalizeServerFormData(parsedData));
   return JSON.stringify(normalizedData);
 }
 
 export const POST: APIRoute = async ({ request }) => {
   try {
-    const { action, encryptedIdentifier, encryptedData } = await request.json();
-    console.log(`Received request: action=${action}, encryptedIdentifier=${encryptedIdentifier}`);
+    const { action, userId, draftData } = await request.json();
+    console.log(`Received request: action=${action}`);
 
-    if (!action || !encryptedIdentifier) {
-      console.error('Missing action or encryptedIdentifier');
-      return new Response(JSON.stringify({ error: 'Missing action or encryptedIdentifier' }), { 
+    if (!action || !userId) {
+      console.error('Missing action or userId');
+      return new Response(JSON.stringify({ error: 'Missing action or userId' }), { 
         status: 400,
         headers: { 'Content-Type': 'application/json' }
       });
@@ -24,46 +25,43 @@ export const POST: APIRoute = async ({ request }) => {
 
     switch (action) {
       case 'save':
-        if (!encryptedData) {
-          console.error('Missing encryptedData for save action');
-          return new Response(JSON.stringify({ error: 'Missing encryptedData for save action' }), { 
+        if (!draftData) {
+          console.error('Missing draftData for save action');
+          return new Response(JSON.stringify({ error: 'Missing draftData for save action' }), { 
             status: 400,
             headers: { 'Content-Type': 'application/json' }
           });
         }
-        let normalizedEncryptedData: string;
+        let normalizedDraftData: string;
         try {
-          normalizedEncryptedData = normalizeSerializedFormData(encryptedData);
+          normalizedDraftData = normalizeSerializedFormData(draftData);
         } catch (error) {
           console.error('Invalid serialized form data received for save action', error);
-          return new Response(JSON.stringify({ error: 'Invalid encryptedData payload' }), {
+          return new Response(JSON.stringify({ error: 'Invalid draftData payload' }), {
             status: 400,
             headers: { 'Content-Type': 'application/json' }
           });
         }
 
-        console.log(`Saving data. Encrypted data length: ${normalizedEncryptedData.length}`);
-        await saveFormData(encryptedIdentifier, normalizedEncryptedData);
+        console.log(`Saving draft. Data length: ${normalizedDraftData.length}`);
+        await saveFormData(userId, normalizedDraftData);
         console.log('Save operation completed');
         return new Response(JSON.stringify({ success: true }), { 
           status: 200,
           headers: { 'Content-Type': 'application/json' }
         });
       case 'load':
-        console.log(`Loading data for identifier: ${encryptedIdentifier}`);
-        const loadedData = await loadFormData(encryptedIdentifier);
+        console.log('Loading draft');
+        const loadedData = await loadFormData(userId);
         const normalizedLoadedData = loadedData ? normalizeSerializedFormData(loadedData) : loadedData;
         console.log('Load operation completed, data:', normalizedLoadedData ? `found (length: ${normalizedLoadedData.length})` : 'not found');
-        if (normalizedLoadedData) {
-          console.log('Loaded data (first 50 chars):', normalizedLoadedData.substring(0, 50) + '...');
-        }
-        return new Response(JSON.stringify({ encryptedData: normalizedLoadedData }), { 
+        return new Response(JSON.stringify({ draftData: normalizedLoadedData }), { 
           status: 200,
           headers: { 'Content-Type': 'application/json' }
         });
       case 'clear':
-        console.log(`Clearing data for identifier: ${encryptedIdentifier}`);
-        await clearFormData(encryptedIdentifier);
+        console.log('Clearing draft');
+        await clearFormData(userId);
         console.log('Clear operation completed');
         return new Response(JSON.stringify({ success: true }), { 
           status: 200,

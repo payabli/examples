@@ -133,7 +133,7 @@ func triggerTransaction(c *payabliclient.Client, entrypoint string) {
 		},
 	}
 
-	fmt.Printf("Transaction request body: %+v\n", request)
+	fmt.Printf("Transaction request: EntryPoint=%s, Amount=%.2f\n", entrypoint, request.Body.PaymentDetails.TotalAmount)
 
 	resp, err := c.MoneyIn.Getpaidv2(context.Background(), request)
 	if err != nil {
