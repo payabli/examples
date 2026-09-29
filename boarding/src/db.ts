@@ -10,7 +10,9 @@ export const formData = sqliteTable('formData', {
 })
 
 // Create a database connection
-const sqlite = new Database('form.db')
+export const sqlite = new Database('form.db')
+// Overwrite deleted content with zeros so removed draft data doesn't linger in the file
+sqlite.pragma('secure_delete = ON')
 export const db = drizzle(sqlite)
 
 // Create the table if it doesn't exist

@@ -1,7 +1,7 @@
 import { z } from 'zod'
 import { toast } from '@/hooks/use-toast'
 import React, { useCallback, useState, useEffect } from 'react'
-import { formSchema, useFormWithSchema } from '../Schema'
+import { formSchema, redactDraftFormData, useFormWithSchema } from '../Schema'
 import { authClient } from './authClient'
 
 type FormSchemaType = z.infer<typeof formSchema>
@@ -135,8 +135,8 @@ async function saveToDrizzle(data: FormSchemaType, userId: string) {
       },
       body: JSON.stringify({
         action: 'save',
-        encryptedIdentifier: userId, // Use userId as the encryptedIdentifier
-        encryptedData: JSON.stringify(data), // Encrypt data if needed
+        userId,
+        draftData: JSON.stringify(redactDraftFormData(data)),
       }),
     });
 
@@ -164,7 +164,7 @@ async function loadFromDrizzle(userId: string): Promise<FormSchemaType | null> {
       },
       body: JSON.stringify({
         action: 'load',
-        encryptedIdentifier: userId, // Use userId as the encryptedIdentifier
+        userId,
       }),
     });
 
@@ -173,10 +173,10 @@ async function loadFromDrizzle(userId: string): Promise<FormSchemaType | null> {
       throw new Error(`Failed to load data: ${errorData.error}`);
     }
 
-    const { encryptedData } = await response.json();
+    const { draftData } = await response.json();
     
-    if (encryptedData) {
-      return JSON.parse(encryptedData) as FormSchemaType;
+    if (draftData) {
+      return JSON.parse(draftData) as FormSchemaType;
     }
     
     return null;
@@ -194,7 +194,7 @@ async function clearDrizzle(userId: string) {
     },
     body: JSON.stringify({
       action: 'clear',
-      encryptedIdentifier: userId, // Use userId as the encryptedIdentifier
+      userId,
     }),
   });
 
