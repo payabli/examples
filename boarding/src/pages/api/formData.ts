@@ -1,12 +1,11 @@
 import type { APIRoute } from 'astro';
 import { saveFormData, loadFormData, clearFormData } from '../../lib/serverDb';
-import { normalizeServerFormData, redactDraftFormData } from '../../Schema';
+import { normalizeServerFormData } from '../../Schema';
 
 // Draft persistence path: enforce server-owned prefills without requiring a complete valid submission.
-// Drafts are stored as plain JSON, so sensitive fields are redacted before saving and when loading older drafts.
 function normalizeSerializedFormData(serialized: string) {
   const parsedData = JSON.parse(serialized);
-  const normalizedData = redactDraftFormData(normalizeServerFormData(parsedData));
+  const normalizedData = normalizeServerFormData(parsedData);
   return JSON.stringify(normalizedData);
 }
 
