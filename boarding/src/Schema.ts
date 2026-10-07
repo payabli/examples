@@ -47,6 +47,53 @@ function validatePercentageDistribution(
   }
 }
 
+function validateSignerIsOwner(
+  data: { ownership: unknown[]; signerOwnerIndex: number },
+  ctx: z.RefinementCtx,
+) {
+  if (data.signerOwnerIndex >= data.ownership.length) {
+    ctx.addIssue({
+      path: ['signerOwnerIndex'],
+      code: 'custom',
+      message: 'Choose one of the listed owners as the signer',
+    })
+  }
+}
+
+type BankAccountIdentity = {
+  routingAccount: string
+  accountNumber: string
+  nickname: string
+}
+
+// v2 rejects a second payment method with the same routing + account number
+// for the same owner (409), and because resources are created one call at a
+// time, that rejection would only arrive after the business and people already
+// exist. Catch it here instead, before anything is sent to Payabli. One account
+// used for deposits and withdrawals should be a single entry set to "Both".
+function validateUniqueBankAccounts(
+  bankData: BankAccountIdentity[],
+  ctx: z.RefinementCtx,
+) {
+  const firstSeen = new Map<string, BankAccountIdentity>()
+  bankData.forEach((bank, index) => {
+    if (!bank.routingAccount || !bank.accountNumber) {
+      return
+    }
+    const key = `${bank.routingAccount}:${bank.accountNumber}`
+    const earlier = firstSeen.get(key)
+    if (!earlier) {
+      firstSeen.set(key, bank)
+      return
+    }
+    ctx.addIssue({
+      path: [index, 'accountNumber'],
+      code: 'custom',
+      message: `This account is already listed as "${earlier.nickname}". Use a single entry with the function set to "Both" instead.`,
+    })
+  })
+}
+
 // Field names below mirror the Boarding v2 OAS as closely as the flat form
 // shape allows (see fern/apis/payabliApi-oas/openapi/components/schemas/
 // {businesses,paypoints,people,paymentMethods,applications}.yaml on the
@@ -184,44 +231,34 @@ const formSchemaKit = createFormSchemaKit({
         ]),
       }),
     )
-    .nonempty({ message: 'At least one bank account is required' }),
+    .nonempty({ message: 'At least one bank account is required' })
+    // Refined on the array (not the whole form) so it reports alongside the
+    // other bank field errors instead of waiting for every step to be valid.
+    .superRefine(validateUniqueBankAccounts),
 
-  // -- Signer (-> Person, personType: Signer; also drives the e-sign step) --
-  signer: z.object({
-    firstName: requiredString(),
-    lastName: requiredString(),
-    ssn: requiredString().regex(/^\d{9}$/, {
-      message: 'SSN must be 9 digits',
-    }),
-    dob: requiredDate(),
-    phone: requiredString().regex(/^\d{10}$/, {
-      message: 'Phone number must be 10 digits',
-    }),
-    email: requiredString().email({ message: 'Invalid email address' }),
-    address: requiredString(),
-    address1: z.string().optional(),
-    state: requiredString(),
-    country: requiredString(),
-    city: requiredString(),
-    zip: requiredString().regex(/^\d{5}$/, {
-      message: 'ZIP code must be 5 digits',
-    }),
-    acceptance: z.boolean().default(true),
-  }),
+  // -- Signer: one of the owners above. v2 rejects a submit whose signer
+  // isn't linked to the business as an owner (422 SIGNER_NOT_OWNER), so the
+  // wizard picks an owner by position instead of collecting a separate person.
+  signerOwnerIndex: z.coerce.number().int().min(0).default(0),
 })
 
 // Define the form schema
 export const formSchema = formSchemaKit.clientSchema.superRefine((data, ctx) => {
   validatePercentageDistribution(data, ctx)
+  validateSignerIsOwner(data, ctx)
 })
 
 export const serverFormSchema = formSchemaKit.serverSchema.superRefine(
   (data, ctx) => {
     validatePercentageDistribution(data, ctx)
+    validateSignerIsOwner(data, ctx)
   },
 )
 
-export const formDefaultValues = formSchemaKit.defaultValues
+export const formDefaultValues = {
+  ...formSchemaKit.defaultValues,
+  signerOwnerIndex: 0,
+}
 
 // Use normalize when partial payloads are allowed and only server-owned prefill fields must be enforced.
 export function normalizeServerFormData(input: unknown) {

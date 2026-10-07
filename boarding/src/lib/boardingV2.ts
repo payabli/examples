@@ -31,14 +31,51 @@ async function v2Fetch<TData>(
   })
 
   if (!response.ok) {
-    const errorBody = await response.text()
-    throw new Error(
-      `Payabli v2 request failed: ${init.method ?? 'GET'} ${path} -> ${response.status} ${errorBody}`,
+    throw new PayabliV2Error(
+      init.method ?? 'GET',
+      path,
+      response.status,
+      await response.text(),
     )
+  }
+
+  // Some deactivate/unlink endpoints answer 204 with no body.
+  if (response.status === 204) {
+    return undefined as TData
   }
 
   const envelope = (await response.json()) as Envelope<TData>
   return envelope.data
+}
+
+// v2 error bodies look like `{ success, error, message, traceId }`, e.g.
+// `{ "error": "VALIDATION_ERROR", "message": "A payment method with the same
+// account and routing number already exists ...", "traceId": "..." }`. The
+// parsed fields are kept so callers can surface the API's own message.
+export class PayabliV2Error extends Error {
+  readonly apiMessage: string | null
+  readonly apiError: string | null
+  readonly traceId: string | null
+
+  constructor(
+    readonly method: string,
+    readonly path: string,
+    readonly status: number,
+    readonly body: string,
+  ) {
+    super(`Payabli v2 request failed: ${method} ${path} -> ${status} ${body}`)
+    this.name = 'PayabliV2Error'
+
+    let parsed: { error?: unknown; message?: unknown; traceId?: unknown } = {}
+    try {
+      parsed = JSON.parse(body)
+    } catch {
+      // Non-JSON body (e.g. a gateway error page); keep the raw text only.
+    }
+    this.apiError = typeof parsed.error === 'string' ? parsed.error : null
+    this.apiMessage = typeof parsed.message === 'string' ? parsed.message : null
+    this.traceId = typeof parsed.traceId === 'string' ? parsed.traceId : null
+  }
 }
 
 // ---------------------------------------------------------------------------
@@ -120,6 +157,16 @@ export function createPaypointWithBusiness(
   })
 }
 
+// Soft delete: the business moves to `Deactivated` and the record is kept.
+// There's no paypoint delete endpoint, so deactivating the business is how a
+// paypoint created by a failed submission gets retired.
+export function deactivateBusiness(businessReference: string, reason: string) {
+  return v2Fetch<unknown>(`/businesses/${businessReference}`, {
+    method: 'DELETE',
+    body: JSON.stringify({ reason }),
+  })
+}
+
 // ---------------------------------------------------------------------------
 // People (created and linked to a business in one call)
 // ---------------------------------------------------------------------------
@@ -191,6 +238,18 @@ export function createPerson(input: CreatePersonRequest) {
   })
 }
 
+// Removes the person <-> business link. v2 has no endpoint to delete the
+// person record itself, so the person survives, just unattached.
+export function unlinkPersonFromBusiness(
+  businessReference: string,
+  personReference: string,
+) {
+  return v2Fetch<void>(
+    `/businesses/${businessReference}/people/${personReference}`,
+    { method: 'DELETE' },
+  )
+}
+
 // ---------------------------------------------------------------------------
 // Payment methods
 // ---------------------------------------------------------------------------
@@ -233,10 +292,19 @@ export type PaymentMethodResult = {
   createdAt: string
 }
 
+// The batch is all-or-nothing: if any entry is rejected (e.g. a 409 for a
+// duplicate account/routing pair on the same owner), none are created.
 export function createPaymentMethods(data: CreatePaymentMethodRequest[]) {
   return v2Fetch<PaymentMethodResult[]>('/payment-methods', {
     method: 'POST',
     body: JSON.stringify({ data }),
+  })
+}
+
+// Soft delete: the payment method moves to `INACTIVE` and the record is kept.
+export function deactivatePaymentMethod(paymentMethodReference: string) {
+  return v2Fetch<unknown>(`/payment-methods/${paymentMethodReference}`, {
+    method: 'DELETE',
   })
 }
 

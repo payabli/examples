@@ -12,6 +12,22 @@ type CreatedApplication = {
   signerPersonReference: string
 }
 
+type CreateAppFailure = {
+  error: string
+  step?: string
+  traceId?: string | null
+  rolledBack?: boolean
+}
+
+class SubmissionError extends Error {
+  constructor(
+    message: string,
+    readonly details: CreateAppFailure | null,
+  ) {
+    super(message)
+  }
+}
+
 export function useFormLogic(
   steps: React.ReactElement<{ children?: React.ReactNode }>,
   setCurrentPage: React.Dispatch<React.SetStateAction<number>>,
@@ -31,7 +47,15 @@ export function useFormLogic(
       })
 
       if (!response.ok) {
-        throw new Error(`HTTP error! status: ${response.status}`)
+        // createApp returns the API's own message for fixable errors (e.g. a
+        // duplicate bank account), plus whether partial resources were rolled back.
+        const failure = (await response.json().catch(() => null)) as
+          | CreateAppFailure
+          | null
+        throw new SubmissionError(
+          failure?.error ?? 'The form could not be submitted successfully.',
+          failure,
+        )
       }
 
       const responseData = (await response.json()) as CreatedApplication
@@ -41,9 +65,15 @@ export function useFormLogic(
       toast({
         variant: 'destructive',
         title: 'Error',
-        description: 'The form could not be submitted successfully.',
+        description:
+          error instanceof SubmissionError
+            ? error.message
+            : 'The form could not be submitted successfully.',
       })
-      console.error('Submission error:', error)
+      console.error(
+        'Submission error:',
+        error instanceof SubmissionError ? error.details : error,
+      )
     }
   }
 

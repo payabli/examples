@@ -20,6 +20,16 @@ interface ESignatureState {
   successMessage: string
   errorTitle: string
   errorMessage: string
+  // Set when submit fails, so the error screen can show the API's reason
+  // (e.g. "Only an owner can be the signer.") instead of the generic message.
+  submitError: SubmitError | null
+  // The owner picked as signer in the wizard, shown on the signing screen.
+  signerName: string
+}
+
+export type SubmitError = {
+  message: string
+  traceId: string | null
 }
 
 interface ESignatureActions {
@@ -30,6 +40,7 @@ interface ESignatureActions {
   setDeviceType: (type: string) => void
   setIpAddress: (ip: string) => void
   setOptions: (options: Partial<ESignatureOptions>) => void
+  setSubmitError: (error: SubmitError | null) => void
 }
 
 export const useESignatureStore = create<ESignatureState & ESignatureActions>(
@@ -49,6 +60,8 @@ export const useESignatureStore = create<ESignatureState & ESignatureActions>(
     errorTitle: 'Error',
     errorMessage:
       'An error occurred while processing your submission. Please try again.',
+    submitError: null,
+    signerName: '',
     setIsOpen: (isOpen) => set({ isOpen }),
     setDialogState: (state) => set({ dialogState: state }),
     setSignature: (signature) => set({ signature }),
@@ -56,18 +69,26 @@ export const useESignatureStore = create<ESignatureState & ESignatureActions>(
     setDeviceType: (type) => set({ deviceType: type }),
     setIpAddress: (ip) => set({ ipAddress: ip }),
     setOptions: (options) => set((state) => ({ ...state, ...options })),
+    setSubmitError: (submitError) => set({ submitError }),
   }),
 )
+
+class SubmitFailure extends Error {
+  constructor(readonly details: SubmitError) {
+    super(details.message)
+  }
+}
 
 export function useESignature({ documentBody }: ESignatureOptions) {
   const store = useESignatureStore()
   const contentRef = useRef<HTMLDivElement>(null)
 
   const handleESignatureProcess = useCallback(
-    (applicationReference: string) => {
+    (applicationReference: string, signerName: string) => {
       store.setOptions({
         documentBody: documentBody,
       })
+      useESignatureStore.setState({ signerName, submitError: null })
       store.setIsOpen(true)
       store.setDeviceType(getDeviceType())
       getPublicIpAddress()
@@ -80,13 +101,24 @@ export function useESignature({ documentBody }: ESignatureOptions) {
   const handleConfirm = useCallback(
     async (applicationReference: string, signerPersonReference: string) => {
       console.log('Confirming with applicationReference: ', applicationReference)
-      if (!applicationReference || !signerPersonReference) {
-        throw new Error(
-          'Missing application reference or signer reference for e-signature submission',
-        )
-      }
-      if (!contentRef.current) return
+      store.setSubmitError(null)
       try {
+        // Both failures land on the error screen below rather than throwing
+        // out of the click handler, which left the AGREE button spinning.
+        if (!applicationReference || !signerPersonReference) {
+          throw new SubmitFailure({
+            message:
+              'The application was not created, so it cannot be signed. Close this dialog and submit the form again.',
+            traceId: null,
+          })
+        }
+        if (!contentRef.current) {
+          throw new SubmitFailure({
+            message: 'The agreement could not be rendered for signing.',
+            traceId: null,
+          })
+        }
+
         // The rendered agreement PDF is kept as a local receipt for the user
         // to download (see the "Download PDF" button on the success screen).
         // It is NOT sent to Payabli -- the submit call below carries the
@@ -129,14 +161,18 @@ export function useESignature({ documentBody }: ESignatureOptions) {
           .catch(() => null)
 
         if (!submitResponse.ok) {
-          throw new Error(
-            submitResponseBody?.error || 'Failed to submit application',
-          )
+          throw new SubmitFailure({
+            message: submitResponseBody?.error || 'Failed to submit application',
+            traceId: submitResponseBody?.traceId ?? null,
+          })
         }
 
         store.setDialogState('success')
       } catch (error) {
         console.error('Error signing document:', error)
+        store.setSubmitError(
+          error instanceof SubmitFailure ? error.details : null,
+        )
         store.setDialogState('error')
       }
     },

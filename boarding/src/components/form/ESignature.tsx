@@ -57,8 +57,11 @@ export function ESignature({ contentRef, onConfirm }: ESignatureProps) {
     successMessage,
     errorTitle,
     errorMessage,
+    submitError,
+    signerName,
     setIsOpen,
     setDialogState,
+    setSubmitError,
   } = useESignatureStore()
 
   const [loading, setLoading] = useState(false)
@@ -109,6 +112,16 @@ export function ESignature({ contentRef, onConfirm }: ESignatureProps) {
     setTermsOpened(false)
     setDialogState('pricing')
     setSignature('')
+    setSubmitError(null)
+  }
+
+  // Back to the signing screen for the same application. Closing and
+  // resubmitting the wizard instead would create a second business and
+  // application in Payabli.
+  const onRetry = () => {
+    setLoading(false)
+    setSubmitError(null)
+    setDialogState('form')
   }
 
   const handleNextClick = () => {
@@ -343,6 +356,15 @@ export function ESignature({ contentRef, onConfirm }: ESignatureProps) {
                     </label>
                   </div>
                   <div className="space-y-2">
+                    {signerName && (
+                      <p className="text-sm text-muted-foreground">
+                        Signing as{' '}
+                        <span className="font-medium text-foreground">
+                          {signerName}
+                        </span>{' '}
+                        (owner)
+                      </p>
+                    )}
                     <div className="relative flex rounded-lg shadow-sm shadow-black/5">
                       <span className="pointer-events-none absolute inset-y-0 start-0 flex items-center justify-center ps-3 text-sm text-muted-foreground">
                         <User size={22} strokeWidth={2} aria-hidden="true" />
@@ -431,10 +453,18 @@ export function ESignature({ contentRef, onConfirm }: ESignatureProps) {
                     </div>
                     <h2 className="mb-2 text-2xl font-bold">{errorTitle}</h2>
                     <p className="mb-4 text-center text-muted-foreground">
-                      {errorMessage}
+                      {submitError?.message ?? errorMessage}
                     </p>
-                    <Button onClick={onClose} className="w-full">
+                    {submitError?.traceId && (
+                      <p className="mb-4 text-center text-xs text-muted-foreground">
+                        Trace ID: {submitError.traceId}
+                      </p>
+                    )}
+                    <Button onClick={onRetry} className="mb-2 w-full">
                       Try Again
+                    </Button>
+                    <Button onClick={onClose} variant="outline" className="w-full">
+                      Close
                     </Button>
                   </div>
                 </div>

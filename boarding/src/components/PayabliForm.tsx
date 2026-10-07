@@ -19,6 +19,7 @@ import {
   Percent,
 } from 'lucide-react'
 import FormSelect from './form/FormSelect'
+import { SignerOwnerSelect } from './form/SignerOwnerSelect'
 import { motion } from 'framer-motion'
 import {
   FormCountrySelect,
@@ -79,7 +80,6 @@ export function PayabliForm() {
   const [ownershipIndex, setOwnershipIndex] = useState(0)
   const [businessCountry, setBusinessCountry] = useState('')
   const [mailingCountry, setMailingCountry] = useState('')
-  const [signerCountry, setSignerCountry] = useState('')
 
   const addContact = () => setContacts([...contacts, {}])
   const removeContact = (index: number) => {
@@ -104,6 +104,15 @@ export function PayabliForm() {
       (_, i) => i !== index,
     )
     form.setValue('ownership', updatedOwnership as any)
+
+    // Keep the signer pointing at the same owner after the list shifts; if the
+    // signer was the removed owner, fall back to the first one.
+    const signerIndex = Number(currentValues.signerOwnerIndex)
+    if (signerIndex === index) {
+      form.setValue('signerOwnerIndex', 0)
+    } else if (signerIndex > index) {
+      form.setValue('signerOwnerIndex', signerIndex - 1)
+    }
 
     form.trigger('ownership')
   }
@@ -158,7 +167,6 @@ export function PayabliForm() {
 
           setBusinessCountry(savedData.bcountry || '')
           setMailingCountry(savedData.mcountry || '')
-          setSignerCountry(savedData.signer?.country || '')
 
           if (savedData.contacts) {
             setContacts(savedData.contacts)
@@ -703,73 +711,8 @@ export function PayabliForm() {
             </DynamicFormSection>
 
             <div className="space-y-4">
-              <h3 className="text-lg font-semibold">Signer Information</h3>
-              <div className="items-end gap-4 md:grid md:grid-cols-2">
-                <FormInput
-                  name="signer.firstName"
-                  label="Signer First Name"
-                  tooltip="First name of the person signing the application"
-                />
-                <FormInput
-                  name="signer.lastName"
-                  label="Signer Last Name"
-                  tooltip="Last name of the person signing the application"
-                />
-                <FormInput
-                  name="signer.ssn"
-                  label="Signer SSN"
-                  tooltip="Social Security Number of the signer (9 digits)"
-                  mask="999-99-9999"
-                />
-                <FormInput
-                  name="signer.dob"
-                  label="Signer Date of Birth"
-                  tooltip="Date of birth of the signer"
-                  iconleft={<Calendar className="mr-2" />}
-                  mask="99/99/9999"
-                  placeholder="MM/DD/YYYY"
-                  includeMaskedChars
-                />
-                <FormInput
-                  name="signer.phone"
-                  label="Signer Phone"
-                  tooltip="Phone number of the signer"
-                  mask="(999) 999-9999"
-                />
-                <FormInput
-                  name="signer.email"
-                  label="Signer Email"
-                  tooltip="Email address of the signer"
-                />
-                <FormInput
-                  name="signer.address"
-                  label="Signer Address"
-                  tooltip="Street address of the signer"
-                />
-                <FormInput
-                  name="signer.address1"
-                  label="Signer Address Line 2"
-                  tooltip="Additional address information for the signer (if needed)"
-                />
-                <FormCountryRegionCombined
-                  countryName="signer.country"
-                  countryLabel="Signer Country"
-                  countryTooltip="Country of the signer's residence"
-                  regionName="signer.state"
-                  regionLabel="Signer State"
-                  regionTooltip="State of the signer's residence"
-                />
-                <FormInput
-                  name="signer.city"
-                  label="Signer City"
-                  tooltip="City of the signer's residence"
-                />
-                <FormInput
-                  name="signer.zip"
-                  label="Signer ZIP"
-                  tooltip="ZIP code of the signer's residence"
-                />
-              </div>
+              <h3 className="text-lg font-semibold">Authorized Signer</h3>
+              <SignerOwnerSelect />
             </div>
           </div>
         </WizardStep>
@@ -783,7 +726,6 @@ export function PayabliForm() {
       bankData,
       businessCountry,
       mailingCountry,
-      signerCountry,
       ownershipCountries,
     ],
   )
@@ -805,7 +747,11 @@ export function PayabliForm() {
       }
       setAppId(created.applicationReference)
       setSignerPersonReference(created.signerPersonReference)
-      handleESignatureProcess(created.applicationReference)
+      const signer = values.ownership[values.signerOwnerIndex]
+      handleESignatureProcess(
+        created.applicationReference,
+        `${signer.ownerFirstName} ${signer.ownerLastName}`,
+      )
     } catch (error) {
       return
     }
