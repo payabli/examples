@@ -47,8 +47,12 @@ function validatePercentageDistribution(
   }
 }
 
-function validateSignerIsOwner(
-  data: { ownership: unknown[]; signerOwnerIndex: number },
+function validateOwnerRoles(
+  data: {
+    ownership: unknown[]
+    signerOwnerIndex: number
+    primaryControllerOwnerIndex: number
+  },
   ctx: z.RefinementCtx,
 ) {
   if (data.signerOwnerIndex >= data.ownership.length) {
@@ -56,6 +60,13 @@ function validateSignerIsOwner(
       path: ['signerOwnerIndex'],
       code: 'custom',
       message: 'Choose one of the listed owners as the signer',
+    })
+  }
+  if (data.primaryControllerOwnerIndex >= data.ownership.length) {
+    ctx.addIssue({
+      path: ['primaryControllerOwnerIndex'],
+      code: 'custom',
+      message: 'Choose one of the listed owners as the primary controller',
     })
   }
 }
@@ -157,7 +168,7 @@ const formSchemaKit = createFormSchemaKit({
   recipientEmail: z.string().default(''),
   recipientEmailNotification: z.boolean().default(false),
 
-  // -- Contacts (-> Person, personType: Contact) --
+  // -- Contacts (-> Person, personType: Employee; v2 uses employees as contacts) --
   contacts: z
     .array(
       z.object({
@@ -236,28 +247,32 @@ const formSchemaKit = createFormSchemaKit({
     // other bank field errors instead of waiting for every step to be valid.
     .superRefine(validateUniqueBankAccounts),
 
-  // -- Signer: one of the owners above. v2 rejects a submit whose signer
-  // isn't linked to the business as an owner (422 SIGNER_NOT_OWNER), so the
-  // wizard picks an owner by position instead of collecting a separate person.
+  // -- Owner roles: the signer and the primary controller are each one of the
+  // owners above, picked by position and sent as `isSigner` /
+  // `isPrimaryController` on that owner's business link. v2 rejects a submit
+  // whose signer isn't an owner (422 SIGNER_NOT_OWNER), and an application
+  // needs a primary controller to be submittable. --
   signerOwnerIndex: z.coerce.number().int().min(0).default(0),
+  primaryControllerOwnerIndex: z.coerce.number().int().min(0).default(0),
 })
 
 // Define the form schema
 export const formSchema = formSchemaKit.clientSchema.superRefine((data, ctx) => {
   validatePercentageDistribution(data, ctx)
-  validateSignerIsOwner(data, ctx)
+  validateOwnerRoles(data, ctx)
 })
 
 export const serverFormSchema = formSchemaKit.serverSchema.superRefine(
   (data, ctx) => {
     validatePercentageDistribution(data, ctx)
-    validateSignerIsOwner(data, ctx)
+    validateOwnerRoles(data, ctx)
   },
 )
 
 export const formDefaultValues = {
   ...formSchemaKit.defaultValues,
   signerOwnerIndex: 0,
+  primaryControllerOwnerIndex: 0,
 }
 
 // Use normalize when partial payloads are allowed and only server-owned prefill fields must be enforced.

@@ -104,9 +104,10 @@ function buildPaypointRequest(formData: FormSchemaType) {
 }
 
 // People: contacts and owners, each created and linked to the business in the
-// same call via `businessRelationship`. There's no separate signer person: v2
-// only accepts an owner as the signer (422 SIGNER_NOT_OWNER otherwise), so the
-// wizard's `signerOwnerIndex` picks one of these owners instead.
+// same call via `businessRelationship`. Contacts are `Employee` people (v2 is
+// retiring the `Contact` type). There's no separate signer person: the
+// signer and primary controller are flags on the owners the wizard picked
+// (`signerOwnerIndex`, `primaryControllerOwnerIndex`).
 function buildPeople(formData: FormSchemaType, businessReference: string) {
   const contacts: CreatePersonRequest[] = formData.contacts.map((contact) => ({
     firstName: contact.contactFirstName,
@@ -115,11 +116,11 @@ function buildPeople(formData: FormSchemaType, businessReference: string) {
     primaryPhoneNumber: contact.contactPhone,
     businessRelationship: {
       businessReference,
-      personType: 'Contact',
+      personType: 'Employee',
     },
   }))
 
-  const owners: CreatePersonRequest[] = formData.ownership.map((owner) => ({
+  const owners: CreatePersonRequest[] = formData.ownership.map((owner, index) => ({
     firstName: owner.ownerFirstName,
     lastName: owner.ownerLastName,
     primaryEmail: owner.owneremail,
@@ -149,6 +150,8 @@ function buildPeople(formData: FormSchemaType, businessReference: string) {
       businessReference,
       personType: 'Owner',
       ownershipPercentage: owner.ownerpercent,
+      isSigner: index === formData.signerOwnerIndex,
+      isPrimaryController: index === formData.primaryControllerOwnerIndex,
     },
   }))
 

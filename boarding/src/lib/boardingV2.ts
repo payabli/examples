@@ -171,7 +171,11 @@ export function deactivateBusiness(businessReference: string, reason: string) {
 // People (created and linked to a business in one call)
 // ---------------------------------------------------------------------------
 
-export type PersonType = 'Owner' | 'Director' | 'Contact' | 'Signer' | 'AuthorizedUser'
+// The OAS still lists Director, Contact, Signer, and AuthorizedUser, but per
+// the boarding team (Cole, 2026-10-07) every type except Owner and Employee is
+// being retired. Employees serve as the business's contacts, and the signer
+// and primary controller are flags on an owner's link instead of types.
+export type PersonType = 'Owner' | 'Employee'
 
 export type PersonAddressType =
   | 'Legal'
@@ -204,7 +208,12 @@ export type BusinessRelationshipRequest = {
   businessReference: string
   personType: PersonType
   ownershipPercentage?: number
+  // Exactly one owner must be the primary controller for the application to
+  // be submittable.
   isPrimaryController?: boolean
+  // Marks the owner who signs the application. Not in the OAS yet; confirmed
+  // by the boarding team. Only an owner can sign (422 SIGNER_NOT_OWNER).
+  isSigner?: boolean
 }
 
 export type CreatePersonRequest = {

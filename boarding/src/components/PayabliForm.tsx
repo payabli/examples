@@ -19,7 +19,7 @@ import {
   Percent,
 } from 'lucide-react'
 import FormSelect from './form/FormSelect'
-import { SignerOwnerSelect } from './form/SignerOwnerSelect'
+import { OwnerSelect } from './form/OwnerSelect'
 import { motion } from 'framer-motion'
 import {
   FormCountrySelect,
@@ -105,13 +105,19 @@ export function PayabliForm() {
     )
     form.setValue('ownership', updatedOwnership as any)
 
-    // Keep the signer pointing at the same owner after the list shifts; if the
-    // signer was the removed owner, fall back to the first one.
-    const signerIndex = Number(currentValues.signerOwnerIndex)
-    if (signerIndex === index) {
-      form.setValue('signerOwnerIndex', 0)
-    } else if (signerIndex > index) {
-      form.setValue('signerOwnerIndex', signerIndex - 1)
+    // Keep the signer and primary controller pointing at the same owners
+    // after the list shifts; if one was the removed owner, fall back to the
+    // first owner.
+    for (const role of [
+      'signerOwnerIndex',
+      'primaryControllerOwnerIndex',
+    ] as const) {
+      const roleIndex = Number(currentValues[role])
+      if (roleIndex === index) {
+        form.setValue(role, 0)
+      } else if (roleIndex > index) {
+        form.setValue(role, roleIndex - 1)
+      }
     }
 
     form.trigger('ownership')
@@ -711,8 +717,19 @@ export function PayabliForm() {
             </DynamicFormSection>
 
             <div className="space-y-4">
-              <h3 className="text-lg font-semibold">Authorized Signer</h3>
-              <SignerOwnerSelect />
+              <h3 className="text-lg font-semibold">Owner Roles</h3>
+              <div className="items-end gap-4 md:grid md:grid-cols-2">
+                <OwnerSelect
+                  name="primaryControllerOwnerIndex"
+                  label="Primary Controller"
+                  tooltip="The owner with significant responsibility for managing the business. Every application needs one."
+                />
+                <OwnerSelect
+                  name="signerOwnerIndex"
+                  label="Signer"
+                  tooltip="The owner who signs the application. Only an owner can sign."
+                />
+              </div>
             </div>
           </div>
         </WizardStep>
