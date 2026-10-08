@@ -20,6 +20,9 @@ import {
 } from 'lucide-react'
 import FormSelect from './form/FormSelect'
 import { OwnerSelect } from './form/OwnerSelect'
+import FormCheckboxGroup from './form/FormCheckboxGroup'
+import { DocumentUploadDialog } from './form/DocumentUploadDialog'
+import type { CreatedApplication } from '@/onSubmit'
 import { motion } from 'framer-motion'
 import {
   FormCountrySelect,
@@ -345,6 +348,42 @@ export function PayabliForm() {
               ]}
               tooltip="The legal structure of your business"
             />
+            <FormInput
+              name="businessEmail"
+              label="Business Email"
+              tooltip="The main email address for your business"
+            />
+            <FormInput
+              name="incorporationState"
+              label="State of Formation"
+              tooltip="The 2-letter code of the state where your business was formed, such as FL or DE"
+              maxLength={2}
+            />
+            <FormInput
+              name="taxIdCountry"
+              label="Tax ID Country"
+              tooltip="The 2-letter code of the country that issued your tax ID"
+              maxLength={2}
+            />
+            <FormSwitch
+              name="isForeignOwned"
+              label="Foreign Owned"
+              tooltip="Whether the business is owned by a foreign entity. Each foreign owner needs a passport upload."
+              onlabel="Yes"
+              offlabel="No"
+            />
+          </div>
+          <div className="mt-4">
+            <FormCheckboxGroup
+              label="Operating Seasons"
+              tooltip="The seasons your business operates in"
+              options={[
+                { name: 'seasonSpring', label: 'Spring' },
+                { name: 'seasonSummer', label: 'Summer' },
+                { name: 'seasonFall', label: 'Fall' },
+                { name: 'seasonWinter', label: 'Winter' },
+              ]}
+            />
           </div>
         </WizardStep>
 
@@ -657,6 +696,18 @@ export function PayabliForm() {
               prefix="$"
               numeric
             />
+            <FormInput
+              name="numberOfTransactions"
+              label="Monthly Transaction Count"
+              tooltip="How many payments you expect to process each month"
+              numeric
+            />
+            <FormInput
+              name="advancedDeliveryDays"
+              label="Average Days to Delivery"
+              tooltip="Average days between payment and delivery of goods or services. Use 0 if delivered at purchase."
+              numeric
+            />
           </div>
         </WizardStep>
 
@@ -755,6 +806,10 @@ export function PayabliForm() {
 
   const [appId, setAppId] = useState('')
   const [signerPersonReference, setSignerPersonReference] = useState('')
+  const [signerName, setSignerName] = useState('')
+  const [pendingDocuments, setPendingDocuments] = useState<
+    CreatedApplication['documentRequirements']
+  >([])
 
   const onSuccessWithForm = async (values: FormSchemaType) => {
     try {
@@ -762,16 +817,27 @@ export function PayabliForm() {
       if (!created) {
         return
       }
+      const signer = values.ownership[values.signerOwnerIndex]
+      const name = `${signer.ownerFirstName} ${signer.ownerLastName}`
       setAppId(created.applicationReference)
       setSignerPersonReference(created.signerPersonReference)
-      const signer = values.ownership[values.signerOwnerIndex]
-      handleESignatureProcess(
-        created.applicationReference,
-        `${signer.ownerFirstName} ${signer.ownerLastName}`,
-      )
+      setSignerName(name)
+
+      // Required documents come before signing; createApp has already
+      // confirmed nothing else is missing.
+      if (created.documentRequirements.length > 0) {
+        setPendingDocuments(created.documentRequirements)
+        return
+      }
+      handleESignatureProcess(created.applicationReference, name)
     } catch (error) {
       return
     }
+  }
+
+  const onDocumentsComplete = () => {
+    setPendingDocuments([])
+    handleESignatureProcess(appId, signerName)
   }
 
   const onConfirm = () => {
@@ -841,6 +907,13 @@ export function PayabliForm() {
             {steps}
           </form>
           <ESignature contentRef={contentRef} onConfirm={onConfirm} />
+          <DocumentUploadDialog
+            open={pendingDocuments.length > 0}
+            applicationReference={appId}
+            requirements={pendingDocuments}
+            onComplete={onDocumentsComplete}
+            onClose={() => setPendingDocuments([])}
+          />
         </Form>
       </motion.div>
     </>

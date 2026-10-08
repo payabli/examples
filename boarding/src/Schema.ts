@@ -47,6 +47,29 @@ function validatePercentageDistribution(
   }
 }
 
+function validateOperatingSeasons(
+  data: {
+    seasonSpring: boolean
+    seasonSummer: boolean
+    seasonFall: boolean
+    seasonWinter: boolean
+  },
+  ctx: z.RefinementCtx,
+) {
+  if (
+    !data.seasonSpring &&
+    !data.seasonSummer &&
+    !data.seasonFall &&
+    !data.seasonWinter
+  ) {
+    ctx.addIssue({
+      path: ['seasonSpring'],
+      code: 'custom',
+      message: 'Choose at least one season the business operates in',
+    })
+  }
+}
+
 function validateOwnerRoles(
   data: {
     ownership: unknown[]
@@ -135,6 +158,20 @@ const formSchemaKit = createFormSchemaKit({
     'government',
     's-corp',
   ]),
+  businessEmail: requiredString().email({ message: 'Invalid email address' }),
+  // State or province where the business was formed (e.g. FL, DE).
+  incorporationState: requiredString().regex(/^[A-Za-z]{2}$/, {
+    message: 'Use the 2-letter state code, e.g. FL',
+  }),
+  taxIdCountry: requiredString().length(2, {
+    message: 'Country must be 2 characters',
+  }),
+  isForeignOwned: z.boolean().default(false),
+  // -> business.operatingSeasons; v2 accepts only these four values.
+  seasonSpring: z.boolean().default(true),
+  seasonSummer: z.boolean().default(true),
+  seasonFall: z.boolean().default(true),
+  seasonWinter: z.boolean().default(true),
   baddress: requiredString(),
   baddress1: z.string().optional(),
   bcity: requiredString(),
@@ -163,6 +200,15 @@ const formSchemaKit = createFormSchemaKit({
   avgmonthly: requiredNumber(),
   ticketamt: requiredNumber(),
   highticketamt: requiredNumber(),
+  // -> processingMetrics.advancedDeliveryDays; 0 means delivered at purchase.
+  advancedDeliveryDays: z.coerce
+    .number()
+    .min(0, { message: 'Enter 0 or more days' }),
+  // -> processingMetrics.numberOfTransactions (monthly payment count)
+  numberOfTransactions: z.coerce
+    .number()
+    .int({ message: 'Enter a whole number' })
+    .min(1, { message: 'This field is required' }),
 
   // -- Application-level (-> CreateApplicationRequest.configurations) --
   recipientEmail: z.string().default(''),
@@ -260,12 +306,14 @@ const formSchemaKit = createFormSchemaKit({
 export const formSchema = formSchemaKit.clientSchema.superRefine((data, ctx) => {
   validatePercentageDistribution(data, ctx)
   validateOwnerRoles(data, ctx)
+  validateOperatingSeasons(data, ctx)
 })
 
 export const serverFormSchema = formSchemaKit.serverSchema.superRefine(
   (data, ctx) => {
     validatePercentageDistribution(data, ctx)
     validateOwnerRoles(data, ctx)
+    validateOperatingSeasons(data, ctx)
   },
 )
 
@@ -273,6 +321,12 @@ export const formDefaultValues = {
   ...formSchemaKit.defaultValues,
   signerOwnerIndex: 0,
   primaryControllerOwnerIndex: 0,
+  taxIdCountry: 'US',
+  isForeignOwned: false,
+  seasonSpring: true,
+  seasonSummer: true,
+  seasonFall: true,
+  seasonWinter: true,
 }
 
 // Use normalize when partial payloads are allowed and only server-owned prefill fields must be enforced.

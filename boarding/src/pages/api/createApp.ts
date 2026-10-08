@@ -8,9 +8,16 @@ import {
   createApplication,
   deactivateBusiness,
   deactivatePaymentMethod,
+  getDocumentRequirements,
   unlinkPersonFromBusiness,
+  validateApplication,
+  withdrawApplication,
   PayabliV2Error,
   type BusinessAddress,
+  type DocumentRequirement,
+  type OperatingSeason,
+  type RequestedServices,
+  type ValidationMissingField,
   type CreatePaymentMethodRequest,
   type CreatePersonRequest,
   type PaymentMethodUsage,
@@ -32,7 +39,17 @@ const BANK_ACCOUNT_FUNCTION_TO_USAGE: Record<
   Remittance: ['payOutFunding'],
 }
 
-type Step = 'paypoint' | 'people' | 'paymentMethods' | 'application'
+// Every application requests the same services. They decide what `validate`
+// and the document requirements check, and an application with none can't be
+// validated at all.
+const SERVICES: RequestedServices = { moneyIn: ['Card', 'Ach'] }
+
+type Step =
+  | 'paypoint'
+  | 'people'
+  | 'paymentMethods'
+  | 'application'
+  | 'validation'
 
 // Everything created so far in this submission, so a later failure can undo it.
 type CreatedResources = {
@@ -40,7 +57,19 @@ type CreatedResources = {
   paypointReference?: string
   personReferences: string[]
   paymentMethodReferences: string[]
+  applicationReference?: string
 }
+
+// `validate` found data the form didn't supply. Carries the fields so the
+// user can see what to fix.
+class IncompleteApplicationError extends Error {
+  constructor(readonly missingFields: ValidationMissingField[]) {
+    super('Application is missing required information')
+  }
+}
+
+// `validate` couldn't run (e.g. VALIDATION_UNAVAILABLE).
+class ValidationUnavailableError extends Error {}
 
 class StepError extends Error {
   constructor(
@@ -56,6 +85,16 @@ function jsonResponse(body: unknown, status: number) {
     status,
     headers: { 'Content-Type': 'application/json' },
   })
+}
+
+function operatingSeasons(formData: FormSchemaType): OperatingSeason[] {
+  const seasons: [OperatingSeason, boolean][] = [
+    ['Spring', formData.seasonSpring],
+    ['Summer', formData.seasonSummer],
+    ['Fall', formData.seasonFall],
+    ['Winter', formData.seasonWinter],
+  ]
+  return seasons.filter(([, selected]) => selected).map(([season]) => season)
 }
 
 function buildPaypointRequest(formData: FormSchemaType) {
@@ -89,6 +128,12 @@ function buildPaypointRequest(formData: FormSchemaType) {
       merchantCatCode: formData.mcc,
       annualRevenue: formData.annualRevenue,
       description: formData.bsummary,
+      phone: [formData.phonenumber],
+      emails: [formData.businessEmail],
+      incorporationState: formData.incorporationState.toUpperCase(),
+      taxIdCountry: formData.taxIdCountry.toUpperCase(),
+      isForeignOwned: formData.isForeignOwned,
+      operatingSeasons: operatingSeasons(formData),
       addressDetails: [legalAddress, mailingAddress],
       processingMetrics: {
         monthlyReceivablesVolume: formData.avgmonthly,
@@ -98,6 +143,8 @@ function buildPaypointRequest(formData: FormSchemaType) {
         inboundOnlinePercent: formData.binweb,
         inboundMotoPercent: formData.binphone,
         refundPolicy: formData.whenRefunded,
+        advancedDeliveryDays: formData.advancedDeliveryDays,
+        numberOfTransactions: formData.numberOfTransactions,
       },
     },
   }
@@ -117,6 +164,7 @@ function buildPeople(formData: FormSchemaType, businessReference: string) {
     businessRelationship: {
       businessReference,
       personType: 'Employee',
+      title: contact.contactTitle,
     },
   }))
 
@@ -149,6 +197,7 @@ function buildPeople(formData: FormSchemaType, businessReference: string) {
     businessRelationship: {
       businessReference,
       personType: 'Owner',
+      title: owner.ownertitle,
       ownershipPercentage: owner.ownerpercent,
       isSigner: index === formData.signerOwnerIndex,
       isPrimaryController: index === formData.primaryControllerOwnerIndex,
@@ -175,6 +224,45 @@ function buildPaymentMethods(
     routingNumber: bank.routingAccount,
     usage: BANK_ACCOUNT_FUNCTION_TO_USAGE[bank.bankAccountFunction],
   }))
+}
+
+// A missing required document shows up in `validate` under its `fieldPath`
+// (business-level) or `people.{personReference}.{fieldPath}` (person-level).
+function isDocumentField(
+  field: string,
+  requirements: DocumentRequirement[],
+): boolean {
+  return requirements.some(
+    (requirement) =>
+      field === requirement.fieldPath ||
+      field === `people.${requirement.personReference}.${requirement.fieldPath}`,
+  )
+}
+
+// Throws when the application is missing anything other than documents;
+// otherwise returns the required documents still to upload.
+function checkValidation(
+  validation: Awaited<ReturnType<typeof validateApplication>>,
+  requirements: DocumentRequirement[],
+): DocumentRequirement[] {
+  const missingFields = Object.values(validation.sections ?? {}).flatMap(
+    (section) => section.missingFields ?? [],
+  )
+  if (!validation.valid && missingFields.length === 0) {
+    throw new ValidationUnavailableError(
+      validation.notice?.message ??
+        'Payabli could not check the application right now. Try again shortly.',
+    )
+  }
+  const missingData = missingFields.filter(
+    (missing) => !isDocumentField(missing.field, requirements),
+  )
+  if (missingData.length > 0) {
+    throw new IncompleteApplicationError(missingData)
+  }
+  return requirements.filter(
+    (requirement) => requirement.required && requirement.uploadedCount === 0,
+  )
 }
 
 async function runStep<T>(step: Step, fn: () => Promise<T>): Promise<T> {
@@ -207,6 +295,16 @@ async function rollback(created: CreatedResources): Promise<string[]> {
     }
   }
 
+  const { applicationReference } = created
+  if (applicationReference) {
+    await attempt(applicationReference, () =>
+      withdrawApplication(
+        applicationReference,
+        'Rolled back: the application failed validation',
+      ),
+    )
+  }
+
   await Promise.all(
     created.paymentMethodReferences.map((ref) =>
       attempt(ref, () => deactivatePaymentMethod(ref)),
@@ -220,7 +318,7 @@ async function rollback(created: CreatedResources): Promise<string[]> {
   await attempt(businessReference, () =>
     deactivateBusiness(
       businessReference,
-      'Rolled back: boarding submission failed before an application was created',
+      'Rolled back: boarding submission failed',
     ),
   )
 
@@ -232,6 +330,30 @@ async function rollback(created: CreatedResources): Promise<string[]> {
 // failure without leaking internals.
 function toErrorResponse(error: StepError, leftovers: string[]) {
   const cause = error.cause
+
+  if (cause instanceof IncompleteApplicationError) {
+    return jsonResponse(
+      {
+        error:
+          'Payabli needs more information before this application can be submitted.',
+        step: error.step,
+        missingFields: cause.missingFields,
+        rolledBack: leftovers.length === 0,
+      },
+      422,
+    )
+  }
+  if (cause instanceof ValidationUnavailableError) {
+    return jsonResponse(
+      {
+        error: cause.message,
+        step: error.step,
+        rolledBack: leftovers.length === 0,
+      },
+      503,
+    )
+  }
+
   const isUserFixable =
     cause instanceof PayabliV2Error &&
     (cause.status === 400 || cause.status === 409 || cause.status === 422)
@@ -277,6 +399,9 @@ export const POST: APIRoute = async ({ request }) => {
     personReferences: [],
     paymentMethodReferences: [],
   }
+  // Names for person-scoped document requirements (e.g. a foreign owner's
+  // passport), which only carry a personReference.
+  const personNames = new Map<string, string>()
 
   try {
     const paypoint = await runStep('paypoint', async () => {
@@ -296,14 +421,20 @@ export const POST: APIRoute = async ({ request }) => {
     // still have been created, and their references are needed for rollback.
     const signerPersonReference = await runStep('people', async () => {
       const { contacts, owners } = buildPeople(formData, businessReference)
+      const people = [...contacts, ...owners]
       const results = await Promise.allSettled(
-        [...contacts, ...owners].map((person) => createPerson(person)),
+        people.map((person) => createPerson(person)),
       )
-      for (const result of results) {
+      results.forEach((result, index) => {
         if (result.status === 'fulfilled') {
-          created.personReferences.push(result.value.personReference)
+          const { personReference } = result.value
+          created.personReferences.push(personReference)
+          personNames.set(
+            personReference,
+            `${people[index].firstName} ${people[index].lastName}`,
+          )
         }
-      }
+      })
       const rejected = results.find((result) => result.status === 'rejected')
       if (rejected) {
         throw rejected.reason
@@ -329,17 +460,39 @@ export const POST: APIRoute = async ({ request }) => {
         paypointReference: paypoint.paypointReference,
         requestTemplate:
           import.meta.env.PAYABLI_BOARDING_TEMPLATE_REFERENCE || undefined,
+        services: SERVICES,
         configurations: {
           recipientEmail: formData.recipientEmail,
           recipientEmailNotification: formData.recipientEmailNotification,
         },
       }),
     )
+    created.applicationReference = application.requestsReference
+
+    // Check the application against its services' requirements before the
+    // user signs. Partner submit doesn't enforce this, so without it an
+    // incomplete application would only surface later in review. Documents can only
+    // be uploaded once the application exists, so missing documents are
+    // returned for the upload step; anything else is missing data the form
+    // should have caught, so the submission is rolled back.
+    const documentRequirements = await runStep('validation', async () => {
+      const [validation, requirements] = await Promise.all([
+        validateApplication(application.requestsReference),
+        getDocumentRequirements(application.requestsReference),
+      ])
+      return checkValidation(validation, requirements)
+    })
 
     return jsonResponse(
       {
         applicationReference: application.requestsReference,
         signerPersonReference,
+        documentRequirements: documentRequirements.map((requirement) => ({
+          ...requirement,
+          personName: requirement.personReference
+            ? personNames.get(requirement.personReference)
+            : undefined,
+        })),
       },
       200,
     )

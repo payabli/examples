@@ -24,7 +24,11 @@ async function v2Fetch<TData>(
   const response = await fetch(`https://api${prefix}.payabli.com/api/v2${path}`, {
     ...init,
     headers: {
-      'content-type': 'application/json',
+      // Multipart bodies (document uploads) need fetch to set the
+      // content-type itself so it includes the boundary.
+      ...(init.body instanceof FormData
+        ? {}
+        : { 'content-type': 'application/json' }),
       authorization: `Bearer ${token}`,
       ...init.headers,
     },
@@ -117,9 +121,14 @@ export type ProcessingMetrics = {
   inboundPresentPercent?: number
   inboundOnlinePercent?: number
   inboundMotoPercent?: number
+  // Monthly payment count.
   numberOfTransactions?: number
+  // Average days between payment and delivery; 0 for delivery at purchase.
+  advancedDeliveryDays?: number
   refundPolicy?: string
 }
+
+export type OperatingSeason = 'Spring' | 'Summer' | 'Fall' | 'Winter'
 
 export type CreateBusinessRequest = {
   legalName: string
@@ -133,6 +142,15 @@ export type CreateBusinessRequest = {
   addressDetails?: BusinessAddress[]
   processingMetrics?: ProcessingMetrics
   customData?: Record<string, unknown>
+  phone?: string[]
+  emails?: string[]
+  // `incorporationState` and `taxIdCountry` are required by
+  // `POST /v2/requests/{ref}/validate` but missing from the published OAS;
+  // they're in the live API spec (/swagger/v2/swagger.json).
+  incorporationState?: string
+  taxIdCountry?: string
+  isForeignOwned?: boolean
+  operatingSeasons?: OperatingSeason[]
 }
 
 export type CreatePaypointWithInlineBusinessRequest = {
@@ -214,6 +232,9 @@ export type BusinessRelationshipRequest = {
   // Marks the owner who signs the application. Not in the OAS yet; confirmed
   // by the boarding team. Only an owner can sign (422 SIGNER_NOT_OWNER).
   isSigner?: boolean
+  // The person's job title at this business (1-100 characters). Lives on
+  // the business link, not the person record.
+  title?: string
 }
 
 export type CreatePersonRequest = {
@@ -328,6 +349,33 @@ export type CreateApplicationRequest = {
   requestTemplate?: string
   tags?: string[]
   configurations?: Record<string, unknown> | null
+  services?: RequestedServices
+}
+
+export type MoneyInService =
+  | 'Ach'
+  | 'Card'
+  | 'Cloud'
+  | 'Device'
+  | 'Wallet'
+  | 'Cash'
+  | 'Check'
+
+export type MoneyOutService =
+  | 'Ach'
+  | 'VCard'
+  | 'Managed'
+  | 'Check'
+  | 'Rtp'
+  | 'Wire'
+  | 'Ghost'
+
+// The services an application declares drive what `validate` and the
+// document requirements check. An application with no services can't be
+// validated (`SERVICES_REQUIRED`).
+export type RequestedServices = {
+  moneyIn?: MoneyInService[]
+  moneyOut?: MoneyOutService[]
 }
 
 export type Application = {
@@ -343,6 +391,104 @@ export function createApplication(input: CreateApplicationRequest) {
   return v2Fetch<Application>('/requests', {
     method: 'POST',
     body: JSON.stringify(input),
+  })
+}
+
+// Moves a draft application to `withdrawn`. Used to roll back an application
+// that failed validation, since applications can't be deleted.
+export function withdrawApplication(requestsReference: string, reason: string) {
+  return v2Fetch<TransitionResult>(`/requests/${requestsReference}/withdraw`, {
+    method: 'POST',
+    body: JSON.stringify({ reason }),
+  })
+}
+
+export type ValidationMissingField = {
+  // An entity path, e.g. `business.phone` or `people.{personReference}.title`.
+  // Missing required documents appear here too, under their `fieldPath`.
+  field: string
+  label: string
+  reason: string
+}
+
+export type ValidationSection = {
+  complete: boolean
+  missingFields: ValidationMissingField[]
+}
+
+export type ValidationResult = {
+  valid: boolean
+  servicesEvaluated?: string[]
+  sections?: Record<string, ValidationSection>
+  // Set when the check itself couldn't run (e.g. VALIDATION_UNAVAILABLE);
+  // `valid` is false with no missing fields in that case.
+  notice?: { code?: string; message?: string } | null
+}
+
+// Checks the application's linked business, people, and payment methods
+// against the requirements of its declared services, including required
+// documents and format rules. Changes nothing. Partner submit doesn't enforce
+// it (as of 2026-10-08), so the app runs it before signing: per the API, a
+// passing result means submission won't reject the data.
+export function validateApplication(requestsReference: string) {
+  return v2Fetch<ValidationResult>(`/requests/${requestsReference}/validate`, {
+    method: 'POST',
+  })
+}
+
+// ---------------------------------------------------------------------------
+// Application documents
+// ---------------------------------------------------------------------------
+
+export type DocumentSubject = 'person' | 'paypoint' | 'business'
+
+export type DocumentRequirement = {
+  // Upload against this, e.g. `documents.bankStatement`.
+  fieldPath: string
+  label: string
+  hint?: string | null
+  // `template` or `businessRule` (bank statements at $1M+ annual revenue, a
+  // passport per foreign owner).
+  source: string
+  subjectTypes: DocumentSubject[]
+  // Set for person-scoped requirements, listed once per owner.
+  personReference?: string | null
+  required: boolean
+  maxUploads: number
+  // Empty means any format.
+  allowedFormats: string[]
+  uploadedCount: number
+}
+
+export function getDocumentRequirements(requestsReference: string) {
+  return v2Fetch<DocumentRequirement[]>(
+    `/requests/${requestsReference}/documents/requirements`,
+  )
+}
+
+export type UploadDocumentInput = {
+  file: File
+  fieldPath: string
+  subject: DocumentSubject
+  personReference?: string
+}
+
+// Multipart upload of one file (10 MB max) against one requirement. Not in
+// the published OAS yet; shape from the live API spec.
+export function uploadDocument(
+  requestsReference: string,
+  input: UploadDocumentInput,
+) {
+  const body = new FormData()
+  body.append('File', input.file, input.file.name)
+  body.append('FieldPath', input.fieldPath)
+  body.append('Subject', input.subject)
+  if (input.personReference) {
+    body.append('PersonReference', input.personReference)
+  }
+  return v2Fetch<unknown>(`/requests/${requestsReference}/documents`, {
+    method: 'POST',
+    body,
   })
 }
 

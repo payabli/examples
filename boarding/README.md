@@ -37,7 +37,7 @@ Discuss with your Payabli solutions engineer to understand the implications of t
   │   ├── ui/                   # shadcn/ui components
   │   ├── form/                 # Form components
   │   │   ├── DeleteButton.tsx
-  │   │   ├── DynamicFormSection.tsx
+  │   │   ├── DocumentUploadDialog.tsx # Upload documents Payabli requires
   │   │   ├── ESignature.tsx
   │   │   ├── FormCheckboxGroup.tsx
   │   │   ├── FormCountryRegion.tsx
@@ -60,7 +60,9 @@ Discuss with your Payabli solutions engineer to understand the implications of t
   ├── pages/
   │   ├── api/                  # API routes
   │   │   ├── formData.ts       # Save form data
-  │   │   ├── createApp.ts      # Create the business, people, payment methods, and application
+  │   │   ├── createApp.ts      # Create the business, people, payment methods, and application, then validate
+  │   │   ├── uploadDocument.ts # Upload a required document to the application
+  │   │   ├── validateApp.ts    # Re-check the application after uploads
   │   │   └── submitApp.ts      # Sign and submit the application
   │   ├── 404.astro             # 404 page
   │   ├── login.astro           # login/sign-up page
@@ -462,19 +464,22 @@ The server authenticates with OAuth2 client credentials. `lib/payabliAuth.ts` ex
 
 The `formData` route saves the form's progress via the `Save Progress` button and stores it in a local sqlite database.
 
-The other two routes follow this flow:
+The other routes follow this flow:
 
 1. `createApp`: when you submit the final page of the form, the server creates the boarding resources one at a time:
    1. `POST /v2/paypoints` creates the paypoint and its business in one call.
    2. `POST /v2/people` creates and links each contact (as an `Employee`) and each owner (as an `Owner`). The owners picked in the form as signer and primary controller get `isSigner` and `isPrimaryController` on their business link.
    3. `POST /v2/payment-methods` creates all bank accounts in one batch.
-   4. `POST /v2/requests` creates the application as a draft, optionally from the template in `PAYABLI_BOARDING_TEMPLATE_REFERENCE`.
-2. `submitApp`: after the signer types their name in the e-signature dialog, the server calls `POST /v2/requests/{requestsReference}/submit` with the signature, which moves the application to `submitted`. There's no separate attachment step: the signature travels on the submit call, and the signed PDF stays a local download for the user.
+   4. `POST /v2/requests` creates the application as a draft, optionally from the template in `PAYABLI_BOARDING_TEMPLATE_REFERENCE`. Every application requests the Card and ACH Pay In services (`SERVICES` in `createApp.ts`). The services decide what Payabli checks in the next step, and an application without any can't be validated.
+   5. `POST /v2/requests/{requestsReference}/validate` checks the application against those services, and `GET .../documents/requirements` lists the documents it needs. If data is missing, the submission is rolled back and the form shows the missing fields. If only documents are missing, they're returned to the browser.
+2. `uploadDocument` and `validateApp`: when documents are required, the form opens an upload step. Each file goes to `POST /v2/requests/{requestsReference}/documents` (multipart, 10 MB max). Once everything is uploaded, `validateApp` re-runs the check before the e-signature dialog opens. Payabli's document rules include bank statements when annual revenue is $1,000,000 or more, and a passport for each foreign owner, plus any documents your template requires.
+3. `submitApp`: after the signer types their name in the e-signature dialog, the server calls `POST /v2/requests/{requestsReference}/submit` with the signature, which moves the application to `submitted`. There's no separate attachment step: the signature travels on the submit call, and the signed PDF stays a local download for the user.
 
 Boarding v2 has no single atomic "create application" call, so the app guards against partial failures in two ways:
 
 - **Validate before writing.** The Zod schema catches problems the API would otherwise reject partway through, such as the same bank account entered twice (v2 returns `409` for a duplicate account and routing number on one owner). Use one bank entry with the function set to "Both" for an account that handles deposits and withdrawals.
-- **Roll back on failure.** `createApp` records every resource it creates. If a later step fails, it deactivates the payment methods, unlinks the people, and deactivates the business, so a resubmission starts clean. v2 has no delete for paypoints or person records, so those stay behind, retired with their business or unlinked.
+- **Validate before signing.** Partner submit doesn't run Payabli's validation, so `createApp` runs it right after the application is created. A passing result means submission won't reject the data.
+- **Roll back on failure.** `createApp` records every resource it creates. If a later step fails, including validation, it withdraws the application, deactivates the payment methods, unlinks the people, and deactivates the business, so a resubmission starts clean. v2 has no delete for paypoints or person records, so those stay behind, retired with their business or unlinked.
 
 When Payabli rejects a request with a `400`, `409`, or `422`, the routes pass the API's message and trace ID back to the form so the user can see what to fix.
 
@@ -483,9 +488,6 @@ Rules the form enforces for Boarding v2:
 - The signer must be an owner. Submitting with any other person fails with `422 SIGNER_NOT_OWNER`.
 - Exactly one owner is the primary controller.
 - Contacts are created as `Employee` people. The other person types are being retired.
-
-> [!WARNING]
-> Applications that report annual revenue over $1,000,000 require a document upload through the API. This app doesn't upload documents yet, so those applications can't complete boarding from this app.
 
 Here's the core of `api/createApp.ts`, with the payload builders and rollback logic left out:
 
@@ -513,8 +515,18 @@ const application = await runStep('application', () =>
     businessReference,
     paypointReference: paypoint.paypointReference,
     requestTemplate: import.meta.env.PAYABLI_BOARDING_TEMPLATE_REFERENCE || undefined,
+    services: SERVICES, // { moneyIn: ['Card', 'Ach'] }
   }),
 )
+
+// Throws (and triggers rollback) if data is missing; returns documents still to upload.
+const documentRequirements = await runStep('validation', async () => {
+  const [validation, requirements] = await Promise.all([
+    validateApplication(application.requestsReference),
+    getDocumentRequirements(application.requestsReference),
+  ])
+  return checkValidation(validation, requirements)
+})
 ```
 
 ## Authentication
@@ -551,7 +563,9 @@ export const onRequest = defineMiddleware(async (context, next) => {
     (context.url.pathname === '/' ||
       context.url.pathname === '/api/createApp' ||
       context.url.pathname === '/api/formData' ||
-      context.url.pathname === '/api/submitApp') &&
+      context.url.pathname === '/api/submitApp' ||
+      context.url.pathname === '/api/uploadDocument' ||
+      context.url.pathname === '/api/validateApp') &&
     !isAuthed
   ) {
     return context.redirect('/login')

@@ -4,12 +4,16 @@ import { z } from 'zod'
 import { formSchema } from './Schema'
 import { toast, useToast } from '@/hooks/use-toast'
 import { useFormWithSchema } from './Schema'
+import type { DocumentRequirement } from '@/lib/boardingV2'
 
 type FormSchemaType = z.infer<typeof formSchema>
 
-type CreatedApplication = {
+export type CreatedApplication = {
   applicationReference: string
   signerPersonReference: string
+  // Required documents Payabli still needs before the application can be
+  // signed (e.g. bank statements at $1M+ annual revenue). Empty when none.
+  documentRequirements: (DocumentRequirement & { personName?: string })[]
 }
 
 type CreateAppFailure = {
@@ -17,6 +21,19 @@ type CreateAppFailure = {
   step?: string
   traceId?: string | null
   rolledBack?: boolean
+  // Set when Payabli's `validate` found data the form didn't supply.
+  missingFields?: { field: string; label: string }[]
+}
+
+// "Payabli needs more information...: Business Phone, Title" -- the labels
+// are Payabli's names for the missing fields.
+function describeFailure(failure: CreateAppFailure | null): string {
+  const message =
+    failure?.error ?? 'The form could not be submitted successfully.'
+  const labels = [
+    ...new Set((failure?.missingFields ?? []).map((missing) => missing.label)),
+  ]
+  return labels.length > 0 ? `${message} Missing: ${labels.join(', ')}.` : message
 }
 
 class SubmissionError extends Error {
@@ -52,10 +69,7 @@ export function useFormLogic(
         const failure = (await response.json().catch(() => null)) as
           | CreateAppFailure
           | null
-        throw new SubmissionError(
-          failure?.error ?? 'The form could not be submitted successfully.',
-          failure,
-        )
+        throw new SubmissionError(describeFailure(failure), failure)
       }
 
       const responseData = (await response.json()) as CreatedApplication
