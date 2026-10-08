@@ -4,9 +4,9 @@ A comprehensive merchant onboarding system built with TypeScript, React, Astro.j
 
 ## Summary
 
-As an Payabli partner, you'll need to board merchants onto the Payabli platform in some way to be able to run transactions through them. This is where the process of _boarding_ comes in (which you can read about [here](https://docs.payabli.com/developer-guides/boarding-board-merchants)).
-This project is an example application that any partner can clone, edit, and deploy to quickly start boarding merchants in a way that is completely controlled and owned by the partner.
-The advantage of an approach like this is the fine-grained control over the branding and user jouney as your merchants board.
+As an Payabli partner, you'll need to board merchants onto the Payabli platform in some way to be able to run transactions through them. This is where the process of _boarding_ comes in (see the [boarding overview](https://docs.payabli.com/guides/pay-ops-boarding-overview)).
+This project is an example application, built on the [Boarding v2 API](https://docs.payabli.com/guides/pay-ops-boarding-overview), that any partner can clone, edit, and deploy to quickly start boarding merchants in a way that is completely controlled and owned by the partner.
+The advantage of an approach like this is the fine-grained control over the branding and user journey as your merchants board.
 On the other hand, since you are moving beyond a simple white-labelled, Payabli-hosted page to something truly self-owned and self-hosted, you will naturally have to take on the responsibility of maintaining the application, ensuring it is secure, and keeping it up-to-date with Payabli's APIs and requirements.
 Discuss with your Payabli solutions engineer to understand the implications of this approach and to get guidance on how to best proceed.
 
@@ -23,11 +23,13 @@ Discuss with your Payabli solutions engineer to understand the implications of t
 - 😊 Icons support with [Lucide](https://lucide.dev/icons/)
 - 💾 Save progress to come back later (via [DrizzleORM](https://orm.drizzle.team/))
 - 🔒 All routes secured by [better-auth](https://www.better-auth.com/)
+- 🔑 Server-side OAuth2 client-credentials auth to the Payabli API
+- ✍️ Typed e-signature captured on the application submit call
 
 ## Project Structure
 
 ```
-  .env                          # Put your API token and environment here
+  .env                          # Put your OAuth2 client credentials and environment here
   .env.template                 # Template to copy and edit
   auth.ts                       # better-auth configuration
   src/
@@ -44,6 +46,7 @@ Discuss with your Payabli solutions engineer to understand the implications of t
   │   │   ├── FormSelect.tsx
   │   │   ├── FormSwitch.tsx
   │   │   ├── FormWrapper.tsx   # Base for all form fields
+  │   │   ├── OwnerSelect.tsx   # Pick an owner as signer or primary controller
   │   │   └── Wizard.tsx
   │   ├── PayabliForm.tsx       # Main form component
   │   ├── LoginForm.tsx         # Login form component
@@ -56,18 +59,22 @@ Discuss with your Payabli solutions engineer to understand the implications of t
   │   └── BaseLayout.astro      # Base layout
   ├── pages/
   │   ├── api/                  # API routes
-  │   │   ├── formData.tsx      # Save form data
-  │   │   ├── createApp.tsx     # Create Boarding application
-  │   │   ├── attachFiles.tsx   # Attach e-signature/files to application
-  │   │   └── submitApp.tsx     # Change app status to submitted
+  │   │   ├── formData.ts       # Save form data
+  │   │   ├── createApp.ts      # Create the business, people, payment methods, and application
+  │   │   └── submitApp.ts      # Sign and submit the application
   │   ├── 404.astro             # 404 page
   │   ├── login.astro           # login/sign-up page
   │   └── index.astro           # Main page
+  ├── hooks/
+  │   └── use-esignature.ts     # E-signature dialog state and submit call
   ├── lib/                      # Utility functions
   │   ├── authClient.ts         # better-auth client-side logic
+  │   ├── boardingV2.ts         # Typed client for the Boarding v2 endpoints
   │   ├── clientDb.ts           # Client-side DB logic
-  │   ├── getUrl.ts             # Get URL from .env
+  │   ├── getUrl.ts             # Get the API URL prefix from .env
   │   ├── helpers.ts            # Country/region data functions
+  │   ├── payabliAuth.ts        # OAuth2 token fetch and cache
+  │   ├── schemaPrefill.ts      # Client/server schema kit with enforced prefills
   │   ├── serverDb.ts           # Server-side DB logic
   │   └── utils.ts              # Miscellaneous utility functions
   ├── middleware.ts             # Middleware (authentication)
@@ -102,6 +109,9 @@ pnpm install
 ```bash
 cp .env.template .env
 ```
+
+Set `PAYABLI_CLIENT_ID` and `PAYABLI_CLIENT_SECRET` to your Payabli OAuth2 client credentials (see [OAuth2 authentication](https://docs.payabli.com/developers/oauth-authentication)), and `BETTER_AUTH_SECRET` to any 32-character string.
+`PAYABLI_BOARDING_TEMPLATE_REFERENCE` is optional: set it to a v2 boarding template reference to apply that template to every application.
 
 5. Set up better-auth.
 
@@ -446,64 +456,65 @@ export async function loadFormData(deviceToken: string) {
 
 ### API Routes
 
-This project uses a Payabli API token, which can't be shared publicly to preserve security. In order to accomodate this,
-when the client needs to make an API call to Payabli's API, it actually calls to the server's API routes, which then go to the
-Payabli API. This way, no sensitive information is exposed in the client. The API routes are in `pages/api`.
+The Payabli API credentials can't be exposed to the browser. When the client needs to reach Payabli's API, it calls the server's API routes in `pages/api`, which call Payabli. No sensitive information is exposed in the client.
 
-The `formData` route is used for saving the client-side form data's progress via the `Save Progress` button, and stores it
-in a local sqlite database.
+The server authenticates with OAuth2 client credentials. `lib/payabliAuth.ts` exchanges `PAYABLI_CLIENT_ID` and `PAYABLI_CLIENT_SECRET` for a bearer token at `POST /api/v2/Token/serverside` and caches it until shortly before it expires. `lib/boardingV2.ts` wraps each Boarding v2 endpoint the app uses with typed request and response shapes.
 
-The other three routes follow this flow:
+The `formData` route saves the form's progress via the `Save Progress` button and stores it in a local sqlite database.
 
-1. `createApp` - When you click `Confirm` on the final page of the form, the server will create an application within Payabli via a `POST` call to Payabli's API.
-2. `attachFiles` - After the e-signature is completed, the server will attach the signed document,
-   as well as any other files (such as the images of the voided checks for proof of account) to the application via a `PUT` call to Payabli's API.
-3. `submitApp` - Finally, the server will submit the application via a `GET` call to Payabli's API, which changes the internal status
-   of the application to `Submitted`.
+The other two routes follow this flow:
 
-Here's the entire `api/createApp.ts` file as an example:
+1. `createApp`: when you submit the final page of the form, the server creates the boarding resources one at a time:
+   1. `POST /v2/paypoints` creates the paypoint and its business in one call.
+   2. `POST /v2/people` creates and links each contact (as an `Employee`) and each owner (as an `Owner`). The owners picked in the form as signer and primary controller get `isSigner` and `isPrimaryController` on their business link.
+   3. `POST /v2/payment-methods` creates all bank accounts in one batch.
+   4. `POST /v2/requests` creates the application as a draft, optionally from the template in `PAYABLI_BOARDING_TEMPLATE_REFERENCE`.
+2. `submitApp`: after the signer types their name in the e-signature dialog, the server calls `POST /v2/requests/{requestsReference}/submit` with the signature, which moves the application to `submitted`. There's no separate attachment step: the signature travels on the submit call, and the signed PDF stays a local download for the user.
+
+Boarding v2 has no single atomic "create application" call, so the app guards against partial failures in two ways:
+
+- **Validate before writing.** The Zod schema catches problems the API would otherwise reject partway through, such as the same bank account entered twice (v2 returns `409` for a duplicate account and routing number on one owner). Use one bank entry with the function set to "Both" for an account that handles deposits and withdrawals.
+- **Roll back on failure.** `createApp` records every resource it creates. If a later step fails, it deactivates the payment methods, unlinks the people, and deactivates the business, so a resubmission starts clean. v2 has no delete for paypoints or person records, so those stay behind, retired with their business or unlinked.
+
+When Payabli rejects a request with a `400`, `409`, or `422`, the routes pass the API's message and trace ID back to the form so the user can see what to fix.
+
+Rules the form enforces for Boarding v2:
+
+- The signer must be an owner. Submitting with any other person fails with `422 SIGNER_NOT_OWNER`.
+- Exactly one owner is the primary controller.
+- Contacts are created as `Employee` people. The other person types are being retired.
+
+> [!WARNING]
+> Applications that report annual revenue over $1,000,000 require a document upload through the API. This app doesn't upload documents yet, so those applications can't complete boarding from this app.
+
+Here's the core of `api/createApp.ts`, with the payload builders and rollback logic left out:
 
 ```ts
-import type { APIRoute } from 'astro'
-import { getApiUrlPrefix } from '../../lib/getUrl'
+const paypoint = await runStep('paypoint', () =>
+  createPaypointWithBusiness(buildPaypointRequest(formData)),
+)
+const businessReference = paypoint.businessReference
 
-export const POST: APIRoute = async ({ request }) => {
-  const apiToken = import.meta.env.PAYABLI_API_TOKEN
-  const prefix = getApiUrlPrefix()
+const signerPersonReference = await runStep('people', async () => {
+  const { contacts, owners } = buildPeople(formData, businessReference)
+  const results = await Promise.allSettled(
+    [...contacts, ...owners].map((person) => createPerson(person)),
+  )
+  // ...record created references for rollback, rethrow the first failure
+  return results[contacts.length + formData.signerOwnerIndex].value.personReference
+})
 
-  try {
-    const formData = await request.json()
-    const jsonData = JSON.stringify(formData)
-    const response = await fetch(
-      `https://api${prefix}.payabli.com/api/Boarding/app`,
-      {
-        method: 'POST',
-        headers: { 'content-type': 'application/json', requestToken: apiToken },
-        body: jsonData,
-      },
-    )
+await runStep('paymentMethods', () =>
+  createPaymentMethods(buildPaymentMethods(formData, businessReference)),
+)
 
-    if (!response.ok) {
-      throw new Error(`HTTP error! status: ${response.status}`)
-    }
-
-    const responseBody = await response.json()
-
-    return new Response(JSON.stringify(responseBody.responseData), {
-      status: 200,
-      headers: { 'Content-Type': 'application/json' },
-    })
-  } catch (error) {
-    console.error('Error submitting application:', error)
-    return new Response(
-      JSON.stringify({ error: 'Failed to submit application' }),
-      {
-        status: 500,
-        headers: { 'Content-Type': 'application/json' },
-      },
-    )
-  }
-}
+const application = await runStep('application', () =>
+  createApplication({
+    businessReference,
+    paypointReference: paypoint.paypointReference,
+    requestTemplate: import.meta.env.PAYABLI_BOARDING_TEMPLATE_REFERENCE || undefined,
+  }),
+)
 ```
 
 ## Authentication
@@ -538,7 +549,6 @@ export const onRequest = defineMiddleware(async (context, next) => {
   })
   if (
     (context.url.pathname === '/' ||
-      context.url.pathname === '/api/attachFiles' ||
       context.url.pathname === '/api/createApp' ||
       context.url.pathname === '/api/formData' ||
       context.url.pathname === '/api/submitApp') &&
