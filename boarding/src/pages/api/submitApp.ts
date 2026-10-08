@@ -1,4 +1,6 @@
 import type { APIRoute } from 'astro'
+import { auth } from '../../../auth'
+import { clearBoardingDraft } from '../../lib/serverDb'
 import {
   submitApplication,
   validateApplication,
@@ -45,6 +47,13 @@ export const POST: APIRoute = async ({ request }) => {
     }
 
     const result = await submitApplication(applicationReference, signer)
+
+    // The submission is done, so the user's next application starts fresh
+    // instead of resuming these records.
+    const session = await auth.api.getSession({ headers: request.headers })
+    if (session) {
+      await clearBoardingDraft(session.user.id)
+    }
 
     return jsonResponse(result, 200)
   } catch (error) {

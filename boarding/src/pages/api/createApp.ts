@@ -1,26 +1,48 @@
 import type { APIRoute } from 'astro'
+import { createHash } from 'node:crypto'
 import { z } from 'zod'
+import { auth } from '../../../auth'
 import { parseServerFormData, type FormSchemaType } from '../../Schema'
 import {
+  clearBoardingDraft,
+  loadBoardingDraft,
+  saveBoardingDraft,
+  type BoardingDraft,
+} from '../../lib/serverDb'
+import {
+  createApplication,
+  createBusinessAddress,
+  createPaymentMethods,
   createPaypointWithBusiness,
   createPerson,
-  createPaymentMethods,
-  createApplication,
   deactivateBusiness,
   deactivatePaymentMethod,
+  getApplication,
+  getBusinessUnmasked,
   getDocumentRequirements,
+  getPersonUnmasked,
+  listBusinessAddresses,
+  listBusinessPeople,
   unlinkPersonFromBusiness,
+  updateApplication,
+  updateBusiness,
+  updateBusinessAddress,
+  updateBusinessPerson,
+  updatePaymentMethod,
+  updatePaypoint,
+  updatePerson,
   validateApplication,
   withdrawApplication,
   PayabliV2Error,
   type BusinessAddress,
-  type DocumentRequirement,
-  type OperatingSeason,
-  type RequestedServices,
-  type ValidationMissingField,
+  type CreateBusinessRequest,
   type CreatePaymentMethodRequest,
   type CreatePersonRequest,
+  type DocumentRequirement,
+  type OperatingSeason,
   type PaymentMethodUsage,
+  type RequestedServices,
+  type ValidationMissingField,
 } from '../../lib/boardingV2'
 
 // The wizard collects MM/DD/YYYY; the v2 API expects YYYY-MM-DD.
@@ -29,13 +51,16 @@ function toIsoDate(mmddyyyy: string): string {
   return `${year}-${month}-${day}`
 }
 
+// "Withdrawal" in the form is the account Payabli draws from (fees, refunds).
+// v2 validation requires that account to carry `billing` or `refunds`; the
+// `withdrawals` usage alone doesn't satisfy the org's funding rules.
 const BANK_ACCOUNT_FUNCTION_TO_USAGE: Record<
   FormSchemaType['bankData'][number]['bankAccountFunction'],
   PaymentMethodUsage[]
 > = {
   Deposit: ['deposits'],
-  Withdrawal: ['withdrawals'],
-  Both: ['deposits', 'withdrawals'],
+  Withdrawal: ['withdrawals', 'billing', 'refunds'],
+  Both: ['deposits', 'withdrawals', 'billing', 'refunds'],
   Remittance: ['payOutFunding'],
 }
 
@@ -50,15 +75,6 @@ type Step =
   | 'paymentMethods'
   | 'application'
   | 'validation'
-
-// Everything created so far in this submission, so a later failure can undo it.
-type CreatedResources = {
-  businessReference?: string
-  paypointReference?: string
-  personReferences: string[]
-  paymentMethodReferences: string[]
-  applicationReference?: string
-}
 
 // `validate` found data the form didn't supply. Carries the fields so the
 // user can see what to fix.
@@ -87,6 +103,27 @@ function jsonResponse(body: unknown, status: number) {
   })
 }
 
+async function runStep<T>(step: Step, fn: () => Promise<T>): Promise<T> {
+  try {
+    return await fn()
+  } catch (error) {
+    throw new StepError(step, error)
+  }
+}
+
+// Best-effort cleanup that shouldn't fail the submission.
+async function attempt(label: string, fn: () => Promise<unknown>) {
+  try {
+    await fn()
+  } catch (error) {
+    console.error(`Cleanup failed for ${label}:`, error)
+  }
+}
+
+// ---------------------------------------------------------------------------
+// Payload builders (form -> v2 request shapes)
+// ---------------------------------------------------------------------------
+
 function operatingSeasons(formData: FormSchemaType): OperatingSeason[] {
   const seasons: [OperatingSeason, boolean][] = [
     ['Spring', formData.seasonSpring],
@@ -97,57 +134,66 @@ function operatingSeasons(formData: FormSchemaType): OperatingSeason[] {
   return seasons.filter(([, selected]) => selected).map(([season]) => season)
 }
 
-function buildPaypointRequest(formData: FormSchemaType) {
-  const legalAddress: BusinessAddress = {
-    type: 'legal',
-    addressLine1: formData.baddress,
-    addressLine2: formData.baddress1,
-    cityLocality: formData.bcity,
-    stateProvince: formData.bstate,
-    postalCode: formData.bzip,
-    country: formData.bcountry,
-  }
-  const mailingAddress: BusinessAddress = {
-    type: 'mailing',
-    addressLine1: formData.maddress,
-    addressLine2: formData.maddress1,
-    cityLocality: formData.mcity,
-    stateProvince: formData.mstate,
-    postalCode: formData.mzip,
-    country: formData.mcountry,
-  }
+function buildAddresses(formData: FormSchemaType): BusinessAddress[] {
+  return [
+    {
+      type: 'legal',
+      addressLine1: formData.baddress,
+      addressLine2: formData.baddress1,
+      cityLocality: formData.bcity,
+      stateProvince: formData.bstate,
+      postalCode: formData.bzip,
+      country: formData.bcountry,
+    },
+    {
+      type: 'mailing',
+      addressLine1: formData.maddress,
+      addressLine2: formData.maddress1,
+      cityLocality: formData.mcity,
+      stateProvince: formData.mstate,
+      postalCode: formData.mzip,
+      country: formData.mcountry,
+    },
+  ]
+}
 
+function buildBusiness(formData: FormSchemaType): CreateBusinessRequest {
   return {
-    doingBusinessAs: formData.doingBusinessAs,
-    business: {
-      legalName: formData.legalName,
-      legalStructure: formData.legalStructure,
-      taxReference: formData.taxReference,
-      establishedDate: toIsoDate(formData.startdate),
-      website: formData.website,
-      merchantCatCode: formData.mcc,
-      annualRevenue: formData.annualRevenue,
-      description: formData.bsummary,
-      phone: [formData.phonenumber],
-      emails: [formData.businessEmail],
-      incorporationState: formData.incorporationState.toUpperCase(),
-      taxIdCountry: formData.taxIdCountry.toUpperCase(),
-      isForeignOwned: formData.isForeignOwned,
-      operatingSeasons: operatingSeasons(formData),
-      addressDetails: [legalAddress, mailingAddress],
-      processingMetrics: {
-        monthlyReceivablesVolume: formData.avgmonthly,
-        averageReceivableSize: formData.ticketamt,
-        largestReceivableSize: formData.highticketamt,
-        inboundPresentPercent: formData.binperson,
-        inboundOnlinePercent: formData.binweb,
-        inboundMotoPercent: formData.binphone,
-        refundPolicy: formData.whenRefunded,
-        advancedDeliveryDays: formData.advancedDeliveryDays,
-        numberOfTransactions: formData.numberOfTransactions,
-      },
+    legalName: formData.legalName,
+    legalStructure: formData.legalStructure,
+    taxReference: formData.taxReference,
+    establishedDate: toIsoDate(formData.startdate),
+    website: formData.website,
+    merchantCatCode: formData.mcc,
+    annualRevenue: formData.annualRevenue,
+    description: formData.bsummary,
+    phone: [formData.phonenumber],
+    emails: [formData.businessEmail],
+    incorporationState: formData.incorporationState.toUpperCase(),
+    taxIdCountry: formData.taxIdCountry.toUpperCase(),
+    isForeignOwned: formData.isForeignOwned,
+    operatingSeasons: operatingSeasons(formData),
+    addressDetails: buildAddresses(formData),
+    processingMetrics: {
+      monthlyReceivablesVolume: formData.avgmonthly,
+      averageReceivableSize: formData.ticketamt,
+      largestReceivableSize: formData.highticketamt,
+      inboundPresentPercent: formData.binperson,
+      inboundOnlinePercent: formData.binweb,
+      inboundMotoPercent: formData.binphone,
+      refundPolicy: formData.whenRefunded,
+      advancedDeliveryDays: formData.advancedDeliveryDays,
+      numberOfTransactions: formData.numberOfTransactions,
     },
   }
+}
+
+type PersonToSync = {
+  // Role and position in the form, e.g. `contact:0` or `owner:1`; how a
+  // person is matched to the record a previous attempt created.
+  key: string
+  isOwner: boolean
+  request: CreatePersonRequest
 }
 
 // People: contacts and owners, each created and linked to the business in the
@@ -155,56 +201,71 @@ function buildPaypointRequest(formData: FormSchemaType) {
 // retiring the `Contact` type). There's no separate signer person: the
 // signer and primary controller are flags on the owners the wizard picked
 // (`signerOwnerIndex`, `primaryControllerOwnerIndex`).
-function buildPeople(formData: FormSchemaType, businessReference: string) {
-  const contacts: CreatePersonRequest[] = formData.contacts.map((contact) => ({
-    firstName: contact.contactFirstName,
-    lastName: contact.contactLastName,
-    primaryEmail: contact.contactEmail,
-    primaryPhoneNumber: contact.contactPhone,
-    businessRelationship: {
-      businessReference,
-      personType: 'Employee',
-      title: contact.contactTitle,
-    },
-  }))
-
-  const owners: CreatePersonRequest[] = formData.ownership.map((owner, index) => ({
-    firstName: owner.ownerFirstName,
-    lastName: owner.ownerLastName,
-    primaryEmail: owner.owneremail,
-    primaryPhoneNumber: owner.ownerphone1,
-    secondaryPhoneNumber: owner.ownerphone2 || undefined,
-    dateOfBirth: toIsoDate(owner.ownerdob),
-    ssn: owner.ownerssn,
-    nationality: 'US',
-    addresses: [
-      {
-        type: 'Residential',
-        addressLine1: owner.oaddress,
-        cityLocality: owner.ocity,
-        stateProvince: owner.ostate,
-        postalCode: owner.ozip,
-        country: owner.ocountry,
+function buildPeople(
+  formData: FormSchemaType,
+  businessReference: string,
+): PersonToSync[] {
+  const contacts = formData.contacts.map(
+    (contact, index): PersonToSync => ({
+      key: `contact:${index}`,
+      isOwner: false,
+      request: {
+        firstName: contact.contactFirstName,
+        lastName: contact.contactLastName,
+        primaryEmail: contact.contactEmail,
+        primaryPhoneNumber: contact.contactPhone,
+        businessRelationship: {
+          businessReference,
+          personType: 'Employee',
+          title: contact.contactTitle,
+        },
       },
-    ],
-    identificationDocuments: [
-      {
-        type: 'drivers_license',
-        number: owner.ownerdriver,
-        issuingState: owner.odriverstate,
-      },
-    ],
-    businessRelationship: {
-      businessReference,
-      personType: 'Owner',
-      title: owner.ownertitle,
-      ownershipPercentage: owner.ownerpercent,
-      isSigner: index === formData.signerOwnerIndex,
-      isPrimaryController: index === formData.primaryControllerOwnerIndex,
-    },
-  }))
+    }),
+  )
 
-  return { contacts, owners }
+  const owners = formData.ownership.map(
+    (owner, index): PersonToSync => ({
+      key: `owner:${index}`,
+      isOwner: true,
+      request: {
+        firstName: owner.ownerFirstName,
+        lastName: owner.ownerLastName,
+        primaryEmail: owner.owneremail,
+        primaryPhoneNumber: owner.ownerphone1,
+        secondaryPhoneNumber: owner.ownerphone2 || undefined,
+        dateOfBirth: toIsoDate(owner.ownerdob),
+        ssn: owner.ownerssn,
+        nationality: 'US',
+        addresses: [
+          {
+            type: 'Residential',
+            addressLine1: owner.oaddress,
+            cityLocality: owner.ocity,
+            stateProvince: owner.ostate,
+            postalCode: owner.ozip,
+            country: owner.ocountry,
+          },
+        ],
+        identificationDocuments: [
+          {
+            type: 'drivers_license',
+            number: owner.ownerdriver,
+            issuingState: owner.odriverstate,
+          },
+        ],
+        businessRelationship: {
+          businessReference,
+          personType: 'Owner',
+          title: owner.ownertitle,
+          ownershipPercentage: owner.ownerpercent,
+          isSigner: index === formData.signerOwnerIndex,
+          isPrimaryController: index === formData.primaryControllerOwnerIndex,
+        },
+      },
+    }),
+  )
+
+  return [...contacts, ...owners]
 }
 
 // Payment methods -- all bank accounts owned by the business. Duplicate
@@ -225,6 +286,325 @@ function buildPaymentMethods(
     usage: BANK_ACCOUNT_FUNCTION_TO_USAGE[bank.bankAccountFunction],
   }))
 }
+
+// Matches a bank account to the payment method a previous attempt created
+// without storing the account number itself.
+function paymentMethodKey(method: CreatePaymentMethodRequest) {
+  return createHash('sha256')
+    .update(`${method.routingNumber}:${method.accountNumber}`)
+    .digest('hex')
+}
+
+// ---------------------------------------------------------------------------
+// Resuming a previous attempt
+// ---------------------------------------------------------------------------
+
+// Boarding v2 rejects a second business with the same EIN, and a second bank
+// account with the same routing and account numbers, even when the first was
+// deactivated. So a submission that fails partway can't be rolled back and
+// retried; instead each step below updates the records a previous attempt
+// created (saved in the user's draft) and only creates what's missing.
+
+// Returns the user's saved draft if its business can still be reused.
+async function loadUsableDraft(
+  userId: string,
+  formData: FormSchemaType,
+): Promise<BoardingDraft | null> {
+  const draft = await loadBoardingDraft(userId)
+  if (!draft) {
+    return null
+  }
+
+  let business
+  try {
+    business = await getBusinessUnmasked(draft.businessReference)
+  } catch (error) {
+    console.error('Saved draft business is unreadable; starting over:', error)
+    await clearBoardingDraft(userId)
+    return null
+  }
+  if (business.businessStatus === 'Deactivated') {
+    await clearBoardingDraft(userId)
+    return null
+  }
+
+  // The EIN can't change after creation, so a new EIN needs a new business.
+  // Retire the old one; its EIN no longer matches what the user is boarding.
+  if (business.taxReference !== formData.taxReference) {
+    const { applicationReference } = draft
+    if (applicationReference) {
+      await attempt(applicationReference, () =>
+        withdrawApplication(applicationReference, 'Replaced: the EIN changed'),
+      )
+    }
+    await attempt(draft.businessReference, () =>
+      deactivateBusiness(draft.businessReference, 'Replaced: the EIN changed'),
+    )
+    await clearBoardingDraft(userId)
+    return null
+  }
+
+  // Only a draft application can be updated. If the saved one moved on (for
+  // example it was withdrawn), keep the business but start a new application.
+  if (draft.applicationReference) {
+    try {
+      const application = await getApplication(draft.applicationReference)
+      if (application.applicationStatus !== 'draft') {
+        draft.applicationReference = undefined
+      }
+    } catch {
+      draft.applicationReference = undefined
+    }
+  }
+
+  return draft
+}
+
+async function upsertBusiness(
+  draft: BoardingDraft | null,
+  formData: FormSchemaType,
+): Promise<BoardingDraft> {
+  const business = buildBusiness(formData)
+
+  if (!draft) {
+    const paypoint = await createPaypointWithBusiness({
+      doingBusinessAs: formData.doingBusinessAs,
+      business,
+    })
+    if (!paypoint.businessReference) {
+      throw new Error('Paypoint creation did not return a business reference')
+    }
+    return {
+      businessReference: paypoint.businessReference,
+      paypointReference: paypoint.paypointReference,
+      people: [],
+      paymentMethods: [],
+    }
+  }
+
+  // `taxReference` is immutable (and unchanged, per loadUsableDraft), and
+  // addresses have their own endpoints.
+  const { taxReference, addressDetails, ...updatable } = business
+  await updateBusiness(draft.businessReference, updatable)
+  await updatePaypoint(draft.paypointReference, {
+    doingBusinessAs: formData.doingBusinessAs,
+    website: formData.website,
+  })
+
+  const existing = await listBusinessAddresses(draft.businessReference)
+  for (const address of addressDetails ?? []) {
+    const match = existing.find((stored) => stored.type === address.type)
+    if (match) {
+      await updateBusinessAddress(
+        draft.businessReference,
+        match.businessAddressReference,
+        address,
+      )
+    } else {
+      await createBusinessAddress(draft.businessReference, address)
+    }
+  }
+  return draft
+}
+
+// Whether a saved owner can be updated in place: SSN and date of birth can't
+// be changed after creation, so a change to either needs a new person.
+async function ownerIdentityUnchanged(
+  personReference: string,
+  request: CreatePersonRequest,
+) {
+  const stored = await getPersonUnmasked(personReference)
+  return (
+    stored.ssn === request.ssn &&
+    (stored.dateOfBirth ?? '').slice(0, 10) === request.dateOfBirth
+  )
+}
+
+// Creates, updates, and unlinks people so the business matches the form.
+// Returns the signer's personReference and records each person's name.
+async function syncPeople(
+  draft: BoardingDraft,
+  formData: FormSchemaType,
+  personNames: Map<string, string>,
+): Promise<string> {
+  const businessReference = draft.businessReference
+  const wanted = buildPeople(formData, businessReference)
+  const saved = new Map(draft.people.map((p) => [p.key, p.personReference]))
+
+  const reuse: (PersonToSync & { personReference: string })[] = []
+  const create: PersonToSync[] = []
+  for (const person of wanted) {
+    const personReference = saved.get(person.key)
+    if (
+      personReference &&
+      (!person.isOwner ||
+        (await ownerIdentityUnchanged(personReference, person.request)))
+    ) {
+      reuse.push({ ...person, personReference })
+    } else {
+      create.push(person)
+    }
+  }
+
+  // Unlink anyone the form no longer has (removed, or replaced because their
+  // identity changed). The person record itself can't be deleted.
+  const keep = new Set(reuse.map((person) => person.personReference))
+  for (const stale of draft.people.filter((p) => !keep.has(p.personReference))) {
+    await attempt(stale.personReference, () =>
+      unlinkPersonFromBusiness(businessReference, stale.personReference),
+    )
+  }
+  draft.people = draft.people.filter((p) => keep.has(p.personReference))
+
+  // Links are updated in two passes because v2 checks them one at a time:
+  // combined ownership can't pass 100%, and only one owner can be signer or
+  // primary controller. First lower ownership and clear the flags, then set
+  // the final values.
+  const links = new Map(
+    (await listBusinessPeople(businessReference)).map((link) => [
+      link.personReference,
+      link,
+    ]),
+  )
+  for (const person of reuse.filter((p) => p.isOwner)) {
+    const current = links.get(person.personReference)
+    const target = person.request.businessRelationship
+    await updateBusinessPerson(businessReference, person.personReference, {
+      isSigner: false,
+      isPrimaryController: false,
+      ownershipPercentage: Math.min(
+        current?.ownershipPercentage ?? 0,
+        target.ownershipPercentage ?? 0,
+      ),
+    })
+  }
+  for (const person of reuse) {
+    const { ssn, dateOfBirth, businessRelationship, ...details } =
+      person.request
+    const { businessReference: _, ...link } = businessRelationship
+    await updatePerson(person.personReference, details)
+    await updateBusinessPerson(businessReference, person.personReference, link)
+  }
+
+  // allSettled rather than all: if one person is rejected, the others may
+  // still have been created, and the draft needs their references.
+  const results = await Promise.allSettled(
+    create.map((person) => createPerson(person.request)),
+  )
+  results.forEach((result, index) => {
+    if (result.status === 'fulfilled') {
+      draft.people.push({
+        key: create[index].key,
+        personReference: result.value.personReference,
+      })
+    }
+  })
+
+  for (const person of wanted) {
+    const reference = draft.people.find((p) => p.key === person.key)
+    if (reference) {
+      personNames.set(
+        reference.personReference,
+        `${person.request.firstName} ${person.request.lastName}`,
+      )
+    }
+  }
+
+  const rejected = results.find((result) => result.status === 'rejected')
+  if (rejected) {
+    throw rejected.reason
+  }
+
+  const signer = draft.people.find(
+    (p) => p.key === `owner:${formData.signerOwnerIndex}`,
+  )
+  if (!signer) {
+    throw new Error('The signer was not created')
+  }
+  return signer.personReference
+}
+
+// Creates, updates, and deactivates bank accounts so the business matches
+// the form.
+async function syncPaymentMethods(
+  draft: BoardingDraft,
+  formData: FormSchemaType,
+) {
+  const wanted = buildPaymentMethods(formData, draft.businessReference).map(
+    (method) => ({ key: paymentMethodKey(method), method }),
+  )
+  const wantedKeys = new Set(wanted.map((entry) => entry.key))
+
+  for (const stale of draft.paymentMethods.filter(
+    (p) => !wantedKeys.has(p.key),
+  )) {
+    await attempt(stale.paymentMethodReference, () =>
+      deactivatePaymentMethod(stale.paymentMethodReference),
+    )
+  }
+  draft.paymentMethods = draft.paymentMethods.filter((p) =>
+    wantedKeys.has(p.key),
+  )
+
+  const saved = new Map(
+    draft.paymentMethods.map((p) => [p.key, p.paymentMethodReference]),
+  )
+  const create = wanted.filter((entry) => !saved.has(entry.key))
+  for (const entry of wanted.filter((e) => saved.has(e.key))) {
+    const { nickname, financialInstitution, accountType, usage } = entry.method
+    await updatePaymentMethod(saved.get(entry.key)!, {
+      nickname,
+      financialInstitution,
+      accountType,
+      usage,
+    })
+  }
+
+  // The batch is all-or-nothing, and results come back in request order.
+  if (create.length > 0) {
+    const results = await createPaymentMethods(
+      create.map((entry) => entry.method),
+    )
+    results.forEach((result, index) => {
+      draft.paymentMethods.push({
+        key: create[index].key,
+        paymentMethodReference: result.paymentMethodReference,
+      })
+    })
+  }
+}
+
+async function upsertApplication(
+  draft: BoardingDraft,
+  formData: FormSchemaType,
+) {
+  const settings = {
+    requestTemplate:
+      import.meta.env.PAYABLI_BOARDING_TEMPLATE_REFERENCE || undefined,
+    services: SERVICES,
+    configurations: {
+      recipientEmail: formData.recipientEmail,
+      recipientEmailNotification: formData.recipientEmailNotification,
+    },
+  }
+
+  if (draft.applicationReference) {
+    await updateApplication(draft.applicationReference, settings)
+    return draft.applicationReference
+  }
+
+  const application = await createApplication({
+    businessReference: draft.businessReference,
+    paypointReference: draft.paypointReference,
+    ...settings,
+  })
+  draft.applicationReference = application.requestsReference
+  return application.requestsReference
+}
+
+// ---------------------------------------------------------------------------
+// Validation
+// ---------------------------------------------------------------------------
 
 // A missing required document shows up in `validate` under its `fieldPath`
 // (business-level) or `people.{personReference}.{fieldPath}` (person-level).
@@ -265,70 +645,11 @@ function checkValidation(
   )
 }
 
-async function runStep<T>(step: Step, fn: () => Promise<T>): Promise<T> {
-  try {
-    return await fn()
-  } catch (error) {
-    throw new StepError(step, error)
-  }
-}
-
-// Undo a partially completed submission, newest resources first. v2 only has
-// soft deletes here, and none at all for paypoints or person records, so the
-// best available cleanup is: deactivate payment methods, unlink people, then
-// deactivate the business (which retires its paypoint with it). Each call is
-// attempted even if an earlier one fails; returns the references that
-// couldn't be cleaned up.
-async function rollback(created: CreatedResources): Promise<string[]> {
-  const { businessReference } = created
-  if (!businessReference) {
-    return []
-  }
-
-  const leftovers: string[] = []
-  const attempt = async (reference: string, fn: () => Promise<unknown>) => {
-    try {
-      await fn()
-    } catch (error) {
-      leftovers.push(reference)
-      console.error(`Rollback failed for ${reference}:`, error)
-    }
-  }
-
-  const { applicationReference } = created
-  if (applicationReference) {
-    await attempt(applicationReference, () =>
-      withdrawApplication(
-        applicationReference,
-        'Rolled back: the application failed validation',
-      ),
-    )
-  }
-
-  await Promise.all(
-    created.paymentMethodReferences.map((ref) =>
-      attempt(ref, () => deactivatePaymentMethod(ref)),
-    ),
-  )
-  await Promise.all(
-    created.personReferences.map((ref) =>
-      attempt(ref, () => unlinkPersonFromBusiness(businessReference, ref)),
-    ),
-  )
-  await attempt(businessReference, () =>
-    deactivateBusiness(
-      businessReference,
-      'Rolled back: boarding submission failed',
-    ),
-  )
-
-  return leftovers
-}
-
 // Pass the API's own validation messages (400/409/422) through to the form so
 // the user can fix their input; anything else is reported as an upstream
-// failure without leaking internals.
-function toErrorResponse(error: StepError, leftovers: string[]) {
+// failure without leaking internals. Whatever was created is kept, so the
+// next submission resumes from it.
+function toErrorResponse(error: StepError) {
   const cause = error.cause
 
   if (cause instanceof IncompleteApplicationError) {
@@ -338,20 +659,12 @@ function toErrorResponse(error: StepError, leftovers: string[]) {
           'Payabli needs more information before this application can be submitted.',
         step: error.step,
         missingFields: cause.missingFields,
-        rolledBack: leftovers.length === 0,
       },
       422,
     )
   }
   if (cause instanceof ValidationUnavailableError) {
-    return jsonResponse(
-      {
-        error: cause.message,
-        step: error.step,
-        rolledBack: leftovers.length === 0,
-      },
-      503,
-    )
+    return jsonResponse({ error: cause.message, step: error.step }, 503)
   }
 
   const isUserFixable =
@@ -365,22 +678,22 @@ function toErrorResponse(error: StepError, leftovers: string[]) {
         : 'Failed to submit application',
       step: error.step,
       traceId: cause instanceof PayabliV2Error ? cause.traceId : null,
-      rolledBack: leftovers.length === 0,
     },
     isUserFixable ? cause.status : 502,
   )
 }
 
 export const POST: APIRoute = async ({ request }) => {
-  const requestData = await request.json()
+  const session = await auth.api.getSession({ headers: request.headers })
+  if (!session) {
+    return jsonResponse({ error: 'Not signed in' }, 401)
+  }
+  const userId = session.user.id
 
-  // Validate everything that can be checked locally before creating anything:
-  // v2 has no single atomic "create application" call (unlike v1's
-  // `POST /api/Boarding/app`), so an error caught here costs nothing, while
-  // the same error from the API partway through leaves resources behind.
+  // Validate everything that can be checked locally before touching Payabli.
   let formData: FormSchemaType
   try {
-    formData = parseServerFormData(requestData)
+    formData = parseServerFormData(await request.json())
   } catch (error) {
     if (error instanceof z.ZodError) {
       return jsonResponse(
@@ -391,101 +704,46 @@ export const POST: APIRoute = async ({ request }) => {
     throw error
   }
 
-  // The business/paypoint, people, payment methods, and application are
-  // separate resources created in sequence. Each step records what it
-  // created, and if a later step fails, everything is rolled back so a
-  // resubmission starts clean instead of piling up orphaned businesses.
-  const created: CreatedResources = {
-    personReferences: [],
-    paymentMethodReferences: [],
-  }
-  // Names for person-scoped document requirements (e.g. a foreign owner's
-  // passport), which only carry a personReference.
+  // Each step creates or updates one kind of record and mutates the draft,
+  // which is saved whether the submission succeeds or fails partway.
+  let draft: BoardingDraft | null = null
   const personNames = new Map<string, string>()
-
   try {
-    const paypoint = await runStep('paypoint', async () => {
-      const result = await createPaypointWithBusiness(
-        buildPaypointRequest(formData),
-      )
-      created.paypointReference = result.paypointReference
-      created.businessReference = result.businessReference ?? undefined
-      if (!result.businessReference) {
-        throw new Error('Paypoint creation did not return a business reference')
-      }
-      return result
-    })
-    const businessReference = paypoint.businessReference as string
-
-    // allSettled rather than all: if one person is rejected, the others may
-    // still have been created, and their references are needed for rollback.
-    const signerPersonReference = await runStep('people', async () => {
-      const { contacts, owners } = buildPeople(formData, businessReference)
-      const people = [...contacts, ...owners]
-      const results = await Promise.allSettled(
-        people.map((person) => createPerson(person)),
-      )
-      results.forEach((result, index) => {
-        if (result.status === 'fulfilled') {
-          const { personReference } = result.value
-          created.personReferences.push(personReference)
-          personNames.set(
-            personReference,
-            `${people[index].firstName} ${people[index].lastName}`,
-          )
-        }
-      })
-      const rejected = results.find((result) => result.status === 'rejected')
-      if (rejected) {
-        throw rejected.reason
-      }
-      const signer = results[
-        contacts.length + formData.signerOwnerIndex
-      ] as PromiseFulfilledResult<Awaited<ReturnType<typeof createPerson>>>
-      return signer.value.personReference
-    })
-
-    await runStep('paymentMethods', async () => {
-      const results = await createPaymentMethods(
-        buildPaymentMethods(formData, businessReference),
-      )
-      created.paymentMethodReferences.push(
-        ...results.map((method) => method.paymentMethodReference),
-      )
-    })
-
-    const application = await runStep('application', () =>
-      createApplication({
-        businessReference,
-        paypointReference: paypoint.paypointReference,
-        requestTemplate:
-          import.meta.env.PAYABLI_BOARDING_TEMPLATE_REFERENCE || undefined,
-        services: SERVICES,
-        configurations: {
-          recipientEmail: formData.recipientEmail,
-          recipientEmailNotification: formData.recipientEmailNotification,
-        },
-      }),
+    draft = await runStep('paypoint', async () =>
+      upsertBusiness(await loadUsableDraft(userId, formData), formData),
     )
-    created.applicationReference = application.requestsReference
+    await saveBoardingDraft(userId, draft)
+    const current = draft
+
+    const signerPersonReference = await runStep('people', () =>
+      syncPeople(current, formData, personNames),
+    )
+    await saveBoardingDraft(userId, current)
+
+    await runStep('paymentMethods', () => syncPaymentMethods(current, formData))
+    await saveBoardingDraft(userId, current)
+
+    const applicationReference = await runStep('application', () =>
+      upsertApplication(current, formData),
+    )
+    await saveBoardingDraft(userId, current)
 
     // Check the application against its services' requirements before the
     // user signs. Partner submit doesn't enforce this, so without it an
-    // incomplete application would only surface later in review. Documents can only
-    // be uploaded once the application exists, so missing documents are
-    // returned for the upload step; anything else is missing data the form
-    // should have caught, so the submission is rolled back.
+    // incomplete application would only surface later in review. Documents
+    // can only be uploaded once the application exists, so missing documents
+    // are returned for the upload step; anything else is missing data.
     const documentRequirements = await runStep('validation', async () => {
       const [validation, requirements] = await Promise.all([
-        validateApplication(application.requestsReference),
-        getDocumentRequirements(application.requestsReference),
+        validateApplication(applicationReference),
+        getDocumentRequirements(applicationReference),
       ])
       return checkValidation(validation, requirements)
     })
 
     return jsonResponse(
       {
-        applicationReference: application.requestsReference,
+        applicationReference,
         signerPersonReference,
         documentRequirements: documentRequirements.map((requirement) => ({
           ...requirement,
@@ -503,16 +761,9 @@ export const POST: APIRoute = async ({ request }) => {
       `Error creating v2 boarding application at step "${stepError.step}":`,
       stepError.cause,
     )
-
-    const leftovers = await rollback(created)
-    if (created.businessReference) {
-      console.error(
-        leftovers.length === 0
-          ? `Rolled back business ${created.businessReference} and its resources.`
-          : `Rollback incomplete; still active: ${leftovers.join(', ')}`,
-      )
+    if (draft) {
+      await saveBoardingDraft(userId, draft)
     }
-
-    return toErrorResponse(stepError, leftovers)
+    return toErrorResponse(stepError)
   }
 }

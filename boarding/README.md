@@ -471,15 +471,21 @@ The other routes follow this flow:
    2. `POST /v2/people` creates and links each contact (as an `Employee`) and each owner (as an `Owner`). The owners picked in the form as signer and primary controller get `isSigner` and `isPrimaryController` on their business link.
    3. `POST /v2/payment-methods` creates all bank accounts in one batch.
    4. `POST /v2/requests` creates the application as a draft, optionally from the template in `PAYABLI_BOARDING_TEMPLATE_REFERENCE`. Every application requests the Card and ACH Pay In services (`SERVICES` in `createApp.ts`). The services decide what Payabli checks in the next step, and an application without any can't be validated.
-   5. `POST /v2/requests/{requestsReference}/validate` checks the application against those services, and `GET .../documents/requirements` lists the documents it needs. If data is missing, the submission is rolled back and the form shows the missing fields. If only documents are missing, they're returned to the browser.
+   5. `POST /v2/requests/{requestsReference}/validate` checks the application against those services, and `GET .../documents/requirements` lists the documents it needs. If data is missing, the form shows the missing fields, and the records stay in place for the next attempt. If only documents are missing, they're returned to the browser.
 2. `uploadDocument` and `validateApp`: when documents are required, the form opens an upload step. Each file goes to `POST /v2/requests/{requestsReference}/documents` (multipart, 10 MB max). Once everything is uploaded, `validateApp` re-runs the check before the e-signature dialog opens. Payabli's document rules include bank statements when annual revenue is $1,000,000 or more, and a passport for each foreign owner, plus any documents your template requires.
 3. `submitApp`: after the signer types their name in the e-signature dialog, the server calls `POST /v2/requests/{requestsReference}/submit` with the signature, which moves the application to `submitted`. There's no separate attachment step: the signature travels on the submit call, and the signed PDF stays a local download for the user.
 
 Boarding v2 has no single atomic "create application" call, so the app guards against partial failures in two ways:
 
-- **Validate before writing.** The Zod schema catches problems the API would otherwise reject partway through, such as the same bank account entered twice (v2 returns `409` for a duplicate account and routing number on one owner). Use one bank entry with the function set to "Both" for an account that handles deposits and withdrawals.
+- **Validate before writing.** The Zod schema catches problems the API would otherwise reject partway through, such as the same bank account entered twice (v2 returns `409` for a duplicate account and routing number on one owner). Use one bank entry with the function set to "Both" for an account that handles deposits and withdrawals. A "Withdrawal" account is sent with the `withdrawals`, `billing`, and `refunds` usages: v2 validation requires an account Payabli can draw fees and refunds from, and `withdrawals` alone doesn't count.
 - **Validate before signing and before submitting.** Partner submit doesn't require a validation result yet, so the app enforces it: `createApp` runs validation right after the application is created, and `submitApp` runs it again and refuses to submit until it passes. A passing result means submission won't reject the data.
-- **Roll back on failure.** `createApp` records every resource it creates. If a later step fails, including validation, it withdraws the application, deactivates the payment methods, unlinks the people, and deactivates the business, so a resubmission starts clean. v2 has no delete for paypoints or person records, so those stay behind, retired with their business or unlinked.
+- **Resume instead of recreating.** v2 rejects a second business with the same EIN, and a second bank account with the same routing and account numbers, even when the first was deactivated. So a submission that fails partway can't simply be rolled back and retried. Instead, `createApp` saves the references of everything it creates in a `boardingDrafts` table (keyed by the signed-in user), and the next submission updates those records rather than creating new ones:
+  - The business, paypoint, and addresses are updated in place. A different EIN can't be patched (it's immutable), so it retires the old business and starts a new one.
+  - People are matched by role and position in the form. Owners whose SSN or date of birth changed get a new person record (both fields are immutable), and anyone removed from the form is unlinked. Ownership and role flags are updated in two passes, because v2 rejects any single update that pushes combined ownership past 100% or leaves two signers.
+  - Bank accounts are matched by a hash of their routing and account numbers, updated in place, and deactivated when removed.
+  - A draft application is updated with `PATCH /v2/requests/{requestsReference}`.
+
+  After a successful submit, `submitApp` clears the saved draft so the user's next application starts fresh.
 
 When Payabli rejects a request with a `400`, `409`, or `422`, the routes pass the API's message and trace ID back to the form so the user can see what to fix.
 
@@ -489,44 +495,33 @@ Rules the form enforces for Boarding v2:
 - Exactly one owner is the primary controller.
 - Contacts are created as `Employee` people. The other person types are being retired.
 
-Here's the core of `api/createApp.ts`, with the payload builders and rollback logic left out:
+Here's the core of `api/createApp.ts`. Each step creates the record or, when the user's saved draft already has one, updates it:
 
 ```ts
-const paypoint = await runStep('paypoint', () =>
-  createPaypointWithBusiness(buildPaypointRequest(formData)),
-)
-const businessReference = paypoint.businessReference
-
-const signerPersonReference = await runStep('people', async () => {
-  const { contacts, owners } = buildPeople(formData, businessReference)
-  const results = await Promise.allSettled(
-    [...contacts, ...owners].map((person) => createPerson(person)),
+let draft = await loadUsableDraft(userId, formData) // null on a first attempt
+try {
+  draft = await runStep('paypoint', () => upsertBusiness(draft, formData))
+  const signerPersonReference = await runStep('people', () =>
+    syncPeople(draft, formData, personNames),
   )
-  // ...record created references for rollback, rethrow the first failure
-  return results[contacts.length + formData.signerOwnerIndex].value.personReference
-})
+  await runStep('paymentMethods', () => syncPaymentMethods(draft, formData))
+  const applicationReference = await runStep('application', () =>
+    upsertApplication(draft, formData), // services: { moneyIn: ['Card', 'Ach'] }
+  )
 
-await runStep('paymentMethods', () =>
-  createPaymentMethods(buildPaymentMethods(formData, businessReference)),
-)
-
-const application = await runStep('application', () =>
-  createApplication({
-    businessReference,
-    paypointReference: paypoint.paypointReference,
-    requestTemplate: import.meta.env.PAYABLI_BOARDING_TEMPLATE_REFERENCE || undefined,
-    services: SERVICES, // { moneyIn: ['Card', 'Ach'] }
-  }),
-)
-
-// Throws (and triggers rollback) if data is missing; returns documents still to upload.
-const documentRequirements = await runStep('validation', async () => {
-  const [validation, requirements] = await Promise.all([
-    validateApplication(application.requestsReference),
-    getDocumentRequirements(application.requestsReference),
-  ])
-  return checkValidation(validation, requirements)
-})
+  // Throws if data is missing; returns documents still to upload.
+  const documentRequirements = await runStep('validation', async () => {
+    const [validation, requirements] = await Promise.all([
+      validateApplication(applicationReference),
+      getDocumentRequirements(applicationReference),
+    ])
+    return checkValidation(validation, requirements)
+  })
+  // ...
+} catch (error) {
+  // Keep whatever was created; the next submission resumes from it.
+  if (draft) await saveBoardingDraft(userId, draft)
+}
 ```
 
 ## Authentication

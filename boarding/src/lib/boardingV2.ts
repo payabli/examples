@@ -185,6 +185,75 @@ export function deactivateBusiness(businessReference: string, reason: string) {
   })
 }
 
+export type BusinessSummary = {
+  businessUuid: string
+  businessStatus: string
+  // Masked (e.g. `****6819`) unless read through `getBusinessUnmasked`.
+  taxReference?: string | null
+}
+
+export function getBusinessUnmasked(businessReference: string) {
+  return v2Fetch<BusinessSummary>(`/businesses/${businessReference}/unmasked`)
+}
+
+// Everything on a business except `taxReference` (immutable after creation;
+// a request that includes it is rejected) and `addressDetails` (updated
+// through the address endpoints below).
+export type UpdateBusinessRequest = Partial<
+  Omit<CreateBusinessRequest, 'taxReference' | 'addressDetails'>
+>
+
+export function updateBusiness(
+  businessReference: string,
+  input: UpdateBusinessRequest,
+) {
+  return v2Fetch<unknown>(`/businesses/${businessReference}`, {
+    method: 'PATCH',
+    body: JSON.stringify(input),
+  })
+}
+
+export type BusinessAddressRecord = BusinessAddress & {
+  businessAddressReference: string
+}
+
+export function listBusinessAddresses(businessReference: string) {
+  return v2Fetch<BusinessAddressRecord[]>(
+    `/businesses/${businessReference}/addresses`,
+  )
+}
+
+export function createBusinessAddress(
+  businessReference: string,
+  address: BusinessAddress,
+) {
+  return v2Fetch<unknown>(`/businesses/${businessReference}/addresses`, {
+    method: 'POST',
+    body: JSON.stringify(address),
+  })
+}
+
+export function updateBusinessAddress(
+  businessReference: string,
+  businessAddressReference: string,
+  address: BusinessAddress,
+) {
+  return v2Fetch<unknown>(
+    `/businesses/${businessReference}/addresses/${businessAddressReference}`,
+    { method: 'PATCH', body: JSON.stringify(address) },
+  )
+}
+
+export function updatePaypoint(
+  paypointReference: string,
+  input: { doingBusinessAs?: string; website?: string },
+) {
+  return v2Fetch<unknown>(`/paypoints/${paypointReference}`, {
+    method: 'PATCH',
+    body: JSON.stringify(input),
+  })
+}
+
 // ---------------------------------------------------------------------------
 // People (created and linked to a business in one call)
 // ---------------------------------------------------------------------------
@@ -280,6 +349,60 @@ export function unlinkPersonFromBusiness(
   )
 }
 
+export type PersonIdentity = {
+  personReference: string
+  // Masked unless read through `getPersonUnmasked`.
+  ssn?: string | null
+  dateOfBirth?: string | null
+}
+
+export function getPersonUnmasked(personReference: string) {
+  return v2Fetch<PersonIdentity>(`/people/${personReference}/unmasked`)
+}
+
+// `ssn` and `dateOfBirth` are immutable after creation (rejected if sent), so
+// a change to either means creating a new person. `title` and the role flags
+// live on the business link, not the person.
+export type UpdatePersonRequest = Partial<
+  Omit<CreatePersonRequest, 'ssn' | 'dateOfBirth' | 'businessRelationship'>
+>
+
+export function updatePerson(
+  personReference: string,
+  input: UpdatePersonRequest,
+) {
+  return v2Fetch<unknown>(`/people/${personReference}`, {
+    method: 'PATCH',
+    body: JSON.stringify(input),
+  })
+}
+
+export type BusinessPersonLink = {
+  personReference: string
+  personType: string
+  ownershipPercentage: number | null
+  isPrimaryController: boolean
+  isSigner: boolean
+  title?: string | null
+}
+
+export function listBusinessPeople(businessReference: string) {
+  return v2Fetch<BusinessPersonLink[]>(
+    `/businesses/${businessReference}/people`,
+  )
+}
+
+export function updateBusinessPerson(
+  businessReference: string,
+  personReference: string,
+  input: Partial<Omit<BusinessRelationshipRequest, 'businessReference'>>,
+) {
+  return v2Fetch<unknown>(
+    `/businesses/${businessReference}/people/${personReference}`,
+    { method: 'PATCH', body: JSON.stringify(input) },
+  )
+}
+
 // ---------------------------------------------------------------------------
 // Payment methods
 // ---------------------------------------------------------------------------
@@ -338,6 +461,22 @@ export function deactivatePaymentMethod(paymentMethodReference: string) {
   })
 }
 
+// Updates are accepted only while the payment method is still `PENDING`.
+export function updatePaymentMethod(
+  paymentMethodReference: string,
+  input: Partial<
+    Pick<
+      CreatePaymentMethodRequest,
+      'nickname' | 'financialInstitution' | 'accountType' | 'usage'
+    >
+  >,
+) {
+  return v2Fetch<unknown>(`/payment-methods/${paymentMethodReference}`, {
+    method: 'PATCH',
+    body: JSON.stringify(input),
+  })
+}
+
 // ---------------------------------------------------------------------------
 // Applications (requests)
 // ---------------------------------------------------------------------------
@@ -390,6 +529,26 @@ export type Application = {
 export function createApplication(input: CreateApplicationRequest) {
   return v2Fetch<Application>('/requests', {
     method: 'POST',
+    body: JSON.stringify(input),
+  })
+}
+
+export function getApplication(requestsReference: string) {
+  return v2Fetch<Application>(`/requests/${requestsReference}`)
+}
+
+// Draft applications only.
+export function updateApplication(
+  requestsReference: string,
+  input: Partial<
+    Pick<
+      CreateApplicationRequest,
+      'requestTemplate' | 'configurations' | 'services' | 'tags'
+    >
+  >,
+) {
+  return v2Fetch<unknown>(`/requests/${requestsReference}`, {
+    method: 'PATCH',
     body: JSON.stringify(input),
   })
 }

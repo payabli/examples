@@ -20,7 +20,6 @@ type CreateAppFailure = {
   error: string
   step?: string
   traceId?: string | null
-  rolledBack?: boolean
   // Set when Payabli's `validate` found data the form didn't supply.
   missingFields?: { field: string; label: string }[]
 }
@@ -65,7 +64,8 @@ export function useFormLogic(
 
       if (!response.ok) {
         // createApp returns the API's own message for fixable errors (e.g. a
-        // duplicate bank account), plus whether partial resources were rolled back.
+        // duplicate bank account). Anything it created is kept, so the next
+        // submission resumes from it.
         const failure = (await response.json().catch(() => null)) as
           | CreateAppFailure
           | null

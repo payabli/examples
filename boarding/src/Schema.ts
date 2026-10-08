@@ -47,6 +47,26 @@ function validatePercentageDistribution(
   }
 }
 
+// v2 rejects a business link that would push combined ownership past 100%.
+function validateOwnershipTotal(
+  data: { ownership: { ownerpercent: number }[] },
+  ctx: z.RefinementCtx,
+) {
+  const total = data.ownership.reduce(
+    (sum, owner) => sum + Number(owner.ownerpercent || 0),
+    0,
+  )
+  if (total > 100) {
+    data.ownership.forEach((_, index) => {
+      ctx.addIssue({
+        path: ['ownership', index, 'ownerpercent'],
+        code: 'custom',
+        message: `Ownership adds up to ${total}%; it can't be more than 100%`,
+      })
+    })
+  }
+}
+
 function validateOperatingSeasons(
   data: {
     seasonSpring: boolean
@@ -278,8 +298,8 @@ const formSchemaKit = createFormSchemaKit({
         accountNumber: requiredString(),
         typeAccount: z.enum(['Checking', 'Savings']),
         // Maps to a v2 `usage[]` combination in the API-payload builder:
-        // Deposit -> [deposits], Withdrawal -> [withdrawals],
-        // Both -> [deposits, withdrawals], Remittance -> [payOutFunding].
+        // Deposit -> [deposits], Withdrawal -> [withdrawals, billing, refunds],
+        // Both -> all four, Remittance -> [payOutFunding].
         bankAccountFunction: z.enum([
           'Deposit',
           'Withdrawal',
@@ -307,6 +327,7 @@ export const formSchema = formSchemaKit.clientSchema.superRefine((data, ctx) => 
   validatePercentageDistribution(data, ctx)
   validateOwnerRoles(data, ctx)
   validateOperatingSeasons(data, ctx)
+  validateOwnershipTotal(data, ctx)
 })
 
 export const serverFormSchema = formSchemaKit.serverSchema.superRefine(
@@ -314,6 +335,7 @@ export const serverFormSchema = formSchemaKit.serverSchema.superRefine(
     validatePercentageDistribution(data, ctx)
     validateOwnerRoles(data, ctx)
     validateOperatingSeasons(data, ctx)
+    validateOwnershipTotal(data, ctx)
   },
 )
 
