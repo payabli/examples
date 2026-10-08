@@ -99,7 +99,7 @@ git clone https://github.com/payabli/examples
 cd examples/boarding
 ```
 
-3. Install the dependencies with the package manager declared by the project.
+3. Install the dependencies with the package manager declared by the project. The app needs Node.js 22.12 or later. Node.js 25 and later don't include Corepack, so on those versions run `npm install -g corepack` first.
 
 ```bash
 corepack enable
@@ -113,7 +113,7 @@ cp .env.template .env
 ```
 
 Set `PAYABLI_CLIENT_ID` and `PAYABLI_CLIENT_SECRET` to your Payabli OAuth2 client credentials (see [OAuth2 authentication](https://docs.payabli.com/developers/oauth-authentication)), and `BETTER_AUTH_SECRET` to any 32-character string.
-`PAYABLI_BOARDING_TEMPLATE_REFERENCE` is optional: set it to a v2 boarding template reference to apply that template to every application.
+Set `PAYABLI_BOARDING_TEMPLATE_REFERENCE` to the v2 boarding template your applications use. Applications need a template to complete underwriting, so ask your Payabli solutions engineer which one to use. A template can also add its own requirements, such as extra documents or fields, which show up in validation.
 
 5. Set up better-auth.
 
