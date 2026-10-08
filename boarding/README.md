@@ -478,7 +478,7 @@ The other routes follow this flow:
 Boarding v2 has no single atomic "create application" call, so the app guards against partial failures in two ways:
 
 - **Validate before writing.** The Zod schema catches problems the API would otherwise reject partway through, such as the same bank account entered twice (v2 returns `409` for a duplicate account and routing number on one owner). Use one bank entry with the function set to "Both" for an account that handles deposits and withdrawals.
-- **Validate before signing.** Partner submit doesn't run Payabli's validation, so `createApp` runs it right after the application is created. A passing result means submission won't reject the data.
+- **Validate before signing and before submitting.** Partner submit doesn't require a validation result yet, so the app enforces it: `createApp` runs validation right after the application is created, and `submitApp` runs it again and refuses to submit until it passes. A passing result means submission won't reject the data.
 - **Roll back on failure.** `createApp` records every resource it creates. If a later step fails, including validation, it withdraws the application, deactivates the payment methods, unlinks the people, and deactivates the business, so a resubmission starts clean. v2 has no delete for paypoints or person records, so those stay behind, retired with their business or unlinked.
 
 When Payabli rejects a request with a `400`, `409`, or `422`, the routes pass the API's message and trace ID back to the form so the user can see what to fix.
