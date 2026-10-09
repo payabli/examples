@@ -1,6 +1,6 @@
 import type { APIRoute } from 'astro';
 import { saveFormData, loadFormData, clearFormData } from '../../lib/serverDb';
-import { normalizeServerFormData, safeParseServerFormData } from '../../Schema';
+import { formFieldNames, normalizeServerFormData } from '../../Schema';
 
 // Draft persistence path: enforce server-owned prefills without requiring a complete valid submission.
 function normalizeSerializedFormData(serialized: string) {
@@ -9,14 +9,19 @@ function normalizeSerializedFormData(serialized: string) {
   return JSON.stringify(normalizedData);
 }
 
-// A saved draft from a previous version of this form's schema won't validate
-// against the current one (field names/shape can change between releases).
-// Treat that as "no draft" rather than handing the client a stale shape it
-// can't cleanly render.
+// A draft saved by an earlier version of the form (for example the v1 form's
+// `legalname` or `signer` fields) can't be rendered by the current one, so
+// it's discarded. This checks field names only: drafts are partial by nature,
+// and their sensitive fields are blanked on save, so they'd never pass full
+// schema validation.
 function isDraftCompatibleWithCurrentSchema(serialized: string): boolean {
   try {
     const parsedData = JSON.parse(serialized);
-    return safeParseServerFormData(parsedData).success;
+    return (
+      parsedData !== null &&
+      typeof parsedData === 'object' &&
+      Object.keys(parsedData).every((key) => formFieldNames.has(key))
+    );
   } catch {
     return false;
   }
@@ -24,12 +29,12 @@ function isDraftCompatibleWithCurrentSchema(serialized: string): boolean {
 
 export const POST: APIRoute = async ({ request }) => {
   try {
-    const { action, encryptedIdentifier, encryptedData } = await request.json();
-    console.log(`Received request: action=${action}, encryptedIdentifier=${encryptedIdentifier}`);
+    const { action, userId, draftData } = await request.json();
+    console.log(`Received request: action=${action}`);
 
-    if (!action || !encryptedIdentifier) {
-      console.error('Missing action or encryptedIdentifier');
-      return new Response(JSON.stringify({ error: 'Missing action or encryptedIdentifier' }), { 
+    if (!action || !userId) {
+      console.error('Missing action or userId');
+      return new Response(JSON.stringify({ error: 'Missing action or userId' }), { 
         status: 400,
         headers: { 'Content-Type': 'application/json' }
       });
@@ -37,54 +42,51 @@ export const POST: APIRoute = async ({ request }) => {
 
     switch (action) {
       case 'save':
-        if (!encryptedData) {
-          console.error('Missing encryptedData for save action');
-          return new Response(JSON.stringify({ error: 'Missing encryptedData for save action' }), { 
+        if (!draftData) {
+          console.error('Missing draftData for save action');
+          return new Response(JSON.stringify({ error: 'Missing draftData for save action' }), { 
             status: 400,
             headers: { 'Content-Type': 'application/json' }
           });
         }
-        let normalizedEncryptedData: string;
+        let normalizedDraftData: string;
         try {
-          normalizedEncryptedData = normalizeSerializedFormData(encryptedData);
+          normalizedDraftData = normalizeSerializedFormData(draftData);
         } catch (error) {
           console.error('Invalid serialized form data received for save action', error);
-          return new Response(JSON.stringify({ error: 'Invalid encryptedData payload' }), {
+          return new Response(JSON.stringify({ error: 'Invalid draftData payload' }), {
             status: 400,
             headers: { 'Content-Type': 'application/json' }
           });
         }
 
-        console.log(`Saving data. Encrypted data length: ${normalizedEncryptedData.length}`);
-        await saveFormData(encryptedIdentifier, normalizedEncryptedData);
+        console.log(`Saving draft. Data length: ${normalizedDraftData.length}`);
+        await saveFormData(userId, normalizedDraftData);
         console.log('Save operation completed');
         return new Response(JSON.stringify({ success: true }), { 
           status: 200,
           headers: { 'Content-Type': 'application/json' }
         });
       case 'load':
-        console.log(`Loading data for identifier: ${encryptedIdentifier}`);
-        const loadedData = await loadFormData(encryptedIdentifier);
+        console.log('Loading draft');
+        const loadedData = await loadFormData(userId);
         const compatibleLoadedData =
           loadedData && isDraftCompatibleWithCurrentSchema(loadedData) ? loadedData : null;
         if (loadedData && !compatibleLoadedData) {
-          console.log('Saved draft no longer matches the current form schema; discarding it.');
-          await clearFormData(encryptedIdentifier);
+          console.log('Saved draft is from an older version of the form; discarding it.');
+          await clearFormData(userId);
         }
         const normalizedLoadedData = compatibleLoadedData
           ? normalizeSerializedFormData(compatibleLoadedData)
           : null;
         console.log('Load operation completed, data:', normalizedLoadedData ? `found (length: ${normalizedLoadedData.length})` : 'not found');
-        if (normalizedLoadedData) {
-          console.log('Loaded data (first 50 chars):', normalizedLoadedData.substring(0, 50) + '...');
-        }
-        return new Response(JSON.stringify({ encryptedData: normalizedLoadedData }), {
+        return new Response(JSON.stringify({ draftData: normalizedLoadedData }), {
           status: 200,
           headers: { 'Content-Type': 'application/json' }
         });
       case 'clear':
-        console.log(`Clearing data for identifier: ${encryptedIdentifier}`);
-        await clearFormData(encryptedIdentifier);
+        console.log('Clearing draft');
+        await clearFormData(userId);
         console.log('Clear operation completed');
         return new Response(JSON.stringify({ success: true }), { 
           status: 200,

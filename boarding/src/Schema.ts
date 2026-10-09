@@ -339,6 +339,12 @@ export const serverFormSchema = formSchemaKit.serverSchema.superRefine(
   },
 )
 
+// Top-level field names of the current form, for recognizing drafts saved by
+// an older version of it.
+export const formFieldNames = new Set(
+  Object.keys(formSchemaKit.clientSchema.shape),
+)
+
 export const formDefaultValues = {
   ...formSchemaKit.defaultValues,
   signerOwnerIndex: 0,
@@ -364,6 +370,44 @@ export function parseServerFormData(input: unknown) {
 // Use safeParse when the payload must be fully validated after prefill enforcement but without throwing.
 export function safeParseServerFormData(input: unknown) {
   return serverFormSchema.safeParse(normalizeServerFormData(input))
+}
+
+// Drafts are stored unencrypted, so blank out tax IDs, SSNs, dates of birth, and bank account numbers
+// before saving. Applicants re-enter these fields when they resume a draft.
+export function redactDraftFormData<T>(input: T): T {
+  if (!input || typeof input !== 'object' || Array.isArray(input)) {
+    return input
+  }
+
+  const data = JSON.parse(JSON.stringify(input)) as Record<string, any>
+  const redactBankAccount = (account: Record<string, any> | undefined) => {
+    if (account && typeof account === 'object') {
+      account.routingAccount = ''
+      account.accountNumber = ''
+    }
+  }
+
+  // `taxReference` is the EIN in the v2 form; `ein` and `signer` cover drafts
+  // saved by the earlier v1 form.
+  if ('taxReference' in data) data.taxReference = ''
+  if ('ein' in data) data.ein = ''
+  if (Array.isArray(data.ownership)) {
+    for (const owner of data.ownership) {
+      if (owner && typeof owner === 'object') {
+        owner.ownerssn = ''
+        owner.ownerdob = ''
+      }
+    }
+  }
+  if (data.signer && typeof data.signer === 'object') {
+    data.signer.ssn = ''
+    data.signer.dob = ''
+  }
+  if (Array.isArray(data.bankData)) data.bankData.forEach(redactBankAccount)
+  redactBankAccount(data.depositAccount)
+  redactBankAccount(data.withdrawalAccount)
+
+  return data as T
 }
 
 // Create a type for the form data

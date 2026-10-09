@@ -16,7 +16,7 @@ The application has three pages:
 
 ```bash
 git clone https://github.com/payabli/examples
-cd examples/sdk/py-sdk
+cd examples/sdk/cs-sdk
 ```
 
 2. Copy the `.env.template` file to `.env` and fill in the required values.
