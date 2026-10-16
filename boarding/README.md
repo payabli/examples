@@ -99,11 +99,10 @@ git clone https://github.com/payabli/examples
 cd examples/boarding
 ```
 
-3. Install the dependencies with the package manager declared by the project. The app needs Node.js 22.12 or later. Node.js 25 and later don't include Corepack, so on those versions run `npm install -g corepack` first.
+3. Install the dependencies. The app needs Node.js 22.12 or later.
 
 ```bash
-corepack enable
-pnpm install
+npm install
 ```
 
 4. Copy the `.env.template` file to `.env` and fill in the required values.
@@ -118,14 +117,14 @@ Set `PAYABLI_BOARDING_TEMPLATE_REFERENCE` to the v2 boarding template your appli
 5. Set up better-auth.
 
 ```bash
-pnpm dlx @better-auth/cli@1.4.22 generate
-pnpm dlx @better-auth/cli@1.4.22 migrate
+npx @better-auth/cli@1.4.22 generate
+npx @better-auth/cli@1.4.22 migrate
 ```
 
 6. Start the development server.
 
 ```bash
-pnpm dev
+npm run dev
 ```
 
 ## Form Configuration API
