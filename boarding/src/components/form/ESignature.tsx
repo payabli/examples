@@ -25,6 +25,7 @@ import {
   X,
 } from 'lucide-react'
 import { useESignatureStore } from '@/hooks/use-esignature'
+import type { MissingFieldForForm } from '@/lib/validationFields'
 import { Separator } from '@/components/ui/separator'
 import { Checkbox } from '@/components/ui/checkbox'
 import { motion } from 'framer-motion'
@@ -39,9 +40,16 @@ import {
 interface ESignatureProps {
   contentRef: React.RefObject<HTMLDivElement | null>
   onConfirm: () => void
+  // Closes the dialog and highlights the fields Payabli's validation
+  // flagged, so the user can fix them and submit again.
+  onFixInForm: (missingFields: MissingFieldForForm[]) => void
 }
 
-export function ESignature({ contentRef, onConfirm }: ESignatureProps) {
+export function ESignature({
+  contentRef,
+  onConfirm,
+  onFixInForm,
+}: ESignatureProps) {
   const {
     isOpen,
     dialogState,
@@ -455,14 +463,35 @@ export function ESignature({ contentRef, onConfirm }: ESignatureProps) {
                     <p className="mb-4 text-center text-muted-foreground">
                       {submitError?.message ?? errorMessage}
                     </p>
+                    {submitError?.missingFields?.length ? (
+                      <ul className="mb-4 list-disc space-y-1 pl-5 text-left text-sm text-muted-foreground">
+                        {submitError.missingFields.map((missing) => (
+                          <li key={missing.field}>{missing.formMessage}</li>
+                        ))}
+                      </ul>
+                    ) : null}
                     {submitError?.traceId && (
                       <p className="mb-4 text-center text-xs text-muted-foreground">
                         Trace ID: {submitError.traceId}
                       </p>
                     )}
-                    <Button onClick={onRetry} className="mb-2 w-full">
-                      Try Again
-                    </Button>
+                    {submitError?.missingFields?.length ? (
+                      // Signing again won't help until the data changes.
+                      <Button
+                        onClick={() => {
+                          const missingFields = submitError.missingFields ?? []
+                          onClose()
+                          onFixInForm(missingFields)
+                        }}
+                        className="mb-2 w-full"
+                      >
+                        Fix in form
+                      </Button>
+                    ) : (
+                      <Button onClick={onRetry} className="mb-2 w-full">
+                        Try Again
+                      </Button>
+                    )}
                     <Button onClick={onClose} variant="outline" className="w-full">
                       Close
                     </Button>

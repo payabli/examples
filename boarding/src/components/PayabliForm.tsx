@@ -798,7 +798,11 @@ export function PayabliForm() {
     ],
   )
 
-  const { onSuccess, onError } = useFormLogic(steps, setCurrentPage)
+  const { onSuccess, onError, applyValidationErrors } = useFormLogic(
+    steps,
+    setCurrentPage,
+    form,
+  )
 
   const { handleESignatureProcess, handleConfirm, contentRef } = useESignature({
     documentBody: documentPages,
@@ -906,7 +910,11 @@ export function PayabliForm() {
           <form onSubmit={form.handleSubmit(onSuccessWithForm, onError)}>
             {steps}
           </form>
-          <ESignature contentRef={contentRef} onConfirm={onConfirm} />
+          <ESignature
+            contentRef={contentRef}
+            onConfirm={onConfirm}
+            onFixInForm={applyValidationErrors}
+          />
           <DocumentUploadDialog
             open={pendingDocuments.length > 0}
             applicationReference={appId}

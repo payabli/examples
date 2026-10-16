@@ -48,6 +48,11 @@ export default function FormCheckboxGroup({
   iconleft,
 }: FormCheckboxGroupProps) {
   const form = useFormContext()
+  // The group's validation error lives on one of its options (e.g. "choose
+  // at least one season" on the first), so show whichever option has one.
+  const groupError = options
+    .map((option) => form.formState.errors[option.name]?.message)
+    .find((message): message is string => typeof message === 'string')
 
   const [open, setOpen] = useState(false)
   const tooltipRef = useRef<HTMLDivElement | null>(null)
@@ -128,6 +133,9 @@ export default function FormCheckboxGroup({
           />
         ))}
       </div>
+      {groupError && (
+        <p className="text-sm font-medium text-destructive">{groupError}</p>
+      )}
     </div>
   )
 }

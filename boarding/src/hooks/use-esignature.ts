@@ -1,6 +1,7 @@
 import { useState, useCallback, useRef } from 'react'
 import type { jsPDF } from 'jspdf'
 import { create } from 'zustand'
+import type { MissingFieldForForm } from '@/lib/validationFields'
 
 interface ESignatureOptions {
   documentBody: React.ReactNode[]
@@ -30,6 +31,9 @@ interface ESignatureState {
 export type SubmitError = {
   message: string
   traceId: string | null
+  // Set when submit was blocked by Payabli's validation; each carries the
+  // form field(s) to fix.
+  missingFields?: MissingFieldForForm[]
 }
 
 interface ESignatureActions {
@@ -162,8 +166,11 @@ export function useESignature({ documentBody }: ESignatureOptions) {
 
         if (!submitResponse.ok) {
           throw new SubmitFailure({
-            message: submitResponseBody?.error || 'Failed to submit application',
+            message: submitResponseBody?.missingFields?.length
+              ? 'Payabli needs more information before this application can be submitted.'
+              : submitResponseBody?.error || 'Failed to submit application',
             traceId: submitResponseBody?.traceId ?? null,
+            missingFields: submitResponseBody?.missingFields,
           })
         }
 

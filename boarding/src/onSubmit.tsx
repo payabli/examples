@@ -1,10 +1,10 @@
 import React from 'react'
-import { FieldValues } from 'react-hook-form'
+import { FieldValues, type UseFormReturn } from 'react-hook-form'
 import { z } from 'zod'
 import { formSchema } from './Schema'
-import { toast, useToast } from '@/hooks/use-toast'
-import { useFormWithSchema } from './Schema'
+import { toast } from '@/hooks/use-toast'
 import type { DocumentRequirement } from '@/lib/boardingV2'
+import type { MissingFieldForForm } from '@/lib/validationFields'
 
 type FormSchemaType = z.infer<typeof formSchema>
 
@@ -20,19 +20,53 @@ type CreateAppFailure = {
   error: string
   step?: string
   traceId?: string | null
-  // Set when Payabli's `validate` found data the form didn't supply.
-  missingFields?: { field: string; label: string }[]
+  // Set when Payabli's `validate` found data the form didn't supply, each
+  // with the form field(s) it maps to.
+  missingFields?: MissingFieldForForm[]
 }
 
-// "Payabli needs more information...: Business Phone, Title" -- the labels
-// are Payabli's names for the missing fields.
-function describeFailure(failure: CreateAppFailure | null): string {
-  const message =
-    failure?.error ?? 'The form could not be submitted successfully.'
-  const labels = [
-    ...new Set((failure?.missingFields ?? []).map((missing) => missing.label)),
-  ]
-  return labels.length > 0 ? `${message} Missing: ${labels.join(', ')}.` : message
+// Top-level form field name -> wizard step index, read from the rendered
+// steps (field `name`s, country/region picker names, and checkbox-group
+// option names). `ownership[].ownertitle` and `ownership.1.ownertitle` both
+// key on `ownership`.
+function topLevelKey(name: string) {
+  return name.split(/[.[]/)[0]
+}
+
+function collectFieldSteps(
+  steps: React.ReactElement<{ children?: React.ReactNode }>,
+): Map<string, number> {
+  const fieldSteps = new Map<string, number>()
+  const walk = (node: React.ReactNode, step: number) => {
+    React.Children.forEach(node, (child) => {
+      if (!React.isValidElement(child)) {
+        return
+      }
+      const props = child.props as {
+        name?: string
+        countryName?: string
+        regionName?: string
+        options?: { name?: string }[]
+        children?: React.ReactNode
+      }
+      const names = [
+        props.name,
+        props.countryName,
+        props.regionName,
+        ...(props.options ?? []).map((option) => option.name),
+      ]
+      for (const name of names) {
+        if (typeof name === 'string' && !fieldSteps.has(topLevelKey(name))) {
+          fieldSteps.set(topLevelKey(name), step)
+        }
+      }
+      walk(props.children, step)
+    })
+  }
+  React.Children.forEach(steps.props.children, (step, index) =>
+    walk(step, index),
+  )
+  return fieldSteps
 }
 
 class SubmissionError extends Error {
@@ -47,8 +81,52 @@ class SubmissionError extends Error {
 export function useFormLogic(
   steps: React.ReactElement<{ children?: React.ReactNode }>,
   setCurrentPage: React.Dispatch<React.SetStateAction<number>>,
+  // The form the wizard renders, so errors set here show on its fields.
+  form: UseFormReturn<FormSchemaType>,
 ) {
-  const form = useFormWithSchema()
+  // Jumps to the earliest step that has any of these fields.
+  function goToEarliestStep(fieldNames: string[]) {
+    const fieldSteps = collectFieldSteps(steps)
+    const stepIndexes = fieldNames
+      .map((name) => fieldSteps.get(topLevelKey(name)))
+      .filter((step): step is number => step !== undefined)
+    if (stepIndexes.length > 0) {
+      setCurrentPage(Math.min(...stepIndexes))
+    }
+  }
+
+  // Shows Payabli's validation gaps on the fields they belong to and jumps
+  // to the first one. Returns the gaps the form has no field for (e.g. a
+  // template requirement this form doesn't collect).
+  function applyValidationErrors(
+    missingFields: MissingFieldForForm[],
+  ): MissingFieldForForm[] {
+    const highlighted: string[] = []
+    for (const missing of missingFields) {
+      for (const field of missing.formFields) {
+        form.setError(field as keyof FormSchemaType, {
+          type: 'server',
+          message: missing.formMessage,
+        })
+        highlighted.push(field)
+      }
+    }
+    goToEarliestStep(highlighted)
+    return missingFields.filter((missing) => missing.formFields.length === 0)
+  }
+
+  // "Fix the highlighted fields." plus anything that couldn't be highlighted.
+  function describeValidationFailure(missingFields: MissingFieldForForm[]) {
+    const unmapped = applyValidationErrors(missingFields)
+    const highlightedCount = missingFields.length - unmapped.length
+    const parts = [
+      highlightedCount > 0
+        ? `Fix the ${highlightedCount === 1 ? 'highlighted field' : `${highlightedCount} highlighted fields`} and submit again.`
+        : '',
+      ...unmapped.map((missing) => missing.formMessage),
+    ]
+    return parts.filter(Boolean).join(' ')
+  }
 
   async function onSuccess(
     values: FormSchemaType,
@@ -69,7 +147,13 @@ export function useFormLogic(
         const failure = (await response.json().catch(() => null)) as
           | CreateAppFailure
           | null
-        throw new SubmissionError(describeFailure(failure), failure)
+        throw new SubmissionError(
+          failure?.missingFields?.length
+            ? describeValidationFailure(failure.missingFields)
+            : (failure?.error ??
+                'The form could not be submitted successfully.'),
+          failure,
+        )
       }
 
       const responseData = (await response.json()) as CreatedApplication
@@ -78,7 +162,10 @@ export function useFormLogic(
     } catch (error) {
       toast({
         variant: 'destructive',
-        title: 'Error',
+        title:
+          error instanceof SubmissionError && error.details?.missingFields?.length
+            ? 'Payabli needs more information'
+            : 'Error',
         description:
           error instanceof SubmissionError
             ? error.message
@@ -102,71 +189,19 @@ export function useFormLogic(
       form.setError('binweb', { type: 'manual', message: errorMessage })
     }
 
-    form.trigger().then(() => {
-      if (steps && steps.props && steps.props.children) {
-        const errorPages = React.Children.map(
-          steps.props.children,
-          (step: React.ReactNode, index: number) => {
-            const errorElementIndex = findErrorElementIndex(step)
-            return errorElementIndex !== -1 ? index : 0
-          },
-        )
-        const earliestErrorPage = Math.min(...(errorPages ?? [])) || 0
-
-        toast({
-          variant: 'destructive',
-          title: 'Error!',
-          description: 'The form could not be submitted successfully.',
-        })
-
-        console.log(errors)
-
-        // Update the current page to the earliest error page
-        setCurrentPage(earliestErrorPage)
-      } else {
-        toast({
-          variant: 'destructive',
-          title: 'Error!',
-          description: 'An unexpected error occurred.',
-        })
-      }
+    // Zod has already set the field errors; jump to the first step with one.
+    goToEarliestStep(Object.keys(errors))
+    toast({
+      variant: 'destructive',
+      title: 'Error!',
+      description: 'Some fields need attention. They are highlighted in the form.',
     })
-  }
-
-  function findErrorElementIndex(element: React.ReactNode): number {
-    if (React.isValidElement(element)) {
-      const name = (element.props as { name?: string }).name as keyof FormSchemaType
-      if (name && form.formState.errors[name]) {
-        return 0
-      }
-    }
-
-    if (Array.isArray(element)) {
-      for (let i = 0; i < element.length; i++) {
-        const errorElementIndex = findErrorElementIndex(element[i])
-        if (errorElementIndex !== -1) {
-          return i
-        }
-      }
-    }
-
-    if (
-      React.isValidElement(element) &&
-      (element.props as React.PropsWithChildren<{}>).children
-    ) {
-      const errorElementIndex = findErrorElementIndex(
-        (element.props as React.PropsWithChildren<{}>).children,
-      )
-      if (errorElementIndex !== -1) {
-        return errorElementIndex
-      }
-    }
-
-    return -1
+    console.log(errors)
   }
 
   return {
     onSuccess,
     onError,
+    applyValidationErrors,
   }
 }

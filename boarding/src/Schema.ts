@@ -8,6 +8,23 @@ const requiredString = () =>
   z.string().min(1, { message: 'This field is required' })
 const requiredNumber = () =>
   z.coerce.number().min(1, { message: 'This field is required' })
+// US phone numbers: 10 digits, and never starting with 1. A leading 1 reads
+// as the country code, so the card processor strips it and rejects the rest
+// as too short (Payabli validate: "not the ten digits the card processor
+// requires"). No valid US area code starts with 1.
+const PHONE_DIGITS = /^\d{10}$/
+const PHONE_LEADING_ONE =
+  "Phone numbers can't start with 1. Enter the 10-digit number without the country code"
+const requiredPhone = () =>
+  requiredString()
+    .regex(PHONE_DIGITS, { message: 'Phone number must be 10 digits' })
+    .refine((value) => !value.startsWith('1'), { message: PHONE_LEADING_ONE })
+const optionalPhone = () =>
+  z
+    .string()
+    .regex(/^(\d{10})?$/, { message: 'Phone number must be 10 digits' })
+    .refine((value) => !value.startsWith('1'), { message: PHONE_LEADING_ONE })
+    .optional()
 const requiredDate = () =>
   z.string().regex(/^\d{2}\/\d{2}\/\d{4}$/, {
     message: 'Date must be in MM/DD/YYYY format',
@@ -43,6 +60,29 @@ function validatePercentageDistribution(
       fatal: false,
       code: 'custom',
       message: errorMessage,
+    })
+  }
+}
+
+// Payabli validate requires each transaction metric to be larger than the
+// one before it: highest ticket > average ticket, and monthly volume >
+// highest ticket. Equal values fail.
+function validateTransactionSizes(
+  data: { ticketamt: number; highticketamt: number; avgmonthly: number },
+  ctx: z.RefinementCtx,
+) {
+  if (Number(data.highticketamt) <= Number(data.ticketamt)) {
+    ctx.addIssue({
+      path: ['highticketamt'],
+      code: 'custom',
+      message: 'Highest Ticket Amount must be greater than Average Ticket Amount',
+    })
+  }
+  if (Number(data.avgmonthly) <= Number(data.highticketamt)) {
+    ctx.addIssue({
+      path: ['avgmonthly'],
+      code: 'custom',
+      message: 'Average Monthly Volume must be greater than Highest Ticket Amount',
     })
   }
 }
@@ -166,9 +206,7 @@ const formSchemaKit = createFormSchemaKit({
     message: 'Tax reference (EIN) must be 9 digits',
   }),
   startdate: requiredDate(),
-  phonenumber: requiredString().regex(/^\d{10}$/, {
-    message: 'Phone number must be 10 digits',
-  }),
+  phonenumber: requiredPhone(),
   legalStructure: z.enum([
     'limited-liability-company',
     'corporation',
@@ -244,9 +282,7 @@ const formSchemaKit = createFormSchemaKit({
           message: 'Invalid email address',
         }),
         contactTitle: requiredString(),
-        contactPhone: requiredString().regex(/^\d{10}$/, {
-          message: 'Phone number must be 10 digits',
-        }),
+        contactPhone: requiredPhone(),
       }),
     )
     .nonempty(),
@@ -263,13 +299,8 @@ const formSchemaKit = createFormSchemaKit({
           message: 'SSN must be 9 digits',
         }),
         ownerdob: requiredDate(),
-        ownerphone1: requiredString().regex(/^\d{10}$/, {
-          message: 'Phone number must be 10 digits',
-        }),
-        ownerphone2: z
-          .string()
-          .regex(/^(\d{10})?$/, { message: 'Phone number must be 10 digits' })
-          .optional(),
+        ownerphone1: requiredPhone(),
+        ownerphone2: optionalPhone(),
         owneremail: requiredString().email({
           message: 'Invalid email address',
         }),
@@ -328,6 +359,7 @@ export const formSchema = formSchemaKit.clientSchema.superRefine((data, ctx) => 
   validateOwnerRoles(data, ctx)
   validateOperatingSeasons(data, ctx)
   validateOwnershipTotal(data, ctx)
+  validateTransactionSizes(data, ctx)
 })
 
 export const serverFormSchema = formSchemaKit.serverSchema.superRefine(
@@ -336,6 +368,7 @@ export const serverFormSchema = formSchemaKit.serverSchema.superRefine(
     validateOwnerRoles(data, ctx)
     validateOperatingSeasons(data, ctx)
     validateOwnershipTotal(data, ctx)
+    validateTransactionSizes(data, ctx)
   },
 )
 

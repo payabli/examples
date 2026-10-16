@@ -568,6 +568,9 @@ export type ValidationMissingField = {
   field: string
   label: string
   reason: string
+  // A fuller explanation when Payabli has one, e.g. "the owner's phone is
+  // not the ten digits the card processor requires."
+  message?: string
 }
 
 export type ValidationSection = {

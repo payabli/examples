@@ -1,6 +1,7 @@
 import type { APIRoute } from 'astro'
 import { auth } from '../../../auth'
-import { clearBoardingDraft } from '../../lib/serverDb'
+import { clearBoardingDraft, loadBoardingDraft } from '../../lib/serverDb'
+import { mapMissingFields } from '../../lib/validationFields'
 import {
   submitApplication,
   validateApplication,
@@ -27,10 +28,17 @@ export const POST: APIRoute = async ({ request }) => {
     // team is tracking it), so it accepts incomplete applications. Gate it
     // here instead: only submit once Payabli's validation passes, which
     // also covers anything that changed after createApp's own check.
+    const session = await auth.api.getSession({ headers: request.headers })
     const validation = await validateApplication(applicationReference)
     if (!validation.valid) {
-      const missingFields = Object.values(validation.sections ?? {}).flatMap(
-        (section) => section.missingFields ?? [],
+      // The draft says which form row each person is, so missing fields
+      // can be pointed at the right field.
+      const draft = session ? await loadBoardingDraft(session.user.id) : null
+      const missingFields = mapMissingFields(
+        Object.values(validation.sections ?? {}).flatMap(
+          (section) => section.missingFields ?? [],
+        ),
+        draft?.people ?? [],
       )
       const labels = [...new Set(missingFields.map((missing) => missing.label))]
       return jsonResponse(
@@ -50,7 +58,6 @@ export const POST: APIRoute = async ({ request }) => {
 
     // The submission is done, so the user's next application starts fresh
     // instead of resuming these records.
-    const session = await auth.api.getSession({ headers: request.headers })
     if (session) {
       await clearBoardingDraft(session.user.id)
     }

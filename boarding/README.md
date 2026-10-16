@@ -488,6 +488,7 @@ Boarding v2 has no single atomic "create application" call, so the app guards ag
   After a successful submit, `submitApp` clears the saved draft so the user's next application starts fresh.
 
 When Payabli rejects a request with a `400`, `409`, or `422`, the routes pass the API's message and trace ID back to the form so the user can see what to fix.
+When validation reports missing or invalid data, `lib/validationFields.ts` maps each reported path (for example `business.phone` or `people.{personReference}.title`) to the form field it belongs to, and the form highlights those fields and jumps to the first step that has one. Anything the form has no field for is listed in the error message instead.
 
 Rules the form enforces for Boarding v2:
 

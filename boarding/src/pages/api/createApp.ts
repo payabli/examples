@@ -9,6 +9,7 @@ import {
   saveBoardingDraft,
   type BoardingDraft,
 } from '../../lib/serverDb'
+import { mapMissingFields } from '../../lib/validationFields'
 import {
   createApplication,
   createBusinessAddress,
@@ -649,7 +650,10 @@ function checkValidation(
 // the user can fix their input; anything else is reported as an upstream
 // failure without leaking internals. Whatever was created is kept, so the
 // next submission resumes from it.
-function toErrorResponse(error: StepError) {
+function toErrorResponse(
+  error: StepError,
+  people: BoardingDraft['people'],
+) {
   const cause = error.cause
 
   if (cause instanceof IncompleteApplicationError) {
@@ -658,7 +662,9 @@ function toErrorResponse(error: StepError) {
         error:
           'Payabli needs more information before this application can be submitted.',
         step: error.step,
-        missingFields: cause.missingFields,
+        // Each carries the form field(s) to highlight, so the UI can point
+        // at what to fix instead of only listing Payabli's labels.
+        missingFields: mapMissingFields(cause.missingFields, people),
       },
       422,
     )
@@ -764,6 +770,6 @@ export const POST: APIRoute = async ({ request }) => {
     if (draft) {
       await saveBoardingDraft(userId, draft)
     }
-    return toErrorResponse(stepError)
+    return toErrorResponse(stepError, draft?.people ?? [])
   }
 }
