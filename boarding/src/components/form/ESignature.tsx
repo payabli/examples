@@ -25,6 +25,7 @@ import {
   X,
 } from 'lucide-react'
 import { useESignatureStore } from '@/hooks/use-esignature'
+import type { MissingFieldForForm } from '@/lib/validationFields'
 import { Separator } from '@/components/ui/separator'
 import { Checkbox } from '@/components/ui/checkbox'
 import { motion } from 'framer-motion'
@@ -39,9 +40,16 @@ import {
 interface ESignatureProps {
   contentRef: React.RefObject<HTMLDivElement | null>
   onConfirm: () => void
+  // Closes the dialog and highlights the fields Payabli's validation
+  // flagged, so the user can fix them and submit again.
+  onFixInForm: (missingFields: MissingFieldForForm[]) => void
 }
 
-export function ESignature({ contentRef, onConfirm }: ESignatureProps) {
+export function ESignature({
+  contentRef,
+  onConfirm,
+  onFixInForm,
+}: ESignatureProps) {
   const {
     isOpen,
     dialogState,
@@ -57,8 +65,11 @@ export function ESignature({ contentRef, onConfirm }: ESignatureProps) {
     successMessage,
     errorTitle,
     errorMessage,
+    submitError,
+    signerName,
     setIsOpen,
     setDialogState,
+    setSubmitError,
   } = useESignatureStore()
 
   const [loading, setLoading] = useState(false)
@@ -109,6 +120,16 @@ export function ESignature({ contentRef, onConfirm }: ESignatureProps) {
     setTermsOpened(false)
     setDialogState('pricing')
     setSignature('')
+    setSubmitError(null)
+  }
+
+  // Back to the signing screen for the same application. Closing and
+  // resubmitting the wizard instead would create a second business and
+  // application in Payabli.
+  const onRetry = () => {
+    setLoading(false)
+    setSubmitError(null)
+    setDialogState('form')
   }
 
   const handleNextClick = () => {
@@ -343,6 +364,15 @@ export function ESignature({ contentRef, onConfirm }: ESignatureProps) {
                     </label>
                   </div>
                   <div className="space-y-2">
+                    {signerName && (
+                      <p className="text-sm text-muted-foreground">
+                        Signing as{' '}
+                        <span className="font-medium text-foreground">
+                          {signerName}
+                        </span>{' '}
+                        (owner)
+                      </p>
+                    )}
                     <div className="relative flex rounded-lg shadow-sm shadow-black/5">
                       <span className="pointer-events-none absolute inset-y-0 start-0 flex items-center justify-center ps-3 text-sm text-muted-foreground">
                         <User size={22} strokeWidth={2} aria-hidden="true" />
@@ -431,10 +461,39 @@ export function ESignature({ contentRef, onConfirm }: ESignatureProps) {
                     </div>
                     <h2 className="mb-2 text-2xl font-bold">{errorTitle}</h2>
                     <p className="mb-4 text-center text-muted-foreground">
-                      {errorMessage}
+                      {submitError?.message ?? errorMessage}
                     </p>
-                    <Button onClick={onClose} className="w-full">
-                      Try Again
+                    {submitError?.missingFields?.length ? (
+                      <ul className="mb-4 list-disc space-y-1 pl-5 text-left text-sm text-muted-foreground">
+                        {submitError.missingFields.map((missing) => (
+                          <li key={missing.field}>{missing.formMessage}</li>
+                        ))}
+                      </ul>
+                    ) : null}
+                    {submitError?.traceId && (
+                      <p className="mb-4 text-center text-xs text-muted-foreground">
+                        Trace ID: {submitError.traceId}
+                      </p>
+                    )}
+                    {submitError?.missingFields?.length ? (
+                      // Signing again won't help until the data changes.
+                      <Button
+                        onClick={() => {
+                          const missingFields = submitError.missingFields ?? []
+                          onClose()
+                          onFixInForm(missingFields)
+                        }}
+                        className="mb-2 w-full"
+                      >
+                        Fix in form
+                      </Button>
+                    ) : (
+                      <Button onClick={onRetry} className="mb-2 w-full">
+                        Try Again
+                      </Button>
+                    )}
+                    <Button onClick={onClose} variant="outline" className="w-full">
+                      Close
                     </Button>
                   </div>
                 </div>

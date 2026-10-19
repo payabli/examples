@@ -1,17 +1,10 @@
 import { useState, useCallback, useRef } from 'react'
 import type { jsPDF } from 'jspdf'
 import { create } from 'zustand'
-
-type OtherAttachment = {
-  file: File | null
-  type: string
-  contents: string | null
-  extension: string
-}
+import type { MissingFieldForForm } from '@/lib/validationFields'
 
 interface ESignatureOptions {
   documentBody: React.ReactNode[]
-  otherAttachments: OtherAttachment[]
 }
 
 interface ESignatureState {
@@ -28,6 +21,19 @@ interface ESignatureState {
   successMessage: string
   errorTitle: string
   errorMessage: string
+  // Set when submit fails, so the error screen can show the API's reason
+  // (e.g. "Only an owner can be the signer.") instead of the generic message.
+  submitError: SubmitError | null
+  // The owner picked as signer in the wizard, shown on the signing screen.
+  signerName: string
+}
+
+export type SubmitError = {
+  message: string
+  traceId: string | null
+  // Set when submit was blocked by Payabli's validation; each carries the
+  // form field(s) to fix.
+  missingFields?: MissingFieldForForm[]
 }
 
 interface ESignatureActions {
@@ -38,6 +44,7 @@ interface ESignatureActions {
   setDeviceType: (type: string) => void
   setIpAddress: (ip: string) => void
   setOptions: (options: Partial<ESignatureOptions>) => void
+  setSubmitError: (error: SubmitError | null) => void
 }
 
 export const useESignatureStore = create<ESignatureState & ESignatureActions>(
@@ -53,10 +60,12 @@ export const useESignatureStore = create<ESignatureState & ESignatureActions>(
     confirmButtonText: 'Confirm and Generate PDF',
     successTitle: 'Submitted!',
     successMessage:
-      'Your agreement has been recorded and a PDF has been generated.',
+      'Your application has been submitted to Payabli. Note: this demo does not yet attach the signed PDF or bank documents to the application -- the v2 attachment API is still in development (DOC-2546).',
     errorTitle: 'Error',
     errorMessage:
       'An error occurred while processing your submission. Please try again.',
+    submitError: null,
+    signerName: '',
     setIsOpen: (isOpen) => set({ isOpen }),
     setDialogState: (state) => set({ dialogState: state }),
     setSignature: (signature) => set({ signature }),
@@ -64,21 +73,26 @@ export const useESignatureStore = create<ESignatureState & ESignatureActions>(
     setDeviceType: (type) => set({ deviceType: type }),
     setIpAddress: (ip) => set({ ipAddress: ip }),
     setOptions: (options) => set((state) => ({ ...state, ...options })),
+    setSubmitError: (submitError) => set({ submitError }),
   }),
 )
 
-export function useESignature({
-  documentBody,
-  otherAttachments,
-}: ESignatureOptions) {
+class SubmitFailure extends Error {
+  constructor(readonly details: SubmitError) {
+    super(details.message)
+  }
+}
+
+export function useESignature({ documentBody }: ESignatureOptions) {
   const store = useESignatureStore()
   const contentRef = useRef<HTMLDivElement>(null)
 
   const handleESignatureProcess = useCallback(
-    (appId: string) => {
+    (applicationReference: string, signerName: string) => {
       store.setOptions({
         documentBody: documentBody,
       })
+      useESignatureStore.setState({ signerName, submitError: null })
       store.setIsOpen(true)
       store.setDeviceType(getDeviceType())
       getPublicIpAddress()
@@ -89,65 +103,61 @@ export function useESignature({
   )
 
   const handleConfirm = useCallback(
-    async (appId: string) => {
-      console.log('Confirming with appId: ', appId)
-      if (!appId) {
-        throw new Error('Missing application ID for e-signature submission')
-      }
-      if (!contentRef.current) return
+    async (applicationReference: string, signerPersonReference: string) => {
+      console.log('Confirming with applicationReference: ', applicationReference)
+      store.setSubmitError(null)
       try {
+        // Both failures land on the error screen below rather than throwing
+        // out of the click handler, which left the AGREE button spinning.
+        if (!applicationReference || !signerPersonReference) {
+          throw new SubmitFailure({
+            message:
+              'The application was not created, so it cannot be signed. Close this dialog and submit the form again.',
+            traceId: null,
+          })
+        }
+        if (!contentRef.current) {
+          throw new SubmitFailure({
+            message: 'The agreement could not be rendered for signing.',
+            traceId: null,
+          })
+        }
+
+        // The rendered agreement PDF is kept as a local receipt for the user
+        // to download (see the "Download PDF" button on the success screen).
+        // It is NOT sent to Payabli -- the submit call below carries the
+        // signature itself; there's no separate attachment endpoint (Cole,
+        // 2026-09-22).
         const pdf = await generatePDF(contentRef.current)
         const pdfBlob = pdf.output('blob')
         const url = URL.createObjectURL(pdfBlob)
         store.setPdfUrl(url)
-
-        const pdfContent = pdf.output('datauristring').split(',')[1]
-
-        const attachments = [
-          ...otherAttachments,
-          {
-            file: null,
-            type: 'pdf',
-            contents: pdfContent,
-            extension: '.pdf',
-          },
-        ]
-
-        console.log(
-          'Attachments:',
-          JSON.stringify(
-            attachments.map(({ file, type, extension }) => ({
-              file,
-              type,
-              extension,
-            })),
-          ),
-        )
-
-        const attachResponse = await fetch('/api/attachFiles', {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-          },
-          body: JSON.stringify({ attachments, appId }),
-        })
-
-        const attachResponseBody = await attachResponse
-          .json()
-          .catch(() => null)
-
-        if (!attachResponse.ok) {
-          throw new Error(
-            attachResponseBody?.error || 'Failed to attach application files',
-          )
-        }
 
         const submitResponse = await fetch('/api/submitApp', {
           method: 'POST',
           headers: {
             'Content-Type': 'application/json',
           },
-          body: JSON.stringify({ appId }),
+          body: JSON.stringify({
+            applicationReference,
+            signer: {
+              personReference: signerPersonReference,
+              // The dialog's signature input is a typed "First and Last Name"
+              // field, so the printed name and the signature are the same string.
+              name: store.signature,
+              signature: store.signature,
+              signatureType: 'type',
+              // Gated by the dialog's "I agree to terms and conditions"
+              // checkbox -- the AGREE button is disabled until it's checked,
+              // so reaching this call means the user already accepted.
+              acceptance: true,
+              // No dedicated PCI-attestation disclosure exists in this demo's
+              // UI yet; bundled into the same terms checkbox for now. A real
+              // integration should confirm with Payabli whether a distinct
+              // PCI attestation disclosure is required.
+              pciAttestation: true,
+            },
+          }),
         })
 
         const submitResponseBody = await submitResponse
@@ -155,18 +165,25 @@ export function useESignature({
           .catch(() => null)
 
         if (!submitResponse.ok) {
-          throw new Error(
-            submitResponseBody?.error || 'Failed to submit application',
-          )
+          throw new SubmitFailure({
+            message: submitResponseBody?.missingFields?.length
+              ? 'Payabli needs more information before this application can be submitted.'
+              : submitResponseBody?.error || 'Failed to submit application',
+            traceId: submitResponseBody?.traceId ?? null,
+            missingFields: submitResponseBody?.missingFields,
+          })
         }
 
         store.setDialogState('success')
       } catch (error) {
         console.error('Error signing document:', error)
+        store.setSubmitError(
+          error instanceof SubmitFailure ? error.details : null,
+        )
         store.setDialogState('error')
       }
     },
-    [otherAttachments],
+    [],
   )
 
   return {

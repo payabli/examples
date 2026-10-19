@@ -1,12 +1,30 @@
 import type { APIRoute } from 'astro';
 import { saveFormData, loadFormData, clearFormData } from '../../lib/serverDb';
-import { normalizeServerFormData } from '../../Schema';
+import { formFieldNames, normalizeServerFormData } from '../../Schema';
 
 // Draft persistence path: enforce server-owned prefills without requiring a complete valid submission.
 function normalizeSerializedFormData(serialized: string) {
   const parsedData = JSON.parse(serialized);
   const normalizedData = normalizeServerFormData(parsedData);
   return JSON.stringify(normalizedData);
+}
+
+// A draft saved by an earlier version of the form (for example the v1 form's
+// `legalname` or `signer` fields) can't be rendered by the current one, so
+// it's discarded. This checks field names only: drafts are partial by nature,
+// and their sensitive fields are blanked on save, so they'd never pass full
+// schema validation.
+function isDraftCompatibleWithCurrentSchema(serialized: string): boolean {
+  try {
+    const parsedData = JSON.parse(serialized);
+    return (
+      parsedData !== null &&
+      typeof parsedData === 'object' &&
+      Object.keys(parsedData).every((key) => formFieldNames.has(key))
+    );
+  } catch {
+    return false;
+  }
 }
 
 export const POST: APIRoute = async ({ request }) => {
@@ -52,9 +70,17 @@ export const POST: APIRoute = async ({ request }) => {
       case 'load':
         console.log('Loading draft');
         const loadedData = await loadFormData(userId);
-        const normalizedLoadedData = loadedData ? normalizeSerializedFormData(loadedData) : loadedData;
+        const compatibleLoadedData =
+          loadedData && isDraftCompatibleWithCurrentSchema(loadedData) ? loadedData : null;
+        if (loadedData && !compatibleLoadedData) {
+          console.log('Saved draft is from an older version of the form; discarding it.');
+          await clearFormData(userId);
+        }
+        const normalizedLoadedData = compatibleLoadedData
+          ? normalizeSerializedFormData(compatibleLoadedData)
+          : null;
         console.log('Load operation completed, data:', normalizedLoadedData ? `found (length: ${normalizedLoadedData.length})` : 'not found');
-        return new Response(JSON.stringify({ draftData: normalizedLoadedData }), { 
+        return new Response(JSON.stringify({ draftData: normalizedLoadedData }), {
           status: 200,
           headers: { 'Content-Type': 'application/json' }
         });

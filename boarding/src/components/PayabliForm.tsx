@@ -19,6 +19,10 @@ import {
   Percent,
 } from 'lucide-react'
 import FormSelect from './form/FormSelect'
+import { OwnerSelect } from './form/OwnerSelect'
+import FormCheckboxGroup from './form/FormCheckboxGroup'
+import { DocumentUploadDialog } from './form/DocumentUploadDialog'
+import type { CreatedApplication } from '@/onSubmit'
 import { motion } from 'framer-motion'
 import {
   FormCountrySelect,
@@ -26,8 +30,6 @@ import {
   FormCountryRegionCombined,
 } from './form/FormCountryRegion'
 import FormSwitch from './form/FormSwitch'
-import FormFileUpload from './form/FormFileUpload'
-import FormCheckboxGroup from './form/FormCheckboxGroup'
 import { useFormLogic } from '@/onSubmit'
 import { DynamicFormSection } from './form/DynamicFormSection'
 import { Button } from './ui/button'
@@ -35,7 +37,7 @@ import { useDrizzle } from '@/lib/clientDb'
 import { formDefaultValues, useFormWithSchema } from '@/Schema'
 import { documentPages } from './ESigDocument'
 import { useESignature } from '@/hooks/use-esignature'
-import { formSchema, migrateBankAccounts } from '@/Schema'
+import { formSchema } from '@/Schema'
 import z from 'zod'
 
 import { ESignature } from './form/ESignature'
@@ -60,44 +62,27 @@ export function PayabliForm() {
   const [contacts, setContacts] = useState([{}])
   const [ownership, setOwnership] = useState([{}])
   const [bankData, setBankData] = useState([
-    { 
+    {
       nickname: 'Deposit Account',
       bankName: '',
       routingAccount: '',
       accountNumber: '',
       typeAccount: 'Checking',
-      bankAccountHolderName: '',
-      bankAccountHolderType: 'Business',
-      bankAccountFunction: '0',
+      bankAccountFunction: 'Deposit',
     },
-    { 
+    {
       nickname: 'Withdrawal Account',
       bankName: '',
       routingAccount: '',
       accountNumber: '',
       typeAccount: 'Checking',
-      bankAccountHolderName: '',
-      bankAccountHolderType: 'Business',
-      bankAccountFunction: '1',
+      bankAccountFunction: 'Withdrawal',
     },
   ])
   const [ownershipCountries, setOwnershipCountries] = useState<string[]>([''])
   const [ownershipIndex, setOwnershipIndex] = useState(0)
   const [businessCountry, setBusinessCountry] = useState('')
   const [mailingCountry, setMailingCountry] = useState('')
-  const [signerCountry, setSignerCountry] = useState('')
-
-  // File upload, handled externally to the main form
-  const [depositFile, setDepositFile] = useState<File | null>(null)
-  const [depositType, setDepositType] = useState<string>('')
-  const [depositContents, setDepositContents] = useState<string | null>('')
-  const [depositExtension, setDepositExtension] = useState<string>('')
-  const [withdrawalFile, setWithdrawalFile] = useState<File | null>(null)
-  const [withdrawalType, setWithdrawalType] = useState<string>('')
-  const [withdrawalContents, setWithdrawalContents] = useState<string | null>(
-    '',
-  )
-  const [withdrawalExtension, setWithdrawalExtension] = useState<string>('')
 
   const addContact = () => setContacts([...contacts, {}])
   const removeContact = (index: number) => {
@@ -123,6 +108,21 @@ export function PayabliForm() {
     )
     form.setValue('ownership', updatedOwnership as any)
 
+    // Keep the signer and primary controller pointing at the same owners
+    // after the list shifts; if one was the removed owner, fall back to the
+    // first owner.
+    for (const role of [
+      'signerOwnerIndex',
+      'primaryControllerOwnerIndex',
+    ] as const) {
+      const roleIndex = Number(currentValues[role])
+      if (roleIndex === index) {
+        form.setValue(role, 0)
+      } else if (roleIndex > index) {
+        form.setValue(role, roleIndex - 1)
+      }
+    }
+
     form.trigger('ownership')
   }
 
@@ -133,11 +133,9 @@ export function PayabliForm() {
       routingAccount: '',
       accountNumber: '',
       typeAccount: 'Checking',
-      bankAccountHolderName: '',
-      bankAccountHolderType: 'Business',
-      bankAccountFunction: '0',
+      bankAccountFunction: 'Deposit',
     }
-    
+
     setBankData([...bankData, newBankAccount])
     
     // Update form values to include the new bank account
@@ -172,14 +170,12 @@ export function PayabliForm() {
       try {
         const loadedData = await loadSavedData()
         if (loadedData) {
-          // Migrate old bank account format to new format if needed
-          const savedData: FormSchemaType = migrateBankAccounts(loadedData)
+          const savedData: FormSchemaType = loadedData
 
           form.reset(savedData)
 
           setBusinessCountry(savedData.bcountry || '')
           setMailingCountry(savedData.mcountry || '')
-          setSignerCountry(savedData.signer?.country || '')
 
           if (savedData.contacts) {
             setContacts(savedData.contacts)
@@ -309,12 +305,12 @@ export function PayabliForm() {
           </h2>
           <div className="items-end gap-4 md:grid md:grid-cols-2">
             <FormInput
-              name="legalname"
+              name="legalName"
               label="Legal Name"
               tooltip="The official registered name of your business"
             />
             <FormInput
-              name="dbaname"
+              name="doingBusinessAs"
               label="DBA Name"
               tooltip="The name your business operates under, if different from the legal name"
             />
@@ -322,22 +318,6 @@ export function PayabliForm() {
               name="website"
               label="Website"
               tooltip="Your business website URL"
-            />
-            <FormInput
-              name="taxfillname"
-              label="Tax Filing Name"
-              tooltip="The name used for tax filing purposes"
-            />
-            <FormInput
-              name="license"
-              label="Business License"
-              tooltip="Your business license number"
-            />
-            <FormRegionSelect
-              name="licstate"
-              label="License State"
-              tooltip="The state where your business license was issued"
-              countryCode="US"
             />
             <FormInput
               name="startdate"
@@ -354,26 +334,55 @@ export function PayabliForm() {
               tooltip="Your business phone number"
               mask="(999) 999-9999"
             />
-            <FormInput
-              name="faxnumber"
-              label="Fax Number"
-              tooltip="Your business fax number (if applicable)"
-              mask="(999) 999-9999"
-            />
             <FormSelect
-              name="btype"
+              name="legalStructure"
               label="Business Type"
               options={[
-                { value: 'Limited Liability Company', label: 'Limited Liability Company' },
-                { value: 'Non-Profit Org', label: 'Non-Profit Org' },
-                { value: 'Partnership', label: 'Partnership' },
-                { value: 'Private Corp', label: 'Private Corp' },
-                { value: 'Public Corp', label: 'Public Corp' },
-                { value: 'Tax Exempt', label: 'Tax Exempt' },
-                { value: 'Government', label: 'Government' },
-                { value: 'Sole Proprietor', label: 'Sole Proprietor' },
+                { value: 'limited-liability-company', label: 'Limited Liability Company' },
+                { value: 'corporation', label: 'Corporation' },
+                { value: 'partnership', label: 'Partnership' },
+                { value: 'sole-proprietorship', label: 'Sole Proprietorship' },
+                { value: 'non-profit', label: 'Non-Profit' },
+                { value: 'government', label: 'Government' },
+                { value: 's-corp', label: 'S-Corporation' },
               ]}
               tooltip="The legal structure of your business"
+            />
+            <FormInput
+              name="businessEmail"
+              label="Business Email"
+              tooltip="The main email address for your business"
+            />
+            <FormInput
+              name="incorporationState"
+              label="State of Formation"
+              tooltip="The 2-letter code of the state where your business was formed, such as FL or DE"
+              maxLength={2}
+            />
+            <FormInput
+              name="taxIdCountry"
+              label="Tax ID Country"
+              tooltip="The 2-letter code of the country that issued your tax ID"
+              maxLength={2}
+            />
+            <FormSwitch
+              name="isForeignOwned"
+              label="Foreign Owned"
+              tooltip="Whether the business is owned by a foreign entity. Each foreign owner needs a passport upload."
+              onlabel="Yes"
+              offlabel="No"
+            />
+          </div>
+          <div className="mt-4">
+            <FormCheckboxGroup
+              label="Operating Seasons"
+              tooltip="The seasons your business operates in"
+              options={[
+                { name: 'seasonSpring', label: 'Spring' },
+                { name: 'seasonSummer', label: 'Summer' },
+                { name: 'seasonFall', label: 'Fall' },
+                { name: 'seasonWinter', label: 'Winter' },
+              ]}
             />
           </div>
         </WizardStep>
@@ -474,9 +483,14 @@ export function PayabliForm() {
             addButtonText="Add New Contact"
           >
             <FormInput
-              name="contacts[].contactName"
-              label="Contact Name"
-              tooltip="Full name of the contact person"
+              name="contacts[].contactFirstName"
+              label="Contact First Name"
+              tooltip="First name of the contact person"
+            />
+            <FormInput
+              name="contacts[].contactLastName"
+              label="Contact Last Name"
+              tooltip="Last name of the contact person"
             />
             <FormInput
               name="contacts[].contactEmail"
@@ -504,9 +518,14 @@ export function PayabliForm() {
             addButtonText="Add New Owner"
           >
             <FormInput
-              name="ownership[].ownername"
-              label="Owner Name"
-              tooltip="Full name of the owner"
+              name="ownership[].ownerFirstName"
+              label="Owner First Name"
+              tooltip="First name of the owner"
+            />
+            <FormInput
+              name="ownership[].ownerLastName"
+              label="Owner Last Name"
+              tooltip="Last name of the owner"
             />
             <FormInput
               name="ownership[].ownertitle"
@@ -601,8 +620,8 @@ export function PayabliForm() {
               tooltip="Merchant Category Code (4 digits)"
             />
             <FormInput
-              name="ein"
-              label="EIN"
+              name="taxReference"
+              label="Tax Reference (EIN)"
               tooltip="Your Employer Identification Number (9 digits)"
               mask="99-9999999"
             />
@@ -610,42 +629,6 @@ export function PayabliForm() {
               name="bsummary"
               label="Business Summary"
               tooltip="Brief description of your business activities"
-            />
-            <FormSelect
-              name="whenCharged"
-              label="When Charged"
-              options={[
-                {
-                  value: 'When Service Provided',
-                  label: 'When Service Provided',
-                },
-                {
-                  value: 'In Advance',
-                  label: 'In Advance',
-                },
-              ]}
-              tooltip="When customers are typically charged for your services"
-            />
-            <FormSelect
-              name="whenProvided"
-              label="When Provided"
-              options={[
-                { value: '30 Days or Less', label: '30 Days or Less' },
-                { value: '31-60 Days', label: '31-60 Days' },
-                { value: '60+ Days', label: '60+ Days' },
-              ]}
-              tooltip="Typical timeframe for providing services after charging"
-            />
-            <FormSelect
-              name="whenDelivered"
-              label="When Delivered"
-              options={[
-                { value: '0-7 Days', label: '0-7 Days' },
-                { value: '8-14 Days', label: '8-14 Days' },
-                { value: '15-30 Days', label: '15-30 Days' },
-                { value: 'Over 30 Days', label: 'Over 30 Days' },
-              ]}
-              tooltip="Typical timeframe for delivering products or services"
             />
             <FormSelect
               name="whenRefunded"
@@ -714,61 +697,15 @@ export function PayabliForm() {
               numeric
             />
             <FormInput
-              name="averageBillSize"
-              label="Average Bill Size"
-              tooltip="Average amount of each bill you pay through our service"
-              prefix="$"
+              name="numberOfTransactions"
+              label="Monthly Transaction Count"
+              tooltip="How many payments you expect to process each month"
               numeric
             />
             <FormInput
-              name="averageMonthlyBill"
-              label="Average Monthly Bill"
-              tooltip="Average monthly bill amount"
-              prefix="$"
-              numeric
-            />
-            <FormInput
-              name="creditLimit"
-              label="Credit Limit"
-              tooltip="Maximum amount our lending partner has authorized to your business"
-              prefix="$"
-              numeric
-            />
-            <FormSelect
-              name="processingRegion"
-              label="Processing Region"
-              tooltip="Region where your business processes transactions"
-              options={[
-                { label: 'US', value: 'US' },
-                { label: 'CA', value: 'CA' },
-              ]}
-            />
-            <FormInput
-              name="payoutAverageMonthlyVolume"
-              label="Payout Average Monthly Volume"
-              tooltip="Expected average monthly payout volume"
-              prefix="$"
-              numeric
-            />
-            <FormInput
-              name="payoutHighTicketAmount"
-              label="Payout High Ticket Amount"
-              tooltip="Highest expected payout amount"
-              prefix="$"
-              numeric
-            />
-            <FormInput
-              name="payoutAveragTicketAmount"
-              label="Payout Average Ticket Amount"
-              tooltip="Average expected payout amount"
-              prefix="$"
-              numeric
-            />
-            <FormInput
-              name="payoutCreditLimit"
-              label="Payout Credit Limit"
-              tooltip="Maximum credit limit for payouts"
-              prefix="$"
+              name="advancedDeliveryDays"
+              label="Average Days to Delivery"
+              tooltip="Average days between payment and delivery of goods or services. Use 0 if delivered at purchase."
               numeric
             />
           </div>
@@ -795,10 +732,10 @@ export function PayabliForm() {
                 name="bankData[].bankAccountFunction"
                 label="Account Function"
                 options={[
-                  { value: '0', label: 'Deposit' },
-                  { value: '1', label: 'Withdrawal' },
-                  { value: '2', label: 'Both' },
-                  { value: '3', label: 'Remittance' },
+                  { value: 'Deposit', label: 'Deposit' },
+                  { value: 'Withdrawal', label: 'Withdrawal' },
+                  { value: 'Both', label: 'Both' },
+                  { value: 'Remittance', label: 'Remittance' },
                 ]}
                 tooltip="The purpose of this bank account"
               />
@@ -828,114 +765,20 @@ export function PayabliForm() {
                 ]}
                 tooltip="Type of bank account"
               />
-              <FormInput
-                name="bankData[].bankAccountHolderName"
-                label="Account Holder Name"
-                tooltip="Name of the account holder"
-              />
-              <FormSelect
-                name="bankData[].bankAccountHolderType"
-                label="Account Holder Type"
-                options={[
-                  { value: 'Business', label: 'Business' },
-                  { value: 'Personal', label: 'Personal' },
-                ]}
-                tooltip="Type of account holder"
-              />
             </DynamicFormSection>
 
             <div className="space-y-4">
-              <h3 className="text-lg font-semibold">Services</h3>
-              <div className="md:grid md:grid-cols-2 md:px-2">
-                <FormCheckboxGroup
-                  label="Card Services"
-                  tooltip="Select the card services you accept"
-                  options={[
-                    { name: 'services.card.acceptVisa', label: 'Visa' },
-                    {
-                      name: 'services.card.acceptMastercard',
-                      label: 'Mastercard',
-                    },
-                    {
-                      name: 'services.card.acceptDiscover',
-                      label: 'Discover',
-                    },
-                    { name: 'services.card.acceptAmex', label: 'Amex' },
-                  ]}
-                />
-                <FormCheckboxGroup
-                  label="ACH Services"
-                  tooltip="Select the ACH services you accept"
-                  options={[
-                    { name: 'services.ach.acceptWeb', label: 'WEB' },
-                    { name: 'services.ach.acceptPPD', label: 'PPD' },
-                    { name: 'services.ach.acceptCCD', label: 'CCD' },
-                  ]}
-                />
-              </div>
-            </div>
-
-            <div className="space-y-4">
-              <h3 className="text-lg font-semibold">Signer Information</h3>
+              <h3 className="text-lg font-semibold">Owner Roles</h3>
               <div className="items-end gap-4 md:grid md:grid-cols-2">
-                <FormInput
-                  name="signer.name"
-                  label="Signer Name"
-                  tooltip="Full name of the person signing the application"
+                <OwnerSelect
+                  name="primaryControllerOwnerIndex"
+                  label="Primary Controller"
+                  tooltip="The owner with significant responsibility for managing the business. Every application needs one."
                 />
-                <FormInput
-                  name="signer.ssn"
-                  label="Signer SSN"
-                  tooltip="Social Security Number of the signer (9 digits)"
-                  mask="999-99-9999"
-                />
-                <FormInput
-                  name="signer.dob"
-                  label="Signer Date of Birth"
-                  tooltip="Date of birth of the signer"
-                  iconleft={<Calendar className="mr-2" />}
-                  mask="99/99/9999"
-                  placeholder="MM/DD/YYYY"
-                  includeMaskedChars
-                />
-                <FormInput
-                  name="signer.phone"
-                  label="Signer Phone"
-                  tooltip="Phone number of the signer"
-                  mask="(999) 999-9999"
-                />
-                <FormInput
-                  name="signer.email"
-                  label="Signer Email"
-                  tooltip="Email address of the signer"
-                />
-                <FormInput
-                  name="signer.address"
-                  label="Signer Address"
-                  tooltip="Street address of the signer"
-                />
-                <FormInput
-                  name="signer.address1"
-                  label="Signer Address Line 2"
-                  tooltip="Additional address information for the signer (if needed)"
-                />
-                <FormCountryRegionCombined
-                  countryName="signer.country"
-                  countryLabel="Signer Country"
-                  countryTooltip="Country of the signer's residence"
-                  regionName="signer.state"
-                  regionLabel="Signer State"
-                  regionTooltip="State of the signer's residence"
-                />
-                <FormInput
-                  name="signer.city"
-                  label="Signer City"
-                  tooltip="City of the signer's residence"
-                />
-                <FormInput
-                  name="signer.zip"
-                  label="Signer ZIP"
-                  tooltip="ZIP code of the signer's residence"
+                <OwnerSelect
+                  name="signerOwnerIndex"
+                  label="Signer"
+                  tooltip="The owner who signs the application. Only an owner can sign."
                 />
               </div>
             </div>
@@ -951,50 +794,58 @@ export function PayabliForm() {
       bankData,
       businessCountry,
       mailingCountry,
-      signerCountry,
       ownershipCountries,
-      depositFile,
-      withdrawalFile,
     ],
   )
 
-  const { onSuccess, onError } = useFormLogic(steps, setCurrentPage)
+  const { onSuccess, onError, applyValidationErrors } = useFormLogic(
+    steps,
+    setCurrentPage,
+    form,
+  )
 
   const { handleESignatureProcess, handleConfirm, contentRef } = useESignature({
     documentBody: documentPages,
-    otherAttachments: [
-      {
-        file: depositFile,
-        type: depositType,
-        contents: depositContents,
-        extension: depositExtension,
-      },
-      {
-        file: withdrawalFile,
-        type: withdrawalType,
-        contents: withdrawalContents,
-        extension: withdrawalExtension,
-      },
-    ],
   })
 
   const [appId, setAppId] = useState('')
+  const [signerPersonReference, setSignerPersonReference] = useState('')
+  const [signerName, setSignerName] = useState('')
+  const [pendingDocuments, setPendingDocuments] = useState<
+    CreatedApplication['documentRequirements']
+  >([])
 
   const onSuccessWithForm = async (values: FormSchemaType) => {
     try {
-      const createdAppId = String((await onSuccess(values)) || '')
-      if (!createdAppId) {
+      const created = await onSuccess(values)
+      if (!created) {
         return
       }
-      setAppId(createdAppId)
-      handleESignatureProcess(createdAppId)
+      const signer = values.ownership[values.signerOwnerIndex]
+      const name = `${signer.ownerFirstName} ${signer.ownerLastName}`
+      setAppId(created.applicationReference)
+      setSignerPersonReference(created.signerPersonReference)
+      setSignerName(name)
+
+      // Required documents come before signing; createApp has already
+      // confirmed nothing else is missing.
+      if (created.documentRequirements.length > 0) {
+        setPendingDocuments(created.documentRequirements)
+        return
+      }
+      handleESignatureProcess(created.applicationReference, name)
     } catch (error) {
       return
     }
   }
 
+  const onDocumentsComplete = () => {
+    setPendingDocuments([])
+    handleESignatureProcess(appId, signerName)
+  }
+
   const onConfirm = () => {
-    handleConfirm(appId)
+    handleConfirm(appId, signerPersonReference)
   }
 
   if (isLoading || !isDataLoaded) {
@@ -1059,7 +910,18 @@ export function PayabliForm() {
           <form onSubmit={form.handleSubmit(onSuccessWithForm, onError)}>
             {steps}
           </form>
-          <ESignature contentRef={contentRef} onConfirm={onConfirm} />
+          <ESignature
+            contentRef={contentRef}
+            onConfirm={onConfirm}
+            onFixInForm={applyValidationErrors}
+          />
+          <DocumentUploadDialog
+            open={pendingDocuments.length > 0}
+            applicationReference={appId}
+            requirements={pendingDocuments}
+            onComplete={onDocumentsComplete}
+            onClose={() => setPendingDocuments([])}
+          />
         </Form>
       </motion.div>
     </>

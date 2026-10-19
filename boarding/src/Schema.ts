@@ -1,13 +1,30 @@
 import { z } from 'zod'
 import { useForm, type Resolver } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
-import { createFormSchemaKit, prefill } from '@/lib/schemaPrefill'
+import { createFormSchemaKit } from '@/lib/schemaPrefill'
 
 // Helper functions to create common fields
 const requiredString = () =>
   z.string().min(1, { message: 'This field is required' })
 const requiredNumber = () =>
   z.coerce.number().min(1, { message: 'This field is required' })
+// US phone numbers: 10 digits, and never starting with 1. A leading 1 reads
+// as the country code, so the card processor strips it and rejects the rest
+// as too short (Payabli validate: "not the ten digits the card processor
+// requires"). No valid US area code starts with 1.
+const PHONE_DIGITS = /^\d{10}$/
+const PHONE_LEADING_ONE =
+  "Phone numbers can't start with 1. Enter the 10-digit number without the country code"
+const requiredPhone = () =>
+  requiredString()
+    .regex(PHONE_DIGITS, { message: 'Phone number must be 10 digits' })
+    .refine((value) => !value.startsWith('1'), { message: PHONE_LEADING_ONE })
+const optionalPhone = () =>
+  z
+    .string()
+    .regex(/^(\d{10})?$/, { message: 'Phone number must be 10 digits' })
+    .refine((value) => !value.startsWith('1'), { message: PHONE_LEADING_ONE })
+    .optional()
 const requiredDate = () =>
   z.string().regex(/^\d{2}\/\d{2}\/\d{4}$/, {
     message: 'Date must be in MM/DD/YYYY format',
@@ -47,200 +64,331 @@ function validatePercentageDistribution(
   }
 }
 
+// Payabli validate requires each transaction metric to be larger than the
+// one before it: highest ticket > average ticket, and monthly volume >
+// highest ticket. Equal values fail.
+function validateTransactionSizes(
+  data: { ticketamt: number; highticketamt: number; avgmonthly: number },
+  ctx: z.RefinementCtx,
+) {
+  if (Number(data.highticketamt) <= Number(data.ticketamt)) {
+    ctx.addIssue({
+      path: ['highticketamt'],
+      code: 'custom',
+      message: 'Highest Ticket Amount must be greater than Average Ticket Amount',
+    })
+  }
+  if (Number(data.avgmonthly) <= Number(data.highticketamt)) {
+    ctx.addIssue({
+      path: ['avgmonthly'],
+      code: 'custom',
+      message: 'Average Monthly Volume must be greater than Highest Ticket Amount',
+    })
+  }
+}
+
+// v2 rejects a business link that would push combined ownership past 100%.
+function validateOwnershipTotal(
+  data: { ownership: { ownerpercent: number }[] },
+  ctx: z.RefinementCtx,
+) {
+  const total = data.ownership.reduce(
+    (sum, owner) => sum + Number(owner.ownerpercent || 0),
+    0,
+  )
+  if (total > 100) {
+    data.ownership.forEach((_, index) => {
+      ctx.addIssue({
+        path: ['ownership', index, 'ownerpercent'],
+        code: 'custom',
+        message: `Ownership adds up to ${total}%; it can't be more than 100%`,
+      })
+    })
+  }
+}
+
+function validateOperatingSeasons(
+  data: {
+    seasonSpring: boolean
+    seasonSummer: boolean
+    seasonFall: boolean
+    seasonWinter: boolean
+  },
+  ctx: z.RefinementCtx,
+) {
+  if (
+    !data.seasonSpring &&
+    !data.seasonSummer &&
+    !data.seasonFall &&
+    !data.seasonWinter
+  ) {
+    ctx.addIssue({
+      path: ['seasonSpring'],
+      code: 'custom',
+      message: 'Choose at least one season the business operates in',
+    })
+  }
+}
+
+function validateOwnerRoles(
+  data: {
+    ownership: unknown[]
+    signerOwnerIndex: number
+    primaryControllerOwnerIndex: number
+  },
+  ctx: z.RefinementCtx,
+) {
+  if (data.signerOwnerIndex >= data.ownership.length) {
+    ctx.addIssue({
+      path: ['signerOwnerIndex'],
+      code: 'custom',
+      message: 'Choose one of the listed owners as the signer',
+    })
+  }
+  if (data.primaryControllerOwnerIndex >= data.ownership.length) {
+    ctx.addIssue({
+      path: ['primaryControllerOwnerIndex'],
+      code: 'custom',
+      message: 'Choose one of the listed owners as the primary controller',
+    })
+  }
+}
+
+type BankAccountIdentity = {
+  routingAccount: string
+  accountNumber: string
+  nickname: string
+}
+
+// v2 rejects a second payment method with the same routing + account number
+// for the same owner (409), and because resources are created one call at a
+// time, that rejection would only arrive after the business and people already
+// exist. Catch it here instead, before anything is sent to Payabli. One account
+// used for deposits and withdrawals should be a single entry set to "Both".
+function validateUniqueBankAccounts(
+  bankData: BankAccountIdentity[],
+  ctx: z.RefinementCtx,
+) {
+  const firstSeen = new Map<string, BankAccountIdentity>()
+  bankData.forEach((bank, index) => {
+    if (!bank.routingAccount || !bank.accountNumber) {
+      return
+    }
+    const key = `${bank.routingAccount}:${bank.accountNumber}`
+    const earlier = firstSeen.get(key)
+    if (!earlier) {
+      firstSeen.set(key, bank)
+      return
+    }
+    ctx.addIssue({
+      path: [index, 'accountNumber'],
+      code: 'custom',
+      message: `This account is already listed as "${earlier.nickname}". Use a single entry with the function set to "Both" instead.`,
+    })
+  })
+}
+
+// Field names below mirror the Boarding v2 OAS as closely as the flat form
+// shape allows (see fern/apis/payabliApi-oas/openapi/components/schemas/
+// {businesses,paypoints,people,paymentMethods,applications}.yaml on the
+// payabliDocs feature branch). The API-shaped payload (nested addresses,
+// processingMetrics, businessRelationship, etc.) is assembled from this flat
+// shape server-side in src/pages/api/createApp.ts, not here — this schema is
+// about validating what the wizard collects.
 const formSchemaKit = createFormSchemaKit({
-    templateId: prefill(requiredNumber(), 123),
-    // only EITHER templateId or boardingLinkId are required, never both
-    // boardingLinkId: requiredNumber.default(123),
-    // orgId: requiredNumber().default(123),
-    processingRegion: z.enum(['US', 'CA']),
-    legalname: requiredString(),
-    dbaname: requiredString(),
-    website: requiredString().regex(/^[a-zA-Z0-9-]+\.[a-zA-Z0-9-.]+$/, {
-      message: 'Must be a domain without the protocol (http/s)',
-    }),
-    ein: requiredString().regex(/^\d{9}$/, { message: 'EIN must be 9 digits' }),
-    taxfillname: requiredString(),
-    license: requiredString(),
-    licstate: requiredString(),
-    startdate: requiredDate(),
-    phonenumber: requiredString().regex(/^\d{10}$/, {
-      message: 'Phone number must be 10 digits',
-    }),
-    faxnumber: requiredString().regex(/^\d{10}$/, {
-      message: 'Fax number must be 10 digits',
-    }),
-    btype: requiredString(),
-    baddress: requiredString(),
-    baddress1: z.string().optional(),
-    bcity: requiredString(),
-    bstate: requiredString(),
-    bzip: requiredString().regex(/^\d{5}$/, {
-      message: 'ZIP code must be 5 digits',
-    }),
-    bcountry: requiredString().length(2, {
-      message: 'Country must be 2 characters',
-    }),
-    maddress: requiredString(),
-    maddress1: z.string().optional(),
-    mcity: requiredString(),
-    mstate: requiredString(),
-    mzip: requiredString().regex(/^\d{5}$/, {
-      message: 'ZIP code must be 5 digits',
-    }),
-    mcountry: requiredString(),
-    mcc: requiredString().regex(/^\d{4}$/, { message: 'MCC must be 4 digits' }),
-    bsummary: requiredString(),
-    whenCharged: requiredString(),
-    whenProvided: requiredString(),
-    whenDelivered: requiredString(),
-    whenRefunded: requiredString(),
-    binperson: requiredNumber().min(0).max(100),
-    binphone: requiredNumber().min(0).max(100),
-    binweb: requiredNumber().min(0).max(100),
-    annualRevenue: requiredNumber(),
-    avgmonthly: requiredNumber(),
-    ticketamt: requiredNumber(),
-    highticketamt: requiredNumber(),
-    creditLimit: requiredNumber(),
-    averageMonthlyBill: z.string(),
-    averageBillSize: z.string(),
-    recipientEmail: z.string().default(''),
-    recipientEmailNotification: z.boolean().default(false),
-    resumable: z.boolean().default(false),
-    contacts: z
-      .array(
-        z.object({
-          contactName: requiredString(),
-          contactEmail: requiredString().email({
-            message: 'Invalid email address',
-          }),
-          contactTitle: requiredString(),
-          contactPhone: requiredString().regex(/^\d{10}$/, {
-            message: 'Phone number must be 10 digits',
-          }),
-        }),
-      )
-      .nonempty(),
-    ownership: z
-      .array(
-        z.object({
-          ownername: requiredString(),
-          ownertitle: requiredString(),
-          ownerpercent: requiredNumber().min(0).max(100),
-          ownerssn: requiredString().regex(/^\d{9}$/, {
-            message: 'SSN must be 9 digits',
-          }),
-          ownerdob: requiredDate(),
-          ownerphone1: requiredString().regex(/^\d{10}$/, {
-            message: 'Phone number must be 10 digits',
-          }),
-          ownerphone2: z
-            .string()
-            .regex(/^(\d{10})?$/, { message: 'Phone number must be 10 digits' })
-            .optional(),
-          owneremail: requiredString().email({
-            message: 'Invalid email address',
-          }),
-          ownerdriver: requiredString(),
-          odriverstate: requiredString(),
-          oaddress: requiredString(),
-          ostate: z.string().optional(),
-          ocountry: requiredString(),
-          ocity: requiredString(),
-          ozip: requiredString().regex(/^\d{5}$/, {
-            message: 'ZIP code must be 5 digits',
-          }),
-        }),
-      )
-      .nonempty(),
-    bankData: z
-      .array(
-        z.object({
-          nickname: requiredString(),
-          bankName: requiredString(),
-          routingAccount: requiredString().regex(/^\d{9}$/, {
-            message: 'Routing number must be 9 digits',
-          }),
-          accountNumber: requiredString(),
-          typeAccount: requiredString(),
-          bankAccountHolderName: requiredString(),
-          bankAccountHolderType: requiredString(),
-          bankAccountFunction: z.coerce.number().min(0).max(3),
-        }),
-      )
-      .nonempty({ message: 'At least one bank account is required' }),
-    // Keep deprecated fields for backward compatibility temporarily
-    depositAccount: z.object({
-      id: z.number().default(123),
-      bankName: requiredString(),
-      routingAccount: requiredString().regex(/^\d{9}$/, {
-        message: 'Routing number must be 9 digits',
-      }),
-      accountNumber: requiredString(),
-      typeAccount: requiredString(),
-      bankAccountHolderName: requiredString(),
-      bankAccountHolderType: requiredString(),
-      bankAccountFunction: z.number().min(0).max(2).default(0),
-      fileUpload: z.any(),
-    }).optional(),
-    withdrawalAccount: z.object({
-      id: z.number().default(123),
-      bankName: requiredString(),
-      routingAccount: requiredString().regex(/^\d{9}$/, {
-        message: 'Routing number must be 9 digits',
-      }),
-      accountNumber: requiredString(),
-      typeAccount: requiredString(),
-      bankAccountHolderName: requiredString(),
-      bankAccountHolderType: requiredString(),
-      bankAccountFunction: z.number().min(0).max(2).default(1),
-    }).optional(),
-    services: z.object({
-      card: z.object({
-        acceptVisa: z.boolean().default(false),
-        acceptMastercard: z.boolean().default(false),
-        acceptDiscover: z.boolean().default(false),
-        acceptAmex: z.boolean().default(false),
-      }),
-      ach: z.object({
-        acceptWeb: z.boolean().default(false),
-        acceptPPD: z.boolean().default(false),
-        acceptCCD: z.boolean().default(false),
-      }),
-    }),
-    signer: z.object({
-      name: requiredString(),
-      ssn: requiredString().regex(/^\d{9}$/, {
-        message: 'SSN must be 9 digits',
-      }),
-      dob: requiredDate(),
-      phone: requiredString().regex(/^\d{10}$/, {
-        message: 'Phone number must be 10 digits',
-      }),
-      email: requiredString().email({ message: 'Invalid email address' }),
-      address: requiredString(),
-      address1: z.string().optional(),
-      state: requiredString(),
-      country: requiredString(),
-      city: requiredString(),
-      zip: requiredString().regex(/^\d{5}$/, {
-        message: 'ZIP code must be 5 digits',
-      }),
-      acceptance: z.boolean().default(true),
-    }),
-  })
+  // -- Business (-> CreateBusinessRequest, plus doingBusinessAs on the paypoint) --
+  legalName: requiredString(),
+  doingBusinessAs: requiredString(),
+  website: requiredString().regex(/^[a-zA-Z0-9-]+\.[a-zA-Z0-9-.]+$/, {
+    message: 'Must be a domain without the protocol (http/s)',
+  }),
+  taxReference: requiredString().regex(/^\d{9}$/, {
+    message: 'Tax reference (EIN) must be 9 digits',
+  }),
+  startdate: requiredDate(),
+  phonenumber: requiredPhone(),
+  legalStructure: z.enum([
+    'limited-liability-company',
+    'corporation',
+    'partnership',
+    'sole-proprietorship',
+    'non-profit',
+    'government',
+    's-corp',
+  ]),
+  businessEmail: requiredString().email({ message: 'Invalid email address' }),
+  // State or province where the business was formed (e.g. FL, DE).
+  incorporationState: requiredString().regex(/^[A-Za-z]{2}$/, {
+    message: 'Use the 2-letter state code, e.g. FL',
+  }),
+  taxIdCountry: requiredString().length(2, {
+    message: 'Country must be 2 characters',
+  }),
+  isForeignOwned: z.boolean().default(false),
+  // -> business.operatingSeasons; v2 accepts only these four values.
+  seasonSpring: z.boolean().default(true),
+  seasonSummer: z.boolean().default(true),
+  seasonFall: z.boolean().default(true),
+  seasonWinter: z.boolean().default(true),
+  baddress: requiredString(),
+  baddress1: z.string().optional(),
+  bcity: requiredString(),
+  bstate: requiredString(),
+  bzip: requiredString().regex(/^\d{5}$/, {
+    message: 'ZIP code must be 5 digits',
+  }),
+  bcountry: requiredString().length(2, {
+    message: 'Country must be 2 characters',
+  }),
+  maddress: requiredString(),
+  maddress1: z.string().optional(),
+  mcity: requiredString(),
+  mstate: requiredString(),
+  mzip: requiredString().regex(/^\d{5}$/, {
+    message: 'ZIP code must be 5 digits',
+  }),
+  mcountry: requiredString(),
+  mcc: requiredString().regex(/^\d{4}$/, { message: 'MCC must be 4 digits' }),
+  bsummary: requiredString(),
+  whenRefunded: requiredString(),
+  binperson: requiredNumber().min(0).max(100),
+  binphone: requiredNumber().min(0).max(100),
+  binweb: requiredNumber().min(0).max(100),
+  annualRevenue: requiredNumber(),
+  avgmonthly: requiredNumber(),
+  ticketamt: requiredNumber(),
+  highticketamt: requiredNumber(),
+  // -> processingMetrics.advancedDeliveryDays; 0 means delivered at purchase.
+  advancedDeliveryDays: z.coerce
+    .number()
+    .min(0, { message: 'Enter 0 or more days' }),
+  // -> processingMetrics.numberOfTransactions (monthly payment count)
+  numberOfTransactions: z.coerce
+    .number()
+    .int({ message: 'Enter a whole number' })
+    .min(1, { message: 'This field is required' }),
 
-// Define the form schema
-export const formSchema = formSchemaKit.clientSchema
-  .superRefine((data, ctx) => {
-    validatePercentageDistribution(data, ctx)
-  })
+  // -- Application-level (-> CreateApplicationRequest.configurations) --
+  recipientEmail: z.string().default(''),
+  recipientEmailNotification: z.boolean().default(false),
 
-export const serverFormSchema = formSchemaKit.serverSchema.superRefine((data, ctx) => {
-  validatePercentageDistribution(data, ctx)
+  // -- Contacts (-> Person, personType: Employee; v2 uses employees as contacts) --
+  contacts: z
+    .array(
+      z.object({
+        contactFirstName: requiredString(),
+        contactLastName: requiredString(),
+        contactEmail: requiredString().email({
+          message: 'Invalid email address',
+        }),
+        contactTitle: requiredString(),
+        contactPhone: requiredPhone(),
+      }),
+    )
+    .nonempty(),
+
+  // -- Ownership (-> Person, personType: Owner, businessRelationship.ownershipPercentage) --
+  ownership: z
+    .array(
+      z.object({
+        ownerFirstName: requiredString(),
+        ownerLastName: requiredString(),
+        ownertitle: requiredString(),
+        ownerpercent: requiredNumber().min(0).max(100),
+        ownerssn: requiredString().regex(/^\d{9}$/, {
+          message: 'SSN must be 9 digits',
+        }),
+        ownerdob: requiredDate(),
+        ownerphone1: requiredPhone(),
+        ownerphone2: optionalPhone(),
+        owneremail: requiredString().email({
+          message: 'Invalid email address',
+        }),
+        ownerdriver: requiredString(),
+        odriverstate: requiredString(),
+        oaddress: requiredString(),
+        ostate: z.string().optional(),
+        ocountry: requiredString(),
+        ocity: requiredString(),
+        ozip: requiredString().regex(/^\d{5}$/, {
+          message: 'ZIP code must be 5 digits',
+        }),
+      }),
+    )
+    .nonempty(),
+
+  // -- Bank accounts (-> CreatePaymentMethodRequest, one batch call) --
+  bankData: z
+    .array(
+      z.object({
+        nickname: requiredString(),
+        bankName: requiredString(),
+        routingAccount: requiredString().regex(/^\d{9}$/, {
+          message: 'Routing number must be 9 digits',
+        }),
+        accountNumber: requiredString(),
+        typeAccount: z.enum(['Checking', 'Savings']),
+        // Maps to a v2 `usage[]` combination in the API-payload builder:
+        // Deposit -> [deposits], Withdrawal -> [withdrawals, billing, refunds],
+        // Both -> all four, Remittance -> [payOutFunding].
+        bankAccountFunction: z.enum([
+          'Deposit',
+          'Withdrawal',
+          'Both',
+          'Remittance',
+        ]),
+      }),
+    )
+    .nonempty({ message: 'At least one bank account is required' })
+    // Refined on the array (not the whole form) so it reports alongside the
+    // other bank field errors instead of waiting for every step to be valid.
+    .superRefine(validateUniqueBankAccounts),
+
+  // -- Owner roles: the signer and the primary controller are each one of the
+  // owners above, picked by position and sent as `isSigner` /
+  // `isPrimaryController` on that owner's business link. v2 rejects a submit
+  // whose signer isn't an owner (422 SIGNER_NOT_OWNER), and an application
+  // needs a primary controller to be submittable. --
+  signerOwnerIndex: z.coerce.number().int().min(0).default(0),
+  primaryControllerOwnerIndex: z.coerce.number().int().min(0).default(0),
 })
 
-export const formDefaultValues = formSchemaKit.defaultValues
+// Define the form schema
+export const formSchema = formSchemaKit.clientSchema.superRefine((data, ctx) => {
+  validatePercentageDistribution(data, ctx)
+  validateOwnerRoles(data, ctx)
+  validateOperatingSeasons(data, ctx)
+  validateOwnershipTotal(data, ctx)
+  validateTransactionSizes(data, ctx)
+})
+
+export const serverFormSchema = formSchemaKit.serverSchema.superRefine(
+  (data, ctx) => {
+    validatePercentageDistribution(data, ctx)
+    validateOwnerRoles(data, ctx)
+    validateOperatingSeasons(data, ctx)
+    validateOwnershipTotal(data, ctx)
+    validateTransactionSizes(data, ctx)
+  },
+)
+
+// Top-level field names of the current form, for recognizing drafts saved by
+// an older version of it.
+export const formFieldNames = new Set(
+  Object.keys(formSchemaKit.clientSchema.shape),
+)
+
+export const formDefaultValues = {
+  ...formSchemaKit.defaultValues,
+  signerOwnerIndex: 0,
+  primaryControllerOwnerIndex: 0,
+  taxIdCountry: 'US',
+  isForeignOwned: false,
+  seasonSpring: true,
+  seasonSummer: true,
+  seasonFall: true,
+  seasonWinter: true,
+}
 
 // Use normalize when partial payloads are allowed and only server-owned prefill fields must be enforced.
 export function normalizeServerFormData(input: unknown) {
@@ -272,6 +420,9 @@ export function redactDraftFormData<T>(input: T): T {
     }
   }
 
+  // `taxReference` is the EIN in the v2 form; `ein` and `signer` cover drafts
+  // saved by the earlier v1 form.
+  if ('taxReference' in data) data.taxReference = ''
   if ('ein' in data) data.ein = ''
   if (Array.isArray(data.ownership)) {
     for (const owner of data.ownership) {
@@ -304,79 +455,4 @@ export function useFormWithSchema() {
     resolver: zodResolver(formSchema) as unknown as Resolver<FormSchemaType>,
     defaultValues: formDefaultValues,
   })
-}
-
-// Helper function to migrate from old bank account format to new bankData array
-export function migrateBankAccounts(data: any): any {
-  if (data.bankData) {
-    // Already in new format
-    return data;
-  }
-
-  const migrated = { ...data };
-  const bankDataArray = [];
-
-  // Migrate depositAccount if it exists
-  if (data.depositAccount) {
-    const { id, fileUpload, ...rest } = data.depositAccount;
-    bankDataArray.push({
-      nickname: 'Deposit Account',
-      bankName: rest.bankName || '',
-      routingAccount: rest.routingAccount || '',
-      accountNumber: rest.accountNumber || '',
-      typeAccount: rest.typeAccount || 'Checking',
-      bankAccountHolderName: rest.bankAccountHolderName || '',
-      bankAccountHolderType: rest.bankAccountHolderType || 'Business',
-      bankAccountFunction: String(rest.bankAccountFunction || 0),
-    });
-  }
-
-  // Migrate withdrawalAccount if it exists
-  if (data.withdrawalAccount) {
-    const { id, ...rest } = data.withdrawalAccount;
-    bankDataArray.push({
-      nickname: 'Withdrawal Account',
-      bankName: rest.bankName || '',
-      routingAccount: rest.routingAccount || '',
-      accountNumber: rest.accountNumber || '',
-      typeAccount: rest.typeAccount || 'Checking',
-      bankAccountHolderName: rest.bankAccountHolderName || '',
-      bankAccountHolderType: rest.bankAccountHolderType || 'Business',
-      bankAccountFunction: String(rest.bankAccountFunction || 1),
-    });
-  }
-
-  // If we have any migrated accounts, set bankData
-  if (bankDataArray.length > 0) {
-    migrated.bankData = bankDataArray;
-    // Remove old fields
-    delete migrated.depositAccount;
-    delete migrated.withdrawalAccount;
-  } else {
-    // Default bank accounts if none exist
-    migrated.bankData = [
-      { 
-        nickname: 'Deposit Account',
-        bankName: '',
-        routingAccount: '',
-        accountNumber: '',
-        typeAccount: 'Checking',
-        bankAccountHolderName: '',
-        bankAccountHolderType: 'Business',
-        bankAccountFunction: '0',
-      },
-      { 
-        nickname: 'Withdrawal Account',
-        bankName: '',
-        routingAccount: '',
-        accountNumber: '',
-        typeAccount: 'Checking',
-        bankAccountHolderName: '',
-        bankAccountHolderType: 'Business',
-        bankAccountFunction: '1',
-      },
-    ];
-  }
-
-  return migrated;
 }

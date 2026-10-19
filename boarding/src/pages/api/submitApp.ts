@@ -1,49 +1,85 @@
 import type { APIRoute } from 'astro'
-import { getApiUrlPrefix } from '../../lib/getUrl'
+import { auth } from '../../../auth'
+import { clearBoardingDraft, loadBoardingDraft } from '../../lib/serverDb'
+import { mapMissingFields } from '../../lib/validationFields'
+import {
+  submitApplication,
+  validateApplication,
+  PayabliV2Error,
+  type SubmitApplicationSigner,
+} from '../../lib/boardingV2'
+
+function jsonResponse(body: unknown, status: number) {
+  return new Response(JSON.stringify(body), {
+    status,
+    headers: { 'Content-Type': 'application/json' },
+  })
+}
 
 export const POST: APIRoute = async ({ request }) => {
-  const apiToken = import.meta.env.PAYABLI_API_TOKEN
-  const prefix = getApiUrlPrefix()
-
   try {
-    const formData = await request.json()
-    console.log('Submitting app:', formData.appId)
+    const {
+      applicationReference,
+      signer,
+    }: { applicationReference: string; signer?: SubmitApplicationSigner } =
+      await request.json()
 
-    const response = await fetch(
-      `https://api${prefix}.payabli.com/api/Boarding/appsts/${formData.appId}/4/0`,
-      {
-        method: 'GET',
-        headers: {
-          'Content-Type': 'application/json',
-          requestToken: apiToken,
+    // Partner submit doesn't require a validation token yet (the boarding
+    // team is tracking it), so it accepts incomplete applications. Gate it
+    // here instead: only submit once Payabli's validation passes, which
+    // also covers anything that changed after createApp's own check.
+    const session = await auth.api.getSession({ headers: request.headers })
+    const validation = await validateApplication(applicationReference)
+    if (!validation.valid) {
+      // The draft says which form row each person is, so missing fields
+      // can be pointed at the right field.
+      const draft = session ? await loadBoardingDraft(session.user.id) : null
+      const missingFields = mapMissingFields(
+        Object.values(validation.sections ?? {}).flatMap(
+          (section) => section.missingFields ?? [],
+        ),
+        draft?.people ?? [],
+      )
+      const labels = [...new Set(missingFields.map((missing) => missing.label))]
+      return jsonResponse(
+        {
+          error:
+            labels.length > 0
+              ? `Payabli needs more information before this application can be submitted. Missing: ${labels.join(', ')}.`
+              : (validation.notice?.message ??
+                'Payabli could not confirm the application is complete. Try again shortly.'),
+          missingFields,
         },
-      },
-    )
-
-    if (!response.ok) {
-      const errorBody = await response.text()
-      console.error('Submit app request failed:', response.status, errorBody)
-      throw new Error(`HTTP error! status: ${response.status}`)
+        422,
+      )
     }
 
-    const responseBody = await response.json()
+    const result = await submitApplication(applicationReference, signer)
 
-    return new Response(JSON.stringify(responseBody.responseData), {
-      status: 200,
-      headers: {
-        'Content-Type': 'application/json',
-      },
-    })
+    // The submission is done, so the user's next application starts fresh
+    // instead of resuming these records.
+    if (session) {
+      await clearBoardingDraft(session.user.id)
+    }
+
+    return jsonResponse(result, 200)
   } catch (error) {
     console.error('Error submitting application:', error)
-    return new Response(
-      JSON.stringify({ error: 'Failed to submit application' }),
+
+    // Pass the API's own validation messages (400/409/422, e.g.
+    // SIGNER_NOT_OWNER) through so the user sees why submit was rejected.
+    const isUserFixable =
+      error instanceof PayabliV2Error &&
+      (error.status === 400 || error.status === 409 || error.status === 422)
+
+    return jsonResponse(
       {
-        status: 500,
-        headers: {
-          'Content-Type': 'application/json',
-        },
+        error: isUserFixable
+          ? (error.apiMessage ?? 'Payabli rejected the submission.')
+          : 'Failed to submit application',
+        traceId: error instanceof PayabliV2Error ? error.traceId : null,
       },
+      isUserFixable ? error.status : 500,
     )
   }
 }
