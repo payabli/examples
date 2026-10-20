@@ -4,7 +4,7 @@
         "Read more about it at https://getcomposer.org/doc/01-basic-usage.md#installing-dependencies",
         "This file is @generated automatically"
     ],
-    "content-hash": "c29b46102c76578621c483ecb09c0c3f",
+    "content-hash": "7ed8456b50adb4fd2ccf88c362d05224",
     "packages": [
         {
             "name": "graham-campbell/result-type",
@@ -401,16 +401,16 @@
         },
         {
             "name": "payabli/payabli",
-            "version": "1.0.13",
+            "version": "1.0.21",
             "source": {
                 "type": "git",
                 "url": "https://github.com/payabli/sdk-php.git",
-                "reference": "7a9ac2851cea6f7146715f1686b73453758e53bd"
+                "reference": "6252fe372f1f80813255a26633047c03519b3e0a"
             },
             "dist": {
                 "type": "zip",
-                "url": "https://api.github.com/repos/payabli/sdk-php/zipball/7a9ac2851cea6f7146715f1686b73453758e53bd",
-                "reference": "7a9ac2851cea6f7146715f1686b73453758e53bd",
+                "url": "https://api.github.com/repos/payabli/sdk-php/zipball/6252fe372f1f80813255a26633047c03519b3e0a",
+                "reference": "6252fe372f1f80813255a26633047c03519b3e0a",
                 "shasum": ""
             },
             "require": {
@@ -445,9 +445,9 @@
             ],
             "support": {
                 "issues": "https://github.com/payabli/sdk-php/issues",
-                "source": "https://github.com/payabli/sdk-php/tree/1.0.13"
+                "source": "https://github.com/payabli/sdk-php/tree/1.0.21"
             },
-            "time": "2026-09-09T14:13:19+00:00"
+            "time": "2026-10-20T13:31:39+00:00"
         },
         {
             "name": "php-http/discovery",
