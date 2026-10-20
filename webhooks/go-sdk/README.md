@@ -15,7 +15,7 @@ This sample uses the GetPaid v2 transaction endpoint via `MoneyIn.Getpaidv2(...)
 
 ## Prerequisites
 
-- Go 1.22+
+- Go 1.26+
 - A Payabli OAuth2 client ID and client secret ([Payabli Portal](https://docs.payabli.com))
 - A tunnel tool such as [`ngrok`](https://ngrok.com/), [`localhost.run`](https://localhost.run/), or another local environment forwarder
 - This example requires `github.com/payabli/sdk-go` v1.0.12 or later, which adds OAuth2 client-credentials support (`option.WithClientID` / `option.WithClientSecret`).

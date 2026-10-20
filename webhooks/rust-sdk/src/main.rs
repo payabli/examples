@@ -1,6 +1,6 @@
 use axum::{Router, extract::State, routing::{get, post}};
 use axum::body::Bytes;
-use dotenv::dotenv;
+use dotenvy::dotenv;
 use payabli_api::prelude::*;
 use reqwest::Client as HttpClient;
 use std::env;
@@ -243,9 +243,8 @@ async fn main() {
     }
 
     // Drain the self-test ping before waiting for Payabli.
-    match timeout(Duration::from_secs(3), rx.recv()).await {
-        Ok(Some(_)) => println!("[self-test] self-test ping drained from queue."),
-        _ => {}
+    if let Ok(Some(_)) = timeout(Duration::from_secs(3), rx.recv()).await {
+        println!("[self-test] self-test ping drained from queue.");
     }
 
     println!("\nWaiting up to 30 seconds for Payabli webhook delivery...");
@@ -264,11 +263,8 @@ async fn main() {
             );
 
             // Keep printing any further deliveries for up to 60 s each.
-            loop {
-                match timeout(Duration::from_secs(60), rx.recv()).await {
-                    Ok(Some(p)) => println!("\nReceived webhook payload:\n{}", p),
-                    _ => break,
-                }
+            while let Ok(Some(p)) = timeout(Duration::from_secs(60), rx.recv()).await {
+                println!("\nReceived webhook payload:\n{}", p);
             }
         }
         _ => {

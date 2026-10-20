@@ -13,7 +13,7 @@ Demonstrates the full Payabli webhook quickstart flow using the [Payabli Rust SD
 
 ## Prerequisites
 
-- Rust 1.75+ (with Cargo)
+- Rust 1.85+ (with Cargo)
 - A [Payabli OAuth2 client ID and client secret](https://docs.payabli.com)
 - A tunnel tool such as [`ngrok`](https://ngrok.com/), [`localhost.run`](https://localhost.run/), or another local environment forwarder
 

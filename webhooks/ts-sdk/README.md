@@ -6,7 +6,7 @@ This sample uses the GetPaid v2 transaction endpoint via `moneyIn.getpaidv2(...)
 
 ## Prerequisites
 
-- Node.js ≥ 18 (native `fetch` required; tested on Node 22)
+- Node.js 22 or later (Node 18 and 20 are end-of-life)
 - A tunnel tool such as [`ngrok`](https://ngrok.com/), [`localhost.run`](https://localhost.run/), or another local environment forwarder
 - A Payabli sandbox OAuth2 client ID and client secret, entrypoint token, and owner ID
 

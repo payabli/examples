@@ -62,25 +62,23 @@ public class PayabliExampleApp {
                 .clientSecret(clientSecret)
                 .build();
 
-        // Create and configure Javalin app
-        Javalin app = Javalin.create(config -> {
-            config.staticFiles.add("static");
-        });
-
-        // Routes
-        app.get("/", PayabliExampleApp::renderCreateCustomerPage);
-        app.get("/list", PayabliExampleApp::renderListCustomersPage);
-        app.get("/transaction", PayabliExampleApp::renderTransactionPage);
-        app.get("/debug", PayabliExampleApp::renderDebugPage);
-        app.post("/api/create", PayabliExampleApp::createCustomer);
-        app.get("/api/list", PayabliExampleApp::listCustomers);
-        app.delete("/api/delete/{customerId}", PayabliExampleApp::deleteCustomer);
-        app.post("/api/transaction/{token}", PayabliExampleApp::processTransaction);
-
-        // Start server
+        // Create, configure, and start the Javalin app.
+        // Javalin 7 registers routes and the port in the config block.
         int port = Integer.parseInt(System.getProperty("server.port", "8000"));
-        app.start(port);
-        
+        Javalin.create(config -> {
+            config.jetty.port = port;
+            config.staticFiles.add("static");
+
+            config.routes.get("/", PayabliExampleApp::renderCreateCustomerPage);
+            config.routes.get("/list", PayabliExampleApp::renderListCustomersPage);
+            config.routes.get("/transaction", PayabliExampleApp::renderTransactionPage);
+            config.routes.get("/debug", PayabliExampleApp::renderDebugPage);
+            config.routes.post("/api/create", PayabliExampleApp::createCustomer);
+            config.routes.get("/api/list", PayabliExampleApp::listCustomers);
+            config.routes.delete("/api/delete/{customerId}", PayabliExampleApp::deleteCustomer);
+            config.routes.post("/api/transaction/{token}", PayabliExampleApp::processTransaction);
+        }).start();
+
         logger.info("Payabli SDK Example app started on http://localhost:{}", port);
     }
 

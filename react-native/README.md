@@ -19,7 +19,7 @@ The app is structured as a small mobile checkout demo:
 
 ## Requirements
 
-- Node.js 18+
+- Node.js 22.13+ or 24.3+ (required by Expo SDK 58 and React Native 0.88)
 - npm
 - Expo Go or a local iOS or Android simulator
 

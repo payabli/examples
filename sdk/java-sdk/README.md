@@ -10,7 +10,7 @@ The application has three pages:
 
 ## Prerequisites
 
-- Java 11+ and Maven
+- Java 25+ (JDK) and Maven 3.6.3+
 - This example requires `io.github.payabli:sdk-java` 1.0.11 or later, which adds OAuth client-credentials support (`PayabliApiClientBuilder.clientId(...)`/`.clientSecret(...)`).
 
 ## Setup Instructions
@@ -22,7 +22,7 @@ git clone https://github.com/payabli/examples
 cd examples/sdk/java-sdk
 ```
 
-2. Make sure you have Java 11+ and Maven installed:
+2. Make sure you have Java 25+ and Maven installed:
 
 ```bash
 java -version

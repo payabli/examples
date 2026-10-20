@@ -9,20 +9,25 @@
     "web": "expo start --web"
   },
   "dependencies": {
-    "@payabli/sdk-node": "^1.0.14",
-    "expo": "~57.0.1",
-    "expo-asset": "^57.0.2",
-    "expo-file-system": "^57.0.0",
-    "expo-status-bar": "~57.0.0",
-    "react": "19.2.3",
-    "react-dom": "19.2.3",
-    "react-native": "0.86.2",
-    "react-native-web": "^0.21.2",
-    "react-native-webview": "^13.16.1"
+    "@payabli/sdk-node": "^1.0.22",
+    "expo": "~58.0.16",
+    "expo-asset": "~58.0.17",
+    "expo-file-system": "~58.0.10",
+    "expo-status-bar": "~58.0.3",
+    "react": "19.3.0",
+    "react-dom": "19.3.0",
+    "react-native": "0.88.0",
+    "react-native-web": "~0.21.4",
+    "react-native-webview": "14.0.1"
   },
   "devDependencies": {
-    "@types/react": "~19.2.17",
+    "@types/react": "~19.3.0",
     "typescript": "~6.0.3"
+  },
+  "overrides": {
+    "xcode": {
+      "uuid": "^11.1.1"
+    }
   },
   "private": true
 }

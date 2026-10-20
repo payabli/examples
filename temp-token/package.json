@@ -9,12 +9,15 @@
     "astro": "astro"
   },
   "overrides": {
-    "vite": "^8.1.2"
+    "vite": "^8.1.2",
+    "@tailwindcss/typography": {
+      "postcss-selector-parser": "^7.1.7"
+    }
   },
   "dependencies": {
     "@astrojs/alpinejs": "1.0.0",
-    "@astrojs/node": "^11.0.1",
-    "@astrojs/react": "6.0.1",
+    "@astrojs/node": "^11.1.9",
+    "@astrojs/react": "7.1.0",
     "@heroicons/react": "^2.2.0",
     "@tailwindcss/typography": "^0.5.20",
     "@tailwindcss/vite": "^4.3.1",
@@ -22,8 +25,8 @@
     "@types/react": "^19.2.17",
     "@types/react-dom": "^19.2.3",
     "alpinejs": "^3.15.12",
-    "astro": "7.3.2",
-    "framer-motion": "^12.40.0",
+    "astro": "7.4.1",
+    "framer-motion": "^14.4.0",
     "lucide-react": "^1.20.0",
     "prismjs": "^1.30.0",
     "react": "^19.2.7",

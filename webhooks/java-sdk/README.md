@@ -15,8 +15,8 @@ This sample uses the GetPaid v2 transaction endpoint via `moneyIn().getpaidv2(..
 
 ## Prerequisites
 
-- Java 11+
-- Maven 3.6+
+- Java 25+ (JDK)
+- Maven 3.6.3+
 - A Payabli OAuth2 client ID and client secret (see [Payabli docs](https://docs.payabli.com))
 - This example requires `io.github.payabli:sdk-java` 1.0.11 or later, which adds OAuth client-credentials support (`PayabliApiClientBuilder.clientId(...)`/`.clientSecret(...)`).
 - A tunnel tool such as [`ngrok`](https://ngrok.com/), [`localhost.run`](https://localhost.run/), or another local environment forwarder

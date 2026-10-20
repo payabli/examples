@@ -5,13 +5,16 @@ import {
   type WebViewMessageEvent,
 } from 'react-native-webview';
 
-import { type PayabliPaymentMethod } from '../hooks/usePayabliWebView';
+import {
+  type PayabliPaymentMethod,
+  type PayabliWebViewInstance,
+} from '../hooks/usePayabliWebView';
 
 type PayabliEmbeddedWebViewProps = {
   paymentMethod: PayabliPaymentMethod;
   htmlShell: string;
   injectedBootstrap: string;
-  webViewRef: React.RefObject<WebView | null>;
+  webViewRef: React.RefObject<PayabliWebViewInstance | null>;
   webViewHeight: number;
   onMessage: (event: WebViewMessageEvent) => void;
 };
@@ -25,7 +28,7 @@ const PayabliEmbeddedWebView = ({
   onMessage,
 }: PayabliEmbeddedWebViewProps) => {
   return (
-    <WebView
+    <WebView<object>
       key={paymentMethod}
       ref={webViewRef}
       originWhitelist={["*"]}
