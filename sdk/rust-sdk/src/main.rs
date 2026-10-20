@@ -25,14 +25,7 @@ struct AppState {
     env_config: Arc<EnvConfig>,
 }
 
-// Templates
-#[derive(Template)]
-#[template(path = "base.html")]
-struct BaseTemplate<'a> {
-    title: &'a str,
-    content: &'a str,
-}
-
+// Templates (each page extends templates/base.html via `{% extends %}`)
 #[derive(Template)]
 #[template(path = "create.html")]
 struct CreateTemplate;
@@ -63,7 +56,8 @@ struct CreateCustomerForm {
     country: String,
     hvac: Option<String>,
     electrical: Option<String>,
-    terms: String,
+    // Checked checkboxes submit "on"; unchecked ones are omitted from the form.
+    terms: Option<String>,
 }
 
 #[tokio::main]
@@ -107,8 +101,8 @@ async fn main() {
         .route("/transaction", get(make_transaction_page))
         .route("/api/create", post(create_customer))
         .route("/api/list", get(list_customers))
-        .route("/api/delete/:customer_id", delete(delete_customer))
-        .route("/api/transaction/:token", post(process_transaction))
+        .route("/api/delete/{customer_id}", delete(delete_customer))
+        .route("/api/transaction/{token}", post(process_transaction))
         .nest_service("/static", ServeDir::new("static"))
         .layer(TraceLayer::new_for_http())
         .with_state(state);
@@ -137,6 +131,13 @@ async fn create_customer(
     State(state): State<Arc<AppState>>,
     Form(form): Form<CreateCustomerForm>,
 ) -> Response {
+    if form.terms.as_deref() != Some("on") {
+        return Html(
+            r#"<input type="text" name="invalid" value="You must accept the terms and conditions." aria-invalid="true" id="form-result" readonly>"#,
+        )
+        .into_response();
+    }
+
     let time_zone = form.time_zone.clone();
 
     let mut additional_fields = std::collections::HashMap::new();

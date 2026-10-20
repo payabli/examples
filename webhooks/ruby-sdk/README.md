@@ -15,7 +15,7 @@ This sample uses the GetPaid v2 transaction endpoint via `money_in.getpaidv_2(..
 
 ## Prerequisites
 
-- Ruby 3.1+
+- Ruby 3.3+ (required by the `payabli` gem)
 - [Bundler](https://bundler.io)
 - A [Payabli OAuth client ID and secret](https://docs.payabli.com)
 - A tunnel tool such as [`ngrok`](https://ngrok.com/), [`localhost.run`](https://localhost.run/), or another local environment forwarder

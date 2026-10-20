@@ -1,9 +1,6 @@
 # Environment variables
 .env
 
-# Local SDK JAR
-lib/
-
 # Maven
 target/
 pom.xml.tag

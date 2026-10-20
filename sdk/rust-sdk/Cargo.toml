@@ -5,14 +5,13 @@ edition = "2021"
 
 [dependencies]
 payabli_api = "2.0.20"
-axum = "0.7"
-tokio = { version = "1", features = ["full"] }
-tower = "0.5"
-tower-http = { version = "0.6", features = ["fs", "trace"] }
-serde = { version = "1.0", features = ["derive"] }
-serde_json = "1.0"
-askama = "0.12"
-askama_axum = "0.4"
-dotenvy = "0.15"
-tracing = "0.1"
-tracing-subscriber = { version = "0.3", features = ["env-filter"] }
+axum = "0.8.9"
+tokio = { version = "1.54", features = ["full"] }
+tower-http = { version = "0.7.1", features = ["fs", "trace"] }
+serde = { version = "1.0.229", features = ["derive"] }
+# `config` (askama.toml support) is disabled: this app uses the default
+# templates/ dir, and that feature pulls in the unmaintained basic-toml crate.
+askama = { version = "0.16.1", default-features = false, features = ["derive", "std", "urlencode"] }
+dotenvy = "0.15.7"
+tracing = "0.1.44"
+tracing-subscriber = { version = "0.3.23", features = ["env-filter"] }

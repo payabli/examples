@@ -15,7 +15,7 @@ This sample uses the GetPaid v2 transaction endpoint via `MoneyIn.Getpaidv2Async
 
 ## Prerequisites
 
-- [.NET 8 SDK](https://dotnet.microsoft.com/download/dotnet/8.0) or later
+- [.NET 10 SDK](https://dotnet.microsoft.com/download/dotnet/10.0) or later
 - A [Payabli OAuth2 client ID and client secret](https://docs.payabli.com)
 - A tunnel tool such as [`ngrok`](https://ngrok.com/), [`localhost.run`](https://localhost.run/), or another local environment forwarder
 

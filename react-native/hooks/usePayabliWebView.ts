@@ -33,11 +33,16 @@ export type {
 
 export { createDefaultPaymentRequest };
 
+// react-native-webview 14 declares `class WebView<P = undefined>`, so the bare
+// `WebView` type resolves its props to `WebViewProps & undefined` (= never).
+// Pin the extra-props parameter to `object` until the upstream default is fixed.
+export type PayabliWebViewInstance = WebView<object>;
+
 export const usePayabliWebView = (
   paymentMethod: PayabliPaymentMethod,
   paymentRequest: PayabliPaymentRequest,
 ) => {
-  const webViewRef = useRef<WebView>(null);
+  const webViewRef = useRef<PayabliWebViewInstance>(null);
   const nextLogIdRef = useRef(1);
   const [isPaymentReady, setIsPaymentReady] = useState(false);
   const [webViewHeight, setWebViewHeight] = useState(360);

@@ -99,7 +99,7 @@ git clone https://github.com/payabli/examples
 cd examples/boarding
 ```
 
-3. Install the dependencies. The app needs Node.js 22.12 or later.
+3. Install the dependencies. The app needs Node.js 22.22 or later.
 
 ```bash
 npm install
