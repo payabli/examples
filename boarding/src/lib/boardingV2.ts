@@ -660,10 +660,10 @@ export type TransitionResult = {
   allowedActions: string[]
 }
 
-// Typed and drawn variants take `signature` inline; the out-of-band variant
-// (already signed via an external e-sign vendor) sends `signedDocumentReference`
-// instead and omits `signature`/`signatureType`. This app only supports the
-// typed variant -- it has no signature-drawing canvas.
+// Every submit needs `signature` and `signatureType`. `signedDocumentReference`
+// (a document signed in an external e-sign tool) no longer replaces them; the
+// API records it alongside the signature. This app only supports the typed
+// variant -- it has no signature-drawing canvas.
 export type SubmitApplicationSigner = {
   personReference: string
   // The signer's printed name. Required separately from `signature` -- the

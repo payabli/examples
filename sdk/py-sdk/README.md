@@ -8,6 +8,10 @@ The application has three pages:
 2. **List Customers** - this page lists all the customers in your paypoint.
 3. **Make Transaction** - this page has an embedded component to save payment methods securely and send them to the API to process transactions with the v2 `MoneyIn/getpaid` endpoint.
 
+## Prerequisites
+
+- Python 3.11+ (required by FastAPI)
+
 ## Setup Instructions
 
 1. Clone this repo and navigate to the project directory:
