@@ -8,11 +8,11 @@
     "typecheck": "tsc --noEmit -p ."
   },
   "dependencies": {
-    "@payabli/sdk-node": "^1.0.22",
-    "dotenv": "^18.0.8"
+    "@payabli/sdk-node": "^1.0.24",
+    "dotenv": "^18.0.10"
   },
   "devDependencies": {
-    "@types/node": "^26.1.0",
+    "@types/node": "^26.6.6",
     "tsx": "^4.23.15",
     "typescript": "^7.0.2"
   }
