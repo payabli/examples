@@ -41,7 +41,7 @@
         <dependency>
             <groupId>io.github.payabli</groupId>
             <artifactId>sdk-java</artifactId>
-            <version>1.0.24</version>
+            <version>1.0.26</version>
         </dependency>
 
         <!-- OkHttp 5 publishes its JVM classes in okhttp-jvm; Maven doesn't read Gradle
