@@ -9,7 +9,7 @@
 
   <ItemGroup>
     <PackageReference Include="DotNetEnv" Version="3.2.0" />
-    <PackageReference Include="PayabliApi" Version="1.1.20" />
+    <PackageReference Include="PayabliApi" Version="1.1.22" />
   </ItemGroup>
 
 </Project>
